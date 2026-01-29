@@ -1,0 +1,1 @@
+export { migrateDbIfNeeded } from './migrations';

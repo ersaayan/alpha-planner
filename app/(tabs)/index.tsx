@@ -1,98 +1,303 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { StyleSheet, View, ScrollView } from 'react-native';
+import { Text, Card, Button } from '@ui-kitten/components';
+import { Icon } from '@/components/icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { useTodoStore, usePomodoroStore, useGamificationStore } from '@/stores';
+import { getLevelTitle } from '@/constants/gamification';
+import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const todos = useTodoStore((state) => state.todos);
+  // Select primitive values to ensure re-renders
+  const timerState = usePomodoroStore((state) => state.timer.state);
+  const timerPhase = usePomodoroStore((state) => state.timer.phase);
+  const remainingTime = usePomodoroStore((state) => state.timer.remainingTime);
+  const stats = useGamificationStore((state) => state.stats);
+  const getXpProgress = useGamificationStore((state) => state.getXpProgress);
+
+  // Calculate formatted time locally instead of using store function
+  const formatTime = () => {
+    const minutes = Math.floor(remainingTime / 60);
+    const seconds = remainingTime % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const pendingTodos = todos.filter((t) => t.status === 'pending' || t.status === 'in_progress');
+  const todayCompleted = todos.filter(
+    (t) =>
+      t.status === 'completed' &&
+      t.completedAt &&
+      new Date(t.completedAt).toDateString() === new Date().toDateString()
+  ).length;
+
+  const xpProgress = getXpProgress();
+
+  return (
+    <ScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 100 }}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <Text category="h4" style={{ color: colors.text }}>
+          Alpha Planner
+        </Text>
+        <Text category="s1" style={{ color: colors.textSecondary }}>
+          Level {stats.level} - {getLevelTitle(stats.level)}
+        </Text>
+      </View>
+
+      {/* XP Progress */}
+      <Card style={[styles.card, { backgroundColor: colors.card }]}>
+        <View style={styles.xpContainer}>
+          <View style={styles.xpHeader}>
+            <Text category="s1">Experience</Text>
+            <Text category="c1">
+              {xpProgress.current} / {xpProgress.required} XP
+            </Text>
+          </View>
+          <View style={[styles.progressBar, { backgroundColor: colors.backgroundSecondary }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${Math.min(xpProgress.percentage, 100)}%`,
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      </Card>
+
+      {/* Quick Stats */}
+      <View style={styles.statsRow}>
+        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
+          <Icon name="flash-outline" fill={colors.primary} style={styles.statIcon} />
+          <Text category="h6">{stats.currentStreak}</Text>
+          <Text category="c1" style={{ color: colors.textMuted }}>
+            Day Streak
+          </Text>
+        </Card>
+        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
+          <Icon name="checkmark-circle-outline" fill={colors.primary} style={styles.statIcon} />
+          <Text category="h6">{todayCompleted}</Text>
+          <Text category="c1" style={{ color: colors.textMuted }}>
+            Done Today
+          </Text>
+        </Card>
+        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
+          <Icon name="clock-outline" fill={colors.primary} style={styles.statIcon} />
+          <Text category="h6">{stats.totalPomodoros}</Text>
+          <Text category="c1" style={{ color: colors.textMuted }}>
+            Pomodoros
+          </Text>
+        </Card>
+      </View>
+
+      {/* Timer Status */}
+      {timerState !== 'stopped' && (
+        <Card
+          style={[styles.card, { backgroundColor: colors.card }]}
+          onPress={() => router.push('/(tabs)/pomodoro')}
+        >
+          <View style={styles.timerCard}>
+            <View>
+              <Text category="s1">
+                {timerPhase === 'focus' ? 'Focus Time' : 'Break Time'}
+              </Text>
+              <Text category="h4" style={{ color: colors.primary }}>
+                {formatTime()}
+              </Text>
+            </View>
+            <Icon
+              name={timerState === 'running' ? 'pause-circle-outline' : 'play-circle-outline'}
+              fill={colors.primary}
+              style={{ width: 48, height: 48 }}
+            />
+          </View>
+        </Card>
+      )}
+
+      {/* Upcoming Tasks */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text category="h6">Upcoming Tasks</Text>
+          <Button
+            size="tiny"
+            appearance="ghost"
+            onPress={() => router.push('/(tabs)/todos')}
+          >
+            See All
+          </Button>
+        </View>
+
+        {pendingTodos.length === 0 ? (
+          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+            <View style={styles.emptyState}>
+              <Icon name="checkmark-circle-2-outline" fill={colors.textMuted} style={styles.emptyIcon} />
+              <Text category="s1" style={{ color: colors.textMuted }}>
+                All caught up!
+              </Text>
+              <Button
+                size="small"
+                appearance="outline"
+                style={{ marginTop: Spacing.md }}
+                onPress={() => router.push('/todo/create')}
+              >
+                Add a Task
+              </Button>
+            </View>
+          </Card>
+        ) : (
+          pendingTodos.slice(0, 3).map((todo) => (
+            <Card
+              key={todo.id}
+              style={[styles.todoCard, { backgroundColor: colors.card }]}
+              onPress={() => router.push(`/todo/${todo.id}`)}
+            >
+              <View style={styles.todoItem}>
+                <View style={styles.todoContent}>
+                  <Text category="s1" numberOfLines={1}>
+                    {todo.title}
+                  </Text>
+                  {todo.dueDate && (
+                    <Text category="c1" style={{ color: colors.textMuted }}>
+                      Due: {new Date(todo.dueDate).toLocaleDateString()}
+                    </Text>
+                  )}
+                </View>
+                <Icon name="chevron-right-outline" fill={colors.textMuted} style={styles.chevron} />
+              </View>
+            </Card>
+          ))
+        )}
+      </View>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <Text category="h6" style={{ marginBottom: Spacing.sm }}>
+          Quick Actions
+        </Text>
+        <View style={styles.actionsRow}>
+          <Button
+            style={styles.actionButton}
+            appearance="outline"
+            accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
+            onPress={() => router.push('/todo/create')}
+          >
+            New Task
+          </Button>
+          <Button
+            style={styles.actionButton}
+            accessoryLeft={(props) => <Icon {...props} name="play-circle-outline" />}
+            onPress={() => router.push('/(tabs)/pomodoro')}
+          >
+            Start Focus
+          </Button>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    paddingHorizontal: Spacing.md,
+  },
+  header: {
+    marginBottom: Spacing.lg,
+  },
+  card: {
+    marginBottom: Spacing.md,
+    borderRadius: BorderRadius.lg,
+  },
+  xpContainer: {
+    padding: Spacing.sm,
+  },
+  xpHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.xs,
+  },
+  progressBar: {
+    height: 8,
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: BorderRadius.full,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+  },
+  statIcon: {
+    width: 24,
+    height: 24,
+    marginBottom: Spacing.xs,
+  },
+  timerCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.sm,
+  },
+  section: {
+    marginBottom: Spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  emptyState: {
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  emptyIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: Spacing.sm,
+  },
+  todoCard: {
+    marginBottom: Spacing.xs,
+    borderRadius: BorderRadius.md,
+  },
+  todoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  todoContent: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  chevron: {
+    width: 20,
+    height: 20,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  actionButton: {
+    flex: 1,
   },
 });
