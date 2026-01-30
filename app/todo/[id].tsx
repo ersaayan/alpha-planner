@@ -131,6 +131,10 @@ export default function TodoDetailScreen() {
     router.push('/(tabs)/pomodoro');
   };
 
+  const handleUnlinkFromPomodoro = () => {
+    linkTodo(null);
+  };
+
   const completedSubtasks = todo.subtasks.filter((s) => s.isCompleted).length;
   const subtaskProgress = todo.subtasks.length > 0 ? completedSubtasks / todo.subtasks.length : 0;
 
@@ -368,13 +372,23 @@ export default function TodoDetailScreen() {
             >
               Edit
             </Button>
-            <Button
-              accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
-              onPress={handleLinkToPomodoro}
-              disabled={timer.linkedTodoId === id}
-            >
-              {timer.linkedTodoId === id ? 'Linked' : 'Start Focus'}
-            </Button>
+            {timer.linkedTodoId === id ? (
+              <Button
+                appearance="ghost"
+                status="basic"
+                accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
+                onPress={handleUnlinkFromPomodoro}
+              >
+                Unlink
+              </Button>
+            ) : (
+              <Button
+                accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
+                onPress={handleLinkToPomodoro}
+              >
+                Start Focus
+              </Button>
+            )}
           </>
         )}
       </View>

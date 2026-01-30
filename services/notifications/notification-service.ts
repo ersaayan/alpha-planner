@@ -297,6 +297,58 @@ class NotificationService {
     });
   }
 
+  async sendPhaseStartNotification(
+    phase: 'focus' | 'short_break' | 'long_break',
+    options?: { soundEnabled?: boolean; vibrationEnabled?: boolean }
+  ): Promise<void> {
+    if (!this.hasPermission) {
+      console.warn('Notification permission not granted');
+      return;
+    }
+
+    const messages = {
+      focus: {
+        title: 'Focus Started 🎯',
+        body: 'Time to focus. You got this!',
+      },
+      short_break: {
+        title: 'Break Started ☕',
+        body: 'Take a short breather.',
+      },
+      long_break: {
+        title: 'Long Break Started 🌟',
+        body: 'Enjoy a longer rest.',
+      },
+    };
+
+    const message = messages[phase];
+
+    const soundEnabled = options?.soundEnabled ?? true;
+    const vibrationEnabled = options?.vibrationEnabled ?? true;
+
+    const channelId =
+      soundEnabled && vibrationEnabled
+        ? COMPLETION_CHANNELS.soundVibrate
+        : soundEnabled
+          ? COMPLETION_CHANNELS.soundOnly
+          : vibrationEnabled
+            ? COMPLETION_CHANNELS.vibrateOnly
+            : COMPLETION_CHANNELS.silent;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: message.title,
+        body: message.body,
+        sound: soundEnabled ? 'timer-complete.wav' : false,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        ...(Platform.OS === 'android' && {
+          channelId,
+        }),
+      },
+      trigger: null,
+    });
+  }
+
   async sendReminderNotification(todoTitle: string): Promise<void> {
     if (!this.hasPermission) return;
 

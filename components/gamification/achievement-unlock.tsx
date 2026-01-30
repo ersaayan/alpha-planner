@@ -1,0 +1,330 @@
+/**
+ * AchievementUnlock - Achievement unlock celebration popup
+ */
+
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Dimensions, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  withSequence,
+  withDelay,
+  runOnJS,
+} from 'react-native-reanimated';
+import { Text } from '@ui-kitten/components';
+import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
+import { SpringConfig, AnimationDuration } from '@/constants/animations';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Icon } from '@/components/icon';
+import { AchievementBadge } from '@/components/animated/animated-badge';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+interface AchievementUnlockProps {
+  visible: boolean;
+  icon: string;
+  title: string;
+  description: string;
+  xpReward?: number;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  onClose: () => void;
+  autoDismiss?: boolean;
+  autoDismissDelay?: number;
+}
+
+export function AchievementUnlock({
+  visible,
+  icon,
+  title,
+  description,
+  xpReward = 100,
+  rarity = 'common',
+  onClose,
+  autoDismiss = true,
+  autoDismissDelay = 4000,
+}: AchievementUnlockProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  const translateY = useSharedValue(200);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.8);
+  const badgeScale = useSharedValue(0);
+
+  const rarityColors = {
+    common: GamificationColors.achievementBronze,
+    rare: GamificationColors.achievementSilver,
+    epic: GamificationColors.achievementGold,
+    legendary: '#9B59B6',
+  };
+
+  const rarityLabels = {
+    common: 'Common',
+    rare: 'Rare',
+    epic: 'Epic',
+    legendary: 'Legendary',
+  };
+
+  useEffect(() => {
+    if (visible) {
+      // Animate in
+      translateY.value = withSpring(0, SpringConfig.bouncy);
+      opacity.value = withTiming(1, { duration: AnimationDuration.fast });
+      scale.value = withSpring(1, SpringConfig.default);
+
+      // Badge pop in
+      badgeScale.value = withDelay(
+        200,
+        withSequence(
+          withSpring(1.2, SpringConfig.wobbly),
+          withSpring(1, SpringConfig.default)
+        )
+      );
+
+      // Auto dismiss
+      if (autoDismiss) {
+        const hideDelay = autoDismissDelay - AnimationDuration.medium;
+        translateY.value = withDelay(
+          hideDelay,
+          withTiming(200, { duration: AnimationDuration.medium }, (finished) => {
+            if (finished) {
+              runOnJS(onClose)();
+            }
+          })
+        );
+        opacity.value = withDelay(
+          hideDelay,
+          withTiming(0, { duration: AnimationDuration.medium })
+        );
+      }
+    }
+  }, [visible, autoDismiss, autoDismissDelay]);
+
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+    opacity: opacity.value,
+  }));
+
+  const badgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+  }));
+
+  if (!visible) return null;
+
+  return (
+    <Pressable style={styles.overlay} onPress={onClose}>
+      <Animated.View
+        style={[
+          styles.container,
+          { backgroundColor: colors.card },
+          Shadows.xl,
+          containerStyle,
+        ]}
+      >
+        {/* Decorative background */}
+        <View style={[styles.glowBg, { backgroundColor: rarityColors[rarity] }]} />
+
+        {/* Achievement unlocked header */}
+        <View style={[styles.header, { borderBottomColor: colors.border }]}>
+          <Icon
+            name="unlock"
+            fill={rarityColors[rarity]}
+            style={styles.unlockIcon}
+          />
+          <Text style={[styles.headerText, { color: rarityColors[rarity] }]}>
+            ACHIEVEMENT UNLOCKED
+          </Text>
+        </View>
+
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Badge */}
+          <Animated.View style={[styles.badgeContainer, badgeStyle]}>
+            <View style={[styles.badgeGlow, { backgroundColor: rarityColors[rarity] }]} />
+            <View style={[styles.badge, { borderColor: rarityColors[rarity] }]}>
+              <Icon
+                name={icon}
+                fill={rarityColors[rarity]}
+                style={styles.badgeIcon}
+              />
+            </View>
+          </Animated.View>
+
+          {/* Title and description */}
+          <Text style={[styles.title, { color: colors.text }]}>
+            {title}
+          </Text>
+          <Text style={[styles.description, { color: colors.textSecondary }]}>
+            {description}
+          </Text>
+
+          {/* Rarity and XP */}
+          <View style={styles.rewardsRow}>
+            <View style={[styles.rarityBadge, { backgroundColor: rarityColors[rarity] + '20' }]}>
+              <Text style={[styles.rarityText, { color: rarityColors[rarity] }]}>
+                {rarityLabels[rarity]}
+              </Text>
+            </View>
+            <View style={[styles.xpBadge, { backgroundColor: GamificationColors.xp + '20' }]}>
+              <Icon
+                name="star"
+                fill={GamificationColors.xp}
+                style={styles.xpIcon}
+              />
+              <Text style={[styles.xpText, { color: GamificationColors.xp }]}>
+                +{xpReward} XP
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Sparkles */}
+        {[...Array(8)].map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.sparkle,
+              {
+                backgroundColor: GamificationColors.confettiColors[i % GamificationColors.confettiColors.length],
+                transform: [
+                  { rotate: `${i * 45}deg` },
+                  { translateY: -100 },
+                ],
+              },
+            ]}
+          />
+        ))}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  container: {
+    width: SCREEN_WIDTH - Spacing.xl * 2,
+    maxWidth: 360,
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+  },
+  glowBg: {
+    position: 'absolute',
+    top: -50,
+    left: '50%',
+    marginLeft: -100,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    opacity: 0.1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  unlockIcon: {
+    width: 16,
+    height: 16,
+    marginRight: Spacing.sm,
+  },
+  headerText: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.xs,
+    letterSpacing: 1,
+  },
+  content: {
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
+  badgeContainer: {
+    marginBottom: Spacing.lg,
+  },
+  badgeGlow: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    right: -10,
+    bottom: -10,
+    borderRadius: 50,
+    opacity: 0.3,
+  },
+  badge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  badgeIcon: {
+    width: 36,
+    height: 36,
+  },
+  title: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.lg,
+    textAlign: 'center',
+  },
+  description: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: FontSize.sm * 1.5,
+  },
+  rewardsRow: {
+    flexDirection: 'row',
+    marginTop: Spacing.lg,
+    gap: Spacing.md,
+  },
+  rarityBadge: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  rarityText: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.xs,
+  },
+  xpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  xpIcon: {
+    width: 12,
+    height: 12,
+    marginRight: 4,
+  },
+  xpText: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.xs,
+  },
+  sparkle: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+});
+
+export default AchievementUnlock;

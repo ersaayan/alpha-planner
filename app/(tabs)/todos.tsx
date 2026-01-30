@@ -1,22 +1,35 @@
-import { useState, useMemo } from 'react';
-import { StyleSheet, View, FlatList, Pressable } from 'react-native';
-import { Text, Button, Input, Card } from '@ui-kitten/components';
+import { useState, useMemo, useCallback } from 'react';
+import { StyleSheet, View, FlatList, Pressable, TextInput } from 'react-native';
+import { Text, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  FadeIn,
+  FadeOut,
+  Layout,
+} from 'react-native-reanimated';
 
 import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
-import type { TodoStatus } from '@/types';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import type { TodoStatus, Todo } from '@/types';
+import { Colors, Spacing, BorderRadius, Shadows, InterFonts, FontSize } from '@/constants/theme';
+import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { formatDate } from '@/utils/date';
+
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedCheckbox } from '@/components/animated/animated-checkbox';
+import { AnimatedButton } from '@/components/animated/animated-button';
 
 const STATUS_TABS: { label: string; value: TodoStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
   { label: 'Pending', value: 'pending' },
   { label: 'In Progress', value: 'in_progress' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'Archived', value: 'archived' },
+  { label: 'Done', value: 'completed' },
 ];
 
 export default function TodosScreen() {
@@ -48,12 +61,12 @@ export default function TodosScreen() {
     });
   }, [todos, activeTab, searchQuery]);
 
-  const getCategoryName = (categoryId: string | null) => {
+  const getCategoryName = useCallback((categoryId: string | null) => {
     if (!categoryId) return null;
     return categories.find((c) => c.id === categoryId)?.name;
-  };
+  }, [categories]);
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = useCallback((priority: string) => {
     switch (priority) {
       case 'urgent':
         return colors.priorityUrgent;
@@ -64,207 +77,219 @@ export default function TodosScreen() {
       default:
         return colors.priorityLow;
     }
-  };
+  }, [colors]);
+
+  const handleTodoPress = useCallback((todoId: string) => {
+    router.push(`/todo/${todoId}`);
+  }, [router]);
+
+  const renderTodoItem = useCallback(({ item }: { item: Todo }) => (
+    <Animated.View
+      entering={FadeIn.duration(200)}
+      layout={Layout.springify()}
+    >
+      <AnimatedCard
+        variant="default"
+        style={styles.todoCard}
+        contentStyle={styles.todoCardContent}
+        accentColor={getPriorityColor(item.priority)}
+        accentPosition="left"
+        onPress={() => handleTodoPress(item.id)}
+      >
+        <View style={styles.todoItem}>
+          {/* Checkbox */}
+          <AnimatedCheckbox
+            checked={item.status === 'completed'}
+            onToggle={() => toggleTodoStatus(item.id)}
+            size={22}
+            color={colors.primary}
+          />
+
+          {/* Content */}
+          <View style={styles.todoContent}>
+            <Text
+              style={[
+                styles.todoTitle,
+                { color: colors.text },
+                item.status === 'completed' && styles.completedText,
+              ]}
+              numberOfLines={1}
+            >
+              {item.title}
+            </Text>
+
+            <View style={styles.todoMeta}>
+              {/* Category chip */}
+              {item.categoryId && (
+                <View
+                  style={[
+                    styles.categoryChip,
+                    { backgroundColor: getCategoryColor(item.categoryId) + '20' },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.categoryDot,
+                      { backgroundColor: getCategoryColor(item.categoryId) },
+                    ]}
+                  />
+                  <Text style={[styles.categoryText, { color: getCategoryColor(item.categoryId) }]}>
+                    {getCategoryName(item.categoryId)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Due date */}
+              {item.dueDate && (
+                <View style={styles.dueDateContainer}>
+                  <Icon name="calendar" fill={colors.textMuted} style={styles.metaIcon} />
+                  <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
+                    {formatDate(new Date(item.dueDate), dateFormat)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Subtask count */}
+              {item.subtasks.length > 0 && (
+                <View style={styles.subtaskContainer}>
+                  <Icon name="layers" fill={colors.textMuted} style={styles.metaIcon} />
+                  <Text style={[styles.subtaskText, { color: colors.textMuted }]}>
+                    {item.subtasks.filter((s) => s.isCompleted).length}/{item.subtasks.length}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <Icon name="chevron-right" fill={colors.textMuted} style={styles.chevron} />
+        </View>
+      </AnimatedCard>
+    </Animated.View>
+  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, getPriorityColor, handleTodoPress, dateFormat]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text category="h5">My Tasks</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>My Tasks</Text>
         <View style={styles.headerActions}>
           {/* View Toggle Buttons */}
-          <View style={styles.viewToggle} accessibilityRole="tablist">
+          <View style={styles.viewToggle}>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/kanban')}
               accessibilityRole="button"
-              accessibilityLabel="Kanban board view"
-              accessibilityHint="Opens tasks in a kanban board layout"
+              accessibilityLabel="Kanban view"
             >
-              <Icon name="grid-outline" fill={colors.primary} size={18} />
+              <Icon name="grid" fill={colors.primary} style={styles.viewIcon} />
             </Pressable>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/calendar')}
               accessibilityRole="button"
               accessibilityLabel="Calendar view"
-              accessibilityHint="Opens tasks in a calendar layout"
             >
-              <Icon name="calendar-outline" fill={colors.primary} size={18} />
+              <Icon name="calendar" fill={colors.primary} style={styles.viewIcon} />
             </Pressable>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/timeline')}
               accessibilityRole="button"
               accessibilityLabel="Timeline view"
-              accessibilityHint="Opens tasks in a timeline layout"
             >
-              <Icon name="activity-outline" fill={colors.primary} size={18} />
+              <Icon name="activity" fill={colors.primary} style={styles.viewIcon} />
             </Pressable>
           </View>
-          <Button
-            size="small"
-            accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
+          <AnimatedButton
+            title="Add"
+            icon="plus"
+            variant="primary"
+            size="sm"
             onPress={() => router.push('/todo/create')}
-          >
-            Add
-          </Button>
+          />
         </View>
       </View>
 
       {/* Search */}
-      <Input
-        style={styles.searchInput}
-        placeholder="Search tasks..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        accessoryLeft={(props) => <Icon {...props} name="search-outline" />}
-        accessoryRight={
-          searchQuery
-            ? (props) => (
-                <Pressable onPress={() => setSearchQuery('')}>
-                  <Icon {...props} name="close-outline" />
-                </Pressable>
-              )
-            : undefined
-        }
-      />
-
-      {/* Status Tabs */}
-      <View style={styles.tabs}>
-        {STATUS_TABS.map((tab) => (
-          <Pressable
-            key={tab.value}
-            style={[
-              styles.tab,
-              {
-                backgroundColor: activeTab === tab.value
-                  ? colors.primary
-                  : colors.backgroundSecondary,
-              },
-            ]}
-            onPress={() => setActiveTab(tab.value)}
-          >
-            <Text
-              category="c1"
-              style={{
-                color: activeTab === tab.value ? '#fff' : colors.text,
-              }}
-            >
-              {tab.label}
-            </Text>
+      <View style={[styles.searchContainer, { backgroundColor: colors.card }]}>
+        <Icon name="search" fill={colors.textMuted} style={styles.searchIcon} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Search tasks..."
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery('')}>
+            <Icon name="close-circle" fill={colors.textMuted} style={styles.clearIcon} />
           </Pressable>
-        ))}
+        )}
+      </View>
+
+      {/* Status Tabs - Pill style */}
+      <View style={styles.tabsContainer}>
+        <View style={[styles.tabsBackground, { backgroundColor: colors.backgroundSecondary }]}>
+          {STATUS_TABS.map((tab) => {
+            const isActive = activeTab === tab.value;
+            return (
+              <Pressable
+                key={tab.value}
+                style={[
+                  styles.tab,
+                  isActive && [styles.activeTab, { backgroundColor: colors.card }],
+                ]}
+                onPress={() => setActiveTab(tab.value)}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    { color: isActive ? colors.primary : colors.textMuted },
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {/* Todo List */}
       {filteredTodos.length === 0 ? (
         <View style={styles.emptyState}>
-          <Icon name="clipboard-outline" fill={colors.textMuted} style={styles.emptyIcon} />
-          <Text category="s1" style={{ color: colors.textMuted }}>
+          <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '20' }]}>
+            <Icon name="clipboard" fill={colors.primary} style={styles.emptyIcon} />
+          </View>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
             No tasks found
           </Text>
-          <Button
-            size="small"
-            appearance="ghost"
-            style={{ marginTop: Spacing.md }}
-            onPress={() => router.push('/todo/create')}
-          >
-            Create your first task
-          </Button>
+          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+            {searchQuery
+              ? 'Try a different search term'
+              : activeTab !== 'all'
+                ? `No ${activeTab.replace('_', ' ')} tasks`
+                : 'Create your first task to get started'
+            }
+          </Text>
+          {!searchQuery && activeTab === 'all' && (
+            <AnimatedButton
+              title="Create Task"
+              icon="plus"
+              variant="outline"
+              size="sm"
+              onPress={() => router.push('/todo/create')}
+              style={styles.emptyButton}
+            />
+          )}
         </View>
       ) : (
         <FlatList
           data={filteredTodos}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <Card
-              style={[styles.todoCard, { backgroundColor: colors.card }]}
-              onPress={() => router.push(`/todo/${item.id}`)}
-            >
-              <View style={styles.todoItem}>
-                {/* Checkbox */}
-                <Pressable
-                  style={[
-                    styles.checkbox,
-                    {
-                      borderColor: item.status === 'completed' ? colors.primary : colors.border,
-                      backgroundColor: item.status === 'completed' ? colors.primary : 'transparent',
-                    },
-                  ]}
-                  onPress={() => toggleTodoStatus(item.id)}
-                >
-                  {item.status === 'completed' && (
-                    <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
-                  )}
-                </Pressable>
-
-                {/* Content */}
-                <View style={styles.todoContent}>
-                  <Text
-                    category="s1"
-                    style={[
-                      item.status === 'completed' && styles.completedText,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.title}
-                  </Text>
-
-                  <View style={styles.todoMeta}>
-                    {/* Priority indicator */}
-                    <View
-                      style={[
-                        styles.priorityDot,
-                        { backgroundColor: getPriorityColor(item.priority) },
-                      ]}
-                    />
-
-                    {/* Category */}
-                    {item.categoryId && (
-                      <View
-                        style={[
-                          styles.categoryBadge,
-                          { backgroundColor: getCategoryColor(item.categoryId) + '20' },
-                        ]}
-                      >
-                        <Text
-                          category="c2"
-                          style={{ color: getCategoryColor(item.categoryId) }}
-                        >
-                          {getCategoryName(item.categoryId)}
-                        </Text>
-                      </View>
-                    )}
-
-                    {/* Due date */}
-                    {item.dueDate && (
-                      <Text category="c1" style={{ color: colors.textMuted }}>
-                        {formatDate(new Date(item.dueDate), dateFormat)}
-                      </Text>
-                    )}
-
-                    {/* Subtask count */}
-                    {item.subtasks.length > 0 && (
-                      <View style={styles.subtaskBadge}>
-                        <Icon
-                          name="layers-outline"
-                          fill={colors.textMuted}
-                          style={styles.subtaskIcon}
-                        />
-                        <Text category="c1" style={{ color: colors.textMuted }}>
-                          {item.subtasks.filter((s) => s.isCompleted).length}/{item.subtasks.length}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-
-                <Icon name="chevron-right-outline" fill={colors.textMuted} style={styles.chevron} />
-              </View>
-            </Card>
-          )}
+          renderItem={renderTodoItem}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -280,36 +305,76 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  headerTitle: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.xxl,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
   viewToggle: {
     flexDirection: 'row',
     gap: Spacing.xs,
   },
   viewButton: {
-    padding: Spacing.xs,
-    borderRadius: BorderRadius.sm,
+    padding: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    ...Shadows.sm,
+  },
+  viewIcon: {
+    width: 18,
+    height: 18,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    ...Shadows.sm,
+  },
+  searchIcon: {
+    width: 20,
+    height: 20,
+    marginRight: Spacing.sm,
   },
   searchInput: {
-    marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderRadius: BorderRadius.lg,
+    flex: 1,
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.md,
+    paddingVertical: Spacing.xs,
   },
-  tabs: {
-    flexDirection: 'row',
+  clearIcon: {
+    width: 20,
+    height: 20,
+  },
+  tabsContainer: {
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
-    gap: Spacing.xs,
+  },
+  tabsBackground: {
+    flexDirection: 'row',
+    padding: 4,
+    borderRadius: BorderRadius.lg,
   },
   tab: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+    borderRadius: BorderRadius.md,
+  },
+  activeTab: {
+    ...Shadows.sm,
+  },
+  tabText: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.sm,
   },
   listContent: {
     paddingHorizontal: Spacing.md,
@@ -317,27 +382,23 @@ const styles = StyleSheet.create({
   },
   todoCard: {
     marginBottom: Spacing.sm,
-    borderRadius: BorderRadius.md,
+  },
+  todoCardContent: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.lg,
   },
   todoItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 2,
-    marginRight: Spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkIcon: {
-    width: 16,
-    height: 16,
-  },
   todoContent: {
     flex: 1,
+    marginLeft: Spacing.md,
+  },
+  todoTitle: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.md,
   },
   completedText: {
     textDecorationLine: 'line-through',
@@ -346,27 +407,47 @@ const styles = StyleSheet.create({
   todoMeta: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
-    marginTop: 4,
+    marginTop: 6,
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  categoryBadge: {
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.sm,
-  },
-  subtaskBadge: {
+  categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
   },
-  subtaskIcon: {
+  categoryDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  categoryText: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+  },
+  dueDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dueDateText: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
+  },
+  metaIcon: {
     width: 12,
     height: 12,
+    marginRight: 3,
+  },
+  subtaskContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  subtaskText: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
   },
   chevron: {
     width: 20,
@@ -376,11 +457,32 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
     paddingBottom: 100,
   },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
   emptyIcon: {
-    width: 64,
-    height: 64,
-    marginBottom: Spacing.md,
+    width: 40,
+    height: 40,
+  },
+  emptyTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.lg,
+    marginBottom: Spacing.xs,
+  },
+  emptySubtitle: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    marginTop: Spacing.lg,
   },
 });

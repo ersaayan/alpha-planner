@@ -1,20 +1,46 @@
 import { Tabs } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { Icon } from '@/components/icon';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { HapticTab } from '@/components/haptic-tab';
+import { CustomTabBar } from '@/components/navigation';
 import { usePomodoroStore, useSettingsStore } from '@/stores';
 import { notificationService } from '@/services/notifications';
-import { cancelScheduledTimerNotifications } from '@/services/background';
+import {
+  cancelScheduledTimerNotifications,
+  scheduleTimerNotification,
+} from '@/services/background';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const notificationsEnabled = useSettingsStore(
-    (state) => state.settings.notificationsEnabled
+  const notificationsEnabled = useSettingsStore((state) => state.settings.notificationsEnabled);
+  const soundEnabled = useSettingsStore((state) => state.settings.soundEnabled);
+  const vibrationEnabled = useSettingsStore((state) => state.pomodoroSettings.vibrationEnabled);
+
+  const timerState = usePomodoroStore((state) => state.timer.state);
+  const timerPhase = usePomodoroStore((state) => state.timer.phase);
+  const timerStartedAt = usePomodoroStore((state) => state.timer.startedAt);
+  const timerTotalTime = usePomodoroStore((state) => state.timer.totalTime);
+  const pausedRemainingTime = usePomodoroStore((state) =>
+    state.timer.state === 'paused' ? state.timer.remainingTime : null
   );
+  const pauseTimer = usePomodoroStore((state) => state.pauseTimer);
+  const resumeTimer = usePomodoroStore((state) => state.resumeTimer);
+  const stopTimer = usePomodoroStore((state) => state.stopTimer);
+
+  const [appState, setAppState] = useState(AppState.currentState);
+  const previousTimerStateRef = useRef(timerState);
+  const previousAppStateRef = useRef(appState);
+
+  useEffect(() => {
+    notificationService.setActionCallbacks({
+      onPause: pauseTimer,
+      onResume: resumeTimer,
+      onStop: stopTimer,
+    });
+  }, [pauseTimer, resumeTimer, stopTimer]);
 
   // Handle app state for background/foreground transitions
   useEffect(() => {
@@ -23,71 +49,112 @@ export default function TabLayout() {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       const previousState = appStateRef.current;
       appStateRef.current = nextAppState;
+      setAppState(nextAppState);
 
       // Get fresh timer state and actions from store
       const store = usePomodoroStore.getState();
       const currentTimer = store.timer;
 
-      // App going to background - show ongoing notification
-      if (
-        previousState === 'active' &&
-        (nextAppState === 'background' || nextAppState === 'inactive') &&
-        currentTimer.state === 'running' &&
-        currentTimer.startedAt
-      ) {
-        if (!notificationsEnabled) return;
-        const elapsed = Math.floor((Date.now() - currentTimer.startedAt) / 1000);
-        const currentRemaining = Math.max(0, currentTimer.totalTime - elapsed);
-
-        if (currentTimer.phase !== 'idle') {
-          notificationService.showTimerNotification(
-            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-            currentRemaining,
-            currentTimer.totalTime
-          );
-        }
-      }
-
       // App coming to foreground - update timer and dismiss notification
-      if (
-        nextAppState === 'active' &&
-        currentTimer.state === 'running' &&
-        currentTimer.startedAt
-      ) {
-        // Sync remaining time (accounts for pause-aware startedAt)
-        store.syncTimer({ fromBackground: previousState !== 'active' });
+      if (nextAppState === 'active') {
+        if (currentTimer.state === 'running' && currentTimer.startedAt) {
+          // Sync remaining time (accounts for pause-aware startedAt)
+          store.syncTimer({ fromBackground: previousState !== 'active' });
 
-        // Restart the interval (it may have been suspended in background)
-        if (usePomodoroStore.getState().timer.state === 'running') {
-          store._startTicking();
+          // Restart the interval (it may have been suspended in background)
+          if (usePomodoroStore.getState().timer.state === 'running') {
+            store._startTicking();
+          }
         }
 
-        // Dismiss the ongoing notification
+        // Dismiss the ongoing notification and cancel completion schedule
         notificationService.dismissTimerNotification();
+        cancelScheduledTimerNotifications();
       }
     });
 
     return () => subscription.remove();
-  }, [notificationsEnabled]);
+  }, []);
 
   useEffect(() => {
-    if (!notificationsEnabled) {
+    const prevTimerState = previousTimerStateRef.current;
+    const prevAppState = previousAppStateRef.current;
+    const isActive = appState === 'active';
+
+    if (!notificationsEnabled || isActive) {
       notificationService.dismissTimerNotification();
       cancelScheduledTimerNotifications();
+    } else {
+      if (timerPhase === 'idle' || timerState === 'stopped') {
+        notificationService.dismissTimerNotification();
+        cancelScheduledTimerNotifications();
+      } else if (timerState === 'paused') {
+        notificationService.showTimerNotification(
+          timerPhase as 'focus' | 'short_break' | 'long_break',
+          pausedRemainingTime ?? 0,
+          timerTotalTime,
+          true
+        );
+        cancelScheduledTimerNotifications();
+      } else if (timerState === 'running' && timerStartedAt) {
+        const elapsed = Math.floor((Date.now() - timerStartedAt) / 1000);
+        const remaining = Math.max(0, timerTotalTime - elapsed);
+
+        notificationService.showTimerNotification(
+          timerPhase as 'focus' | 'short_break' | 'long_break',
+          remaining,
+          timerTotalTime,
+          false
+        );
+
+        scheduleTimerNotification(
+          timerPhase as 'focus' | 'short_break' | 'long_break',
+          remaining,
+          {
+            soundEnabled,
+            vibrationEnabled,
+          }
+        );
+
+        const startedInBackground =
+          prevTimerState === 'stopped' &&
+          timerState === 'running' &&
+          prevAppState !== 'active' &&
+          appState !== 'active';
+
+        if (startedInBackground) {
+          notificationService.sendPhaseStartNotification(
+            timerPhase as 'focus' | 'short_break' | 'long_break',
+            {
+              soundEnabled,
+              vibrationEnabled,
+            }
+          );
+        }
+      }
     }
-  }, [notificationsEnabled]);
+
+    previousTimerStateRef.current = timerState;
+    previousAppStateRef.current = appState;
+  }, [
+    appState,
+    notificationsEnabled,
+    soundEnabled,
+    vibrationEnabled,
+    timerPhase,
+    timerState,
+    timerStartedAt,
+    timerTotalTime,
+    pausedRemainingTime,
+  ]);
 
   return (
     <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         tabBarActiveTintColor: colors.tabIconSelected,
         tabBarInactiveTintColor: colors.tabIconDefault,
-        tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-        },
         headerShown: false,
-        tabBarButton: HapticTab,
       }}
     >
       <Tabs.Screen

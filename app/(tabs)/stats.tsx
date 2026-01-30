@@ -1,16 +1,22 @@
 import { useMemo } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Card, ProgressBar, Button } from '@ui-kitten/components';
+import { Text } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { startOfDay, isSameDay } from 'date-fns';
+import { startOfDay } from 'date-fns';
 
 import { useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
 import { ACHIEVEMENTS, getLevelTitle } from '@/constants/gamification';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, Spacing, BorderRadius, Shadows, InterFonts, FontSize, GamificationColors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { WeeklyChart, DistributionChart } from '@/components/charts';
+
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
+import { AnimatedCounter } from '@/components/animated/animated-counter';
+import { LevelBadge, AchievementBadge } from '@/components/animated/animated-badge';
+import { AnimatedButton } from '@/components/animated/animated-button';
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
@@ -25,20 +31,17 @@ export default function StatsScreen() {
 
   const xpProgress = getXpProgress();
 
-  // Get pomodoro sessions for charts
   const sessions = usePomodoroStore((state) => state.sessions);
   const todos = useTodoStore((state) => state.todos);
 
-  // Check if user is new (no activity yet)
   const isNewUser = stats.totalPomodoros === 0 && stats.totalTasksCompleted === 0;
 
-  // Prepare weekly activity data - completed focus sessions by day
+  // Prepare weekly activity data
   const weeklyActivityData = useMemo(() => {
     const focusSessions = sessions.filter(
       (s) => s.phase === 'focus' && s.wasCompleted
     );
 
-    // Group by date
     const dateMap = new Map<string, number>();
     focusSessions.forEach((session) => {
       const dateKey = startOfDay(new Date(session.startedAt)).toISOString();
@@ -51,7 +54,7 @@ export default function StatsScreen() {
     }));
   }, [sessions]);
 
-  // Prepare focus time distribution by phase
+  // Prepare focus time distribution
   const timeDistributionData = useMemo(() => {
     const focusTime = sessions
       .filter((s) => s.phase === 'focus' && s.wasCompleted)
@@ -66,19 +69,18 @@ export default function StatsScreen() {
       .reduce((sum, s) => sum + s.duration, 0);
 
     return [
-      { label: 'Focus', value: focusTime, color: '#5A7868' },
-      { label: 'Short Break', value: shortBreakTime, color: '#90AB8B' },
+      { label: 'Focus', value: focusTime, color: colors.timerFocus },
+      { label: 'Short Break', value: shortBreakTime, color: colors.timerBreak },
       { label: 'Long Break', value: longBreakTime, color: '#B5A45E' },
     ];
-  }, [sessions]);
+  }, [sessions, colors]);
 
-  // Prepare tasks completed this week
+  // Prepare weekly tasks data
   const weeklyTasksData = useMemo(() => {
     const completedTodos = todos.filter(
       (t) => t.status === 'completed' && t.completedAt
     );
 
-    // Group by date
     const dateMap = new Map<string, number>();
     completedTodos.forEach((todo) => {
       const dateKey = startOfDay(new Date(todo.completedAt!)).toISOString();
@@ -107,218 +109,310 @@ export default function StatsScreen() {
         paddingTop: insets.top + Spacing.md,
         paddingBottom: insets.bottom + 100,
       }}
+      showsVerticalScrollIndicator={false}
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text category="h5">Statistics</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>
+          Statistics
+        </Text>
       </View>
 
       {/* Empty State for New Users */}
       {isNewUser && (
-        <Card style={[styles.emptyCard, { backgroundColor: colors.card }]}>
-          <View style={styles.emptyContent}>
-            <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '15' }]}>
-              <Icon name="bar-chart-outline" fill={colors.primary} style={styles.emptyIcon} />
-            </View>
-            <Text category="h6" style={{ marginTop: Spacing.md, textAlign: 'center' }}>
-              Start Your Journey!
-            </Text>
-            <Text
-              category="p2"
-              style={{ color: colors.textMuted, textAlign: 'center', marginTop: Spacing.xs }}
-            >
-              Complete pomodoro sessions and tasks to see your progress here.
-            </Text>
-            <View style={styles.emptyActions}>
-              <Button
-                size="small"
-                appearance="outline"
-                style={styles.emptyButton}
-                accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
-                onPress={() => router.push('/todo/create')}
-              >
-                Create Task
-              </Button>
-              <Button
-                size="small"
-                style={styles.emptyButton}
-                accessoryLeft={(props) => <Icon {...props} name="play-circle-outline" />}
-                onPress={() => router.push('/(tabs)/pomodoro')}
-              >
-                Start Focus
-              </Button>
-            </View>
+        <AnimatedCard
+          variant="elevated"
+          style={styles.emptyCard}
+          contentStyle={styles.emptyContent}
+        >
+          <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '20' }]}>
+            <Icon name="bar-chart" fill={colors.primary} style={styles.emptyIcon} />
           </View>
-        </Card>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            Start Your Journey!
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+            Complete pomodoro sessions and tasks to see your progress here.
+          </Text>
+          <View style={styles.emptyActions}>
+            <AnimatedButton
+              title="Create Task"
+              icon="plus"
+              variant="outline"
+              size="sm"
+              onPress={() => router.push('/todo/create')}
+            />
+            <AnimatedButton
+              title="Start Focus"
+              icon="play"
+              variant="primary"
+              size="sm"
+              onPress={() => router.push('/(tabs)/pomodoro')}
+            />
+          </View>
+        </AnimatedCard>
       )}
 
       {/* Level Card */}
-      <Card style={[styles.levelCard, { backgroundColor: colors.card }]}>
+      <AnimatedCard
+        variant="elevated"
+        style={styles.levelCard}
+        contentStyle={styles.levelCardContent}
+      >
         <View style={styles.levelHeader}>
-          <View style={[styles.levelBadge, { backgroundColor: colors.primary }]}>
-            <Text category="h6" style={{ color: '#fff' }}>
-              {stats.level}
+          <LevelBadge
+            level={stats.level}
+            size="md"
+            showGlow={stats.level >= 5}
+          />
+          <View style={styles.levelInfo}>
+            <Text style={[styles.levelTitle, { color: colors.text }]}>
+              {getLevelTitle(stats.level)}
+            </Text>
+            <Text style={[styles.levelSubtitle, { color: colors.textMuted }]}>
+              Level {stats.level}
             </Text>
           </View>
-          <View style={styles.levelInfo}>
-            <Text category="h6">{getLevelTitle(stats.level)}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {xpProgress.current} / {xpProgress.required} XP to next level
-            </Text>
+          <View style={styles.xpInfo}>
+            <View style={[styles.xpBadge, { backgroundColor: GamificationColors.xp + '20' }]}>
+              <Icon name="star" fill={GamificationColors.xp} style={styles.xpIcon} />
+              <Text style={[styles.xpValue, { color: GamificationColors.xp }]}>
+                {stats.totalXp} XP
+              </Text>
+            </View>
           </View>
         </View>
-        <ProgressBar
-          style={styles.xpBar}
-          progress={xpProgress.percentage / 100}
-          status="primary"
-        />
-      </Card>
+
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
+              Progress to Level {stats.level + 1}
+            </Text>
+            <Text style={[styles.progressValue, { color: colors.text }]}>
+              {xpProgress.current} / {xpProgress.required} XP
+            </Text>
+          </View>
+          <AnimatedProgressBar
+            progress={xpProgress.percentage / 100}
+            height={12}
+            showShimmer={true}
+            gradientColors={[GamificationColors.progressStart, GamificationColors.progressEnd]}
+            backgroundColor={colors.backgroundSecondary}
+          />
+        </View>
+      </AnimatedCard>
 
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="clock-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h5">{stats.totalPomodoros}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Pomodoros
-          </Text>
-        </Card>
-
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="hourglass-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h5">{formatTime(stats.totalFocusTime)}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Focus Time
-          </Text>
-        </Card>
-
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="checkmark-circle-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h5">{stats.totalTasksCompleted}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Tasks Done
-          </Text>
-        </Card>
-
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="flash-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h5">{stats.currentStreak}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Day Streak
-          </Text>
-        </Card>
+        <StatGridCard
+          icon="clock"
+          value={stats.totalPomodoros}
+          label="Pomodoros"
+          color={colors.primary}
+        />
+        <StatGridCard
+          icon="hourglass"
+          value={formatTime(stats.totalFocusTime)}
+          label="Focus Time"
+          color={colors.info}
+          isString
+        />
+        <StatGridCard
+          icon="checkmark-circle-2"
+          value={stats.totalTasksCompleted}
+          label="Tasks Done"
+          color={colors.success}
+        />
+        <StatGridCard
+          icon="flash"
+          value={stats.currentStreak}
+          label="Day Streak"
+          color={GamificationColors.streak}
+        />
       </View>
 
-      {/* Streak Info */}
-      <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.streakInfo}>
-          <View>
-            <Text category="s1">Current Streak</Text>
-            <Text category="h4" style={{ color: colors.primary }}>
-              {stats.currentStreak} days
-            </Text>
+      {/* Streak Card */}
+      <AnimatedCard
+        variant="default"
+        style={styles.streakCard}
+        contentStyle={styles.streakCardContent}
+      >
+        <View style={styles.streakRow}>
+          <View style={styles.streakItem}>
+            <View style={[styles.streakIconContainer, { backgroundColor: GamificationColors.streak + '20' }]}>
+              <Icon name="flash" fill={GamificationColors.streak} style={styles.streakIcon} />
+            </View>
+            <View>
+              <Text style={[styles.streakLabel, { color: colors.textMuted }]}>
+                Current Streak
+              </Text>
+              <AnimatedCounter
+                value={stats.currentStreak}
+                suffix=" days"
+                category="h3"
+                color={colors.text}
+              />
+            </View>
           </View>
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              Best Streak
-            </Text>
-            <Text category="s1">{stats.longestStreak} days</Text>
+          <View style={[styles.streakDivider, { backgroundColor: colors.border }]} />
+          <View style={styles.streakItem}>
+            <View style={[styles.streakIconContainer, { backgroundColor: GamificationColors.achievementGold + '20' }]}>
+              <Icon name="award" fill={GamificationColors.achievementGold} style={styles.streakIcon} />
+            </View>
+            <View>
+              <Text style={[styles.streakLabel, { color: colors.textMuted }]}>
+                Best Streak
+              </Text>
+              <Text style={[styles.streakValue, { color: colors.text }]}>
+                {stats.longestStreak} days
+              </Text>
+            </View>
           </View>
         </View>
-      </Card>
+      </AnimatedCard>
 
       {/* Weekly Activity Charts */}
       {!isNewUser && (
         <>
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+          <AnimatedCard
+            variant="default"
+            style={styles.chartCard}
+            contentStyle={styles.chartCardContent}
+          >
             <WeeklyChart
               data={weeklyActivityData}
               title="Focus Sessions"
               valueLabel="sessions"
               barColor={colors.primary}
             />
-          </Card>
+          </AnimatedCard>
 
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+          <AnimatedCard
+            variant="default"
+            style={styles.chartCard}
+            contentStyle={styles.chartCardContent}
+          >
             <WeeklyChart
               data={weeklyTasksData}
               title="Tasks Completed"
               valueLabel="tasks"
-              barColor="#90AB8B"
+              barColor={colors.success}
             />
-          </Card>
+          </AnimatedCard>
 
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
+          <AnimatedCard
+            variant="default"
+            style={styles.chartCard}
+            contentStyle={styles.chartCardContent}
+          >
             <DistributionChart
               data={timeDistributionData}
               title="Time Distribution"
             />
-          </Card>
+          </AnimatedCard>
         </>
       )}
 
       {/* Achievements Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text category="h6">Achievements</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {unlockedAchievements.length} / {ACHIEVEMENTS.filter((a) => !a.isSecret).length}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Achievements
           </Text>
+          <View style={[styles.achievementCount, { backgroundColor: colors.primary + '20' }]}>
+            <Text style={[styles.achievementCountText, { color: colors.primary }]}>
+              {unlockedAchievements.length} / {ACHIEVEMENTS.filter((a) => !a.isSecret).length}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.achievementsGrid}>
           {ACHIEVEMENTS.filter((a) => !a.isSecret || isAchievementUnlocked(a.id)).map((achievement) => {
             const unlocked = isAchievementUnlocked(achievement.id);
             return (
-              <Card
+              <AnimatedCard
                 key={achievement.id}
-                style={[
-                  styles.achievementCard,
-                  {
-                    backgroundColor: unlocked ? colors.card : colors.backgroundSecondary,
-                    opacity: unlocked ? 1 : 0.6,
-                  },
-                ]}
+                variant={unlocked ? 'default' : 'outlined'}
+                style={styles.achievementCard}
+                contentStyle={styles.achievementCardContent}
               >
-                <View style={styles.achievementContent}>
-                  <View
-                    style={[
-                      styles.achievementIcon,
-                      {
-                        backgroundColor: unlocked ? colors.primary + '20' : colors.border,
-                      },
-                    ]}
-                  >
-                    <Icon
-                      name={achievement.icon}
-                      fill={unlocked ? colors.primary : colors.textMuted}
-                      style={{ width: 24, height: 24 }}
-                    />
+                <AchievementBadge
+                  icon={achievement.icon}
+                  title={achievement.name}
+                  isUnlocked={unlocked}
+                  rarity={
+                    achievement.xpReward >= 200
+                      ? 'legendary'
+                      : achievement.xpReward >= 150
+                        ? 'epic'
+                        : achievement.xpReward >= 100
+                          ? 'rare'
+                          : 'common'
+                  }
+                  size="sm"
+                />
+                <Text
+                  style={[
+                    styles.achievementDescription,
+                    { color: unlocked ? colors.textSecondary : colors.textMuted },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {achievement.description}
+                </Text>
+                {unlocked && (
+                  <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
+                    <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
+                      +{achievement.xpReward} XP
+                    </Text>
                   </View>
-                  <Text category="s2" numberOfLines={1}>
-                    {achievement.name}
-                  </Text>
-                  <Text
-                    category="c1"
-                    style={{ color: colors.textMuted, textAlign: 'center' }}
-                    numberOfLines={2}
-                  >
-                    {achievement.description}
-                  </Text>
-                  {unlocked && (
-                    <View style={styles.xpBadge}>
-                      <Text category="c2" style={{ color: colors.primary }}>
-                        +{achievement.xpReward} XP
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </Card>
+                )}
+              </AnimatedCard>
             );
           })}
         </View>
       </View>
     </ScrollView>
+  );
+}
+
+// Stat grid card component
+interface StatGridCardProps {
+  icon: string;
+  value: number | string;
+  label: string;
+  color: string;
+  isString?: boolean;
+}
+
+function StatGridCard({ icon, value, label, color, isString }: StatGridCardProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  return (
+    <AnimatedCard
+      variant="default"
+      style={styles.statCard}
+      contentStyle={styles.statCardContent}
+    >
+      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+        <Icon name={icon} fill={color} style={styles.statIcon} />
+      </View>
+      {isString ? (
+        <Text style={[styles.statValue, { color: colors.text }]}>
+          {value}
+        </Text>
+      ) : (
+        <AnimatedCounter
+          value={value as number}
+          category="h3"
+          color={colors.text}
+        />
+      )}
+      <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+        {label}
+      </Text>
+    </AnimatedCard>
   );
 }
 
@@ -330,97 +424,16 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: Spacing.lg,
   },
-  levelCard: {
-    marginBottom: Spacing.md,
-    borderRadius: BorderRadius.lg,
-  },
-  levelHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  levelBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.md,
-  },
-  levelInfo: {
-    flex: 1,
-  },
-  xpBar: {
-    borderRadius: BorderRadius.full,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  statCard: {
-    width: '48%',
-    flexGrow: 1,
-    alignItems: 'center',
-    padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    marginBottom: Spacing.xs,
-  },
-  card: {
-    marginBottom: Spacing.md,
-    borderRadius: BorderRadius.lg,
-  },
-  streakInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  section: {
-    marginBottom: Spacing.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  achievementsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  achievementCard: {
-    width: '31%',
-    flexGrow: 1,
-    borderRadius: BorderRadius.md,
-  },
-  achievementContent: {
-    alignItems: 'center',
-    padding: Spacing.xs,
-  },
-  achievementIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  xpBadge: {
-    marginTop: Spacing.xs,
+  headerTitle: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.xxl,
   },
   emptyCard: {
     marginBottom: Spacing.lg,
-    borderRadius: BorderRadius.lg,
   },
   emptyContent: {
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    padding: Spacing.xl,
   },
   emptyIconContainer: {
     width: 80,
@@ -433,12 +446,214 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
+  emptyTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.lg,
+    marginTop: Spacing.lg,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+    lineHeight: FontSize.sm * 1.5,
+  },
   emptyActions: {
     flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.lg,
+    gap: Spacing.md,
+    marginTop: Spacing.xl,
   },
-  emptyButton: {
-    minWidth: 120,
+  levelCard: {
+    marginBottom: Spacing.lg,
+  },
+  levelCardContent: {
+    padding: Spacing.lg,
+  },
+  levelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  levelInfo: {
+    flex: 1,
+    marginLeft: Spacing.md,
+  },
+  levelTitle: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.lg,
+  },
+  levelSubtitle: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.sm,
+    marginTop: 2,
+  },
+  xpInfo: {
+    alignItems: 'flex-end',
+  },
+  xpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  xpIcon: {
+    width: 14,
+    height: 14,
+    marginRight: 4,
+  },
+  xpValue: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.sm,
+  },
+  progressSection: {
+    marginTop: Spacing.sm,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  progressLabel: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.sm,
+  },
+  progressValue: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.sm,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  statCard: {
+    width: '47%',
+    flexGrow: 1,
+  },
+  statCardContent: {
+    alignItems: 'center',
+    padding: Spacing.md,
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  statIcon: {
+    width: 24,
+    height: 24,
+  },
+  statValue: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.xl,
+  },
+  statLabel: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+    marginTop: 4,
+  },
+  streakCard: {
+    marginBottom: Spacing.lg,
+  },
+  streakCardContent: {
+    padding: Spacing.lg,
+  },
+  streakRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streakItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streakIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  streakIcon: {
+    width: 22,
+    height: 22,
+  },
+  streakLabel: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+  },
+  streakValue: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.lg,
+  },
+  streakDivider: {
+    width: 1,
+    height: 40,
+    marginHorizontal: Spacing.lg,
+  },
+  chartCard: {
+    marginBottom: Spacing.md,
+  },
+  chartCardContent: {
+    padding: Spacing.md,
+  },
+  section: {
+    marginBottom: Spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  sectionTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.lg,
+  },
+  achievementCount: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+  },
+  achievementCountText: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.xs,
+  },
+  achievementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+  },
+  achievementCard: {
+    width: '47%',
+    flexGrow: 1,
+  },
+  achievementCardContent: {
+    alignItems: 'center',
+    padding: Spacing.md,
+  },
+  achievementDescription: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    lineHeight: FontSize.xs * 1.4,
+  },
+  achievementXp: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+    marginTop: Spacing.sm,
+  },
+  achievementXpText: {
+    fontFamily: InterFonts.semibold,
+    fontSize: 10,
   },
 });

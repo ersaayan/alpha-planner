@@ -8,10 +8,7 @@ import {
   format,
   isToday,
   isTomorrow,
-  isPast,
-  addDays,
   startOfDay,
-  isSameDay,
 } from 'date-fns';
 
 import { useTodoStore, useCategoryStore } from '@/stores';

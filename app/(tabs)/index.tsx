@@ -1,15 +1,31 @@
-import { useMemo } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Card, Button } from '@ui-kitten/components';
+import { useMemo, useCallback, useEffect } from 'react';
+import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
+import { Text } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 import { useTodoStore, usePomodoroStore, useGamificationStore, useSettingsStore } from '@/stores';
 import { getLevelTitle } from '@/constants/gamification';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, Spacing, BorderRadius, Shadows, InterFonts, FontSize, GamificationColors, Typography } from '@/constants/theme';
+import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { formatDate } from '@/utils/date';
+
+import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedCounter } from '@/components/animated/animated-counter';
+import { LevelBadge } from '@/components/animated/animated-badge';
+import { AnimatedButton } from '@/components/animated/animated-button';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -18,7 +34,6 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const todos = useTodoStore((state) => state.todos);
-  // Select primitive values to ensure re-renders
   const timerState = usePomodoroStore((state) => state.timer.state);
   const timerPhase = usePomodoroStore((state) => state.timer.phase);
   const remainingTime = usePomodoroStore((state) => state.timer.remainingTime);
@@ -26,17 +41,40 @@ export default function HomeScreen() {
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
 
-  // Calculate formatted time locally instead of using store function
-  const formatTime = () => {
+  // Timer pulse animation
+  const timerPulse = useSharedValue(1);
+
+  // Animate timer pulse when running
+  useEffect(() => {
+    if (timerState === 'running') {
+      timerPulse.value = withRepeat(
+        withSequence(
+          withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+    } else {
+      timerPulse.value = withTiming(1, { duration: 200 });
+    }
+  }, [timerState]);
+
+  const timerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: timerPulse.value }],
+  }));
+
+  const formatTime = useCallback(() => {
     const minutes = Math.floor(remainingTime / 60);
     const seconds = remainingTime % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
+  }, [remainingTime]);
 
   const pendingTodos = useMemo(
     () => todos.filter((t) => t.status === 'pending' || t.status === 'in_progress'),
     [todos]
   );
+
   const todayCompleted = useMemo(() => {
     const todayString = new Date().toDateString();
     return todos.filter(
@@ -53,169 +91,308 @@ export default function HomeScreen() {
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 100 }}
+      showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
+      {/* Header with Level Badge */}
       <View style={styles.header}>
-        <Text category="h4" style={{ color: colors.text }}>
-          Alpha Planner
-        </Text>
-        <Text category="s1" style={{ color: colors.textSecondary }}>
-          Level {stats.level} - {getLevelTitle(stats.level)}
-        </Text>
+        <View style={styles.headerContent}>
+          <Text style={[styles.appTitle, { color: colors.text }]}>
+            Alpha Planner
+          </Text>
+          <Text style={[styles.levelSubtitle, { color: colors.textSecondary }]}>
+            {getLevelTitle(stats.level)}
+          </Text>
+        </View>
+        <LevelBadge
+          level={stats.level}
+          size="sm"
+          showGlow={stats.level >= 5}
+        />
       </View>
 
-      {/* XP Progress */}
-      <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.xpContainer}>
-          <View style={styles.xpHeader}>
-            <Text category="s1">Experience</Text>
-            <Text category="c1">
-              {xpProgress.current} / {xpProgress.required} XP
+      {/* XP Progress Card */}
+      <AnimatedCard
+        variant="elevated"
+        style={styles.xpCard}
+        contentStyle={styles.xpCardContent}
+      >
+        <View style={styles.xpHeader}>
+          <View style={styles.xpTitleRow}>
+            <Icon
+              name="star"
+              fill={GamificationColors.xp}
+              style={styles.xpIcon}
+            />
+            <Text style={[styles.xpTitle, { color: colors.text }]}>
+              Experience
             </Text>
           </View>
-          <View style={[styles.progressBar, { backgroundColor: colors.backgroundSecondary }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${Math.min(xpProgress.percentage, 100)}%`,
-                  backgroundColor: colors.primary,
-                },
-              ]}
+          <View style={styles.xpValues}>
+            <AnimatedCounter
+              value={xpProgress.current}
+              category="body"
+              color={colors.primary}
             />
+            <Text style={[styles.xpSeparator, { color: colors.textMuted }]}>
+              {' / '}
+            </Text>
+            <Text style={[styles.xpTotal, { color: colors.textMuted }]}>
+              {xpProgress.required} XP
+            </Text>
           </View>
         </View>
-      </Card>
+        <AnimatedProgressBar
+          progress={xpProgress.percentage / 100}
+          height={14}
+          showShimmer={true}
+          gradientColors={[GamificationColors.progressStart, GamificationColors.progressEnd]}
+          backgroundColor={colors.backgroundSecondary}
+        />
+        <Text style={[styles.nextLevelText, { color: colors.textMuted }]}>
+          {xpProgress.required - xpProgress.current} XP to Level {stats.level + 1}
+        </Text>
+      </AnimatedCard>
 
-      {/* Quick Stats */}
-      <View style={styles.statsRow}>
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="flash-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h6">{stats.currentStreak}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Day Streak
-          </Text>
-        </Card>
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="checkmark-circle-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h6">{todayCompleted}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Done Today
-          </Text>
-        </Card>
-        <Card style={[styles.statCard, { backgroundColor: colors.card }]}>
-          <Icon name="clock-outline" fill={colors.primary} style={styles.statIcon} />
-          <Text category="h6">{stats.totalPomodoros}</Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            Pomodoros
-          </Text>
-        </Card>
+      {/* Quick Stats Grid */}
+      <View style={styles.statsGrid}>
+        <StatCard
+          icon="flash"
+          value={stats.currentStreak}
+          label="Day Streak"
+          color={GamificationColors.streak}
+          onPress={() => router.push('/(tabs)/stats')}
+        />
+        <StatCard
+          icon="checkmark-circle-2"
+          value={todayCompleted}
+          label="Done Today"
+          color={colors.success}
+          onPress={() => router.push('/(tabs)/todos')}
+        />
+        <StatCard
+          icon="clock"
+          value={stats.totalPomodoros}
+          label="Pomodoros"
+          color={colors.primary}
+          onPress={() => router.push('/(tabs)/pomodoro')}
+        />
       </View>
 
-      {/* Timer Status */}
+      {/* Timer Status Card */}
       {timerState !== 'stopped' && (
-        <Card
-          style={[styles.card, { backgroundColor: colors.card }]}
-          onPress={() => router.push('/(tabs)/pomodoro')}
-        >
-          <View style={styles.timerCard}>
-            <View>
-              <Text category="s1">
-                {timerPhase === 'focus' ? 'Focus Time' : 'Break Time'}
-              </Text>
-              <Text category="h4" style={{ color: colors.primary }}>
+        <Animated.View style={timerAnimatedStyle}>
+          <AnimatedCard
+            variant="elevated"
+            style={styles.timerCard}
+            contentStyle={styles.timerCardContent}
+            onPress={() => router.push('/(tabs)/pomodoro')}
+          >
+            {/* Glow effect when running */}
+            {timerState === 'running' && (
+              <View
+                style={[
+                  styles.timerGlow,
+                  { backgroundColor: colors.primary },
+                ]}
+              />
+            )}
+
+            <View style={styles.timerInfo}>
+              <View style={[styles.phaseBadge, { backgroundColor: colors.primary + '20' }]}>
+                <Icon
+                  name={timerPhase === 'focus' ? 'bulb' : 'coffee'}
+                  fill={colors.primary}
+                  style={styles.phaseIcon}
+                />
+                <Text style={[styles.phaseText, { color: colors.primary }]}>
+                  {timerPhase === 'focus' ? 'Focus Time' : 'Break Time'}
+                </Text>
+              </View>
+              <Text style={[styles.timerTime, { color: colors.text }]}>
                 {formatTime()}
               </Text>
             </View>
-            <Icon
-              name={timerState === 'running' ? 'pause-circle-outline' : 'play-circle-outline'}
-              fill={colors.primary}
-              style={{ width: 48, height: 48 }}
-            />
-          </View>
-        </Card>
+
+            <View style={[styles.timerAction, { backgroundColor: colors.primary }]}>
+              <Icon
+                name={timerState === 'running' ? 'pause' : 'play'}
+                fill="#fff"
+                style={styles.timerActionIcon}
+              />
+            </View>
+          </AnimatedCard>
+        </Animated.View>
       )}
 
-      {/* Upcoming Tasks */}
+      {/* Upcoming Tasks Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text category="h6">Upcoming Tasks</Text>
-          <Button
-            size="tiny"
-            appearance="ghost"
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Upcoming Tasks
+          </Text>
+          <Pressable
             onPress={() => router.push('/(tabs)/todos')}
+            style={styles.seeAllButton}
           >
-            See All
-          </Button>
+            <Text style={[styles.seeAllText, { color: colors.primary }]}>
+              See All
+            </Text>
+            <Icon
+              name="arrow-forward"
+              fill={colors.primary}
+              style={styles.seeAllIcon}
+            />
+          </Pressable>
         </View>
 
         {pendingTodos.length === 0 ? (
-          <Card style={[styles.card, { backgroundColor: colors.card }]}>
-            <View style={styles.emptyState}>
-              <Icon name="checkmark-circle-2-outline" fill={colors.textMuted} style={styles.emptyIcon} />
-              <Text category="s1" style={{ color: colors.textMuted }}>
-                All caught up!
-              </Text>
-              <Button
-                size="small"
-                appearance="outline"
-                style={{ marginTop: Spacing.md }}
-                onPress={() => router.push('/todo/create')}
-              >
-                Add a Task
-              </Button>
+          <AnimatedCard
+            variant="outlined"
+            style={styles.emptyCard}
+            contentStyle={styles.emptyContent}
+          >
+            <View style={[styles.emptyIconContainer, { backgroundColor: colors.success + '20' }]}>
+              <Icon
+                name="checkmark-circle-2"
+                fill={colors.success}
+                style={styles.emptyIcon}
+              />
             </View>
-          </Card>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              All caught up!
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+              You've completed all your tasks
+            </Text>
+            <AnimatedButton
+              title="Add a Task"
+              icon="plus"
+              variant="outline"
+              size="sm"
+              onPress={() => router.push('/todo/create')}
+              style={styles.emptyButton}
+            />
+          </AnimatedCard>
         ) : (
-          pendingTodos.slice(0, 3).map((todo) => (
-            <Card
-              key={todo.id}
-              style={[styles.todoCard, { backgroundColor: colors.card }]}
-              onPress={() => router.push(`/todo/${todo.id}`)}
-            >
-              <View style={styles.todoItem}>
+          <View style={styles.todosList}>
+            {pendingTodos.slice(0, 3).map((todo, index) => (
+              <AnimatedCard
+                key={todo.id}
+                variant="default"
+                style={styles.todoCard}
+                contentStyle={styles.todoCardContent}
+                accentColor={getPriorityColor(todo.priority, colors)}
+                accentPosition="left"
+                onPress={() => router.push(`/todo/${todo.id}`)}
+              >
                 <View style={styles.todoContent}>
-                  <Text category="s1" numberOfLines={1}>
+                  <Text
+                    style={[styles.todoTitle, { color: colors.text }]}
+                    numberOfLines={1}
+                  >
                     {todo.title}
                   </Text>
                   {todo.dueDate && (
-                    <Text category="c1" style={{ color: colors.textMuted }}>
-                      Due: {formatDate(new Date(todo.dueDate), dateFormat)}
-                    </Text>
+                    <View style={styles.dueDateRow}>
+                      <Icon
+                        name="calendar"
+                        fill={colors.textMuted}
+                        style={styles.dueDateIcon}
+                      />
+                      <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
+                        {formatDate(new Date(todo.dueDate), dateFormat)}
+                      </Text>
+                    </View>
                   )}
                 </View>
-                <Icon name="chevron-right-outline" fill={colors.textMuted} style={styles.chevron} />
-              </View>
-            </Card>
-          ))
+                <Icon
+                  name="chevron-right"
+                  fill={colors.textMuted}
+                  style={styles.chevron}
+                />
+              </AnimatedCard>
+            ))}
+          </View>
         )}
       </View>
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text category="h6" style={{ marginBottom: Spacing.sm }}>
+        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.md }]}>
           Quick Actions
         </Text>
         <View style={styles.actionsRow}>
-          <Button
+          <AnimatedButton
+            title="New Task"
+            icon="plus"
+            variant="outline"
+            size="md"
             style={styles.actionButton}
-            appearance="outline"
-            accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
             onPress={() => router.push('/todo/create')}
-          >
-            New Task
-          </Button>
-          <Button
+          />
+          <AnimatedButton
+            title="Start Focus"
+            icon="play"
+            variant="primary"
+            size="md"
             style={styles.actionButton}
-            accessoryLeft={(props) => <Icon {...props} name="play-circle-outline" />}
             onPress={() => router.push('/(tabs)/pomodoro')}
-          >
-            Start Focus
-          </Button>
+          />
         </View>
       </View>
     </ScrollView>
   );
+}
+
+// Helper component for stat cards
+interface StatCardProps {
+  icon: string;
+  value: number;
+  label: string;
+  color: string;
+  onPress?: () => void;
+}
+
+function StatCard({ icon, value, label, color, onPress }: StatCardProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  return (
+    <AnimatedCard
+      variant="default"
+      style={styles.statCard}
+      contentStyle={styles.statCardContent}
+      onPress={onPress}
+    >
+      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
+        <Icon name={icon} fill={color} style={styles.statIcon} />
+      </View>
+      <AnimatedCounter
+        value={value}
+        category="h3"
+        color={colors.text}
+        style={styles.statValue}
+      />
+      <Text style={[styles.statLabel, { color: colors.textMuted }]}>
+        {label}
+      </Text>
+    </AnimatedCard>
+  );
+}
+
+// Helper function for priority colors
+function getPriorityColor(priority: string, colors: (typeof Colors)['light'] | (typeof Colors)['dark']) {
+  switch (priority) {
+    case 'urgent':
+      return colors.priorityUrgent;
+    case 'high':
+      return colors.priorityHigh;
+    case 'medium':
+      return colors.priorityMedium;
+    case 'low':
+    default:
+      return colors.priorityLow;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -224,79 +401,245 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: Spacing.lg,
   },
-  card: {
-    marginBottom: Spacing.md,
-    borderRadius: BorderRadius.lg,
+  headerContent: {
+    flex: 1,
   },
-  xpContainer: {
-    padding: Spacing.sm,
+  appTitle: {
+    fontFamily: InterFonts.bold,
+    fontSize: FontSize.xxl,
+  },
+  levelSubtitle: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.md,
+    marginTop: 2,
+  },
+  xpCard: {
+    marginBottom: Spacing.lg,
+  },
+  xpCardContent: {
+    padding: Spacing.lg,
   },
   xpHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
-  },
-  progressBar: {
-    height: 8,
-    borderRadius: BorderRadius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: BorderRadius.full,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
+    alignItems: 'center',
     marginBottom: Spacing.md,
+  },
+  xpTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  xpIcon: {
+    width: 20,
+    height: 20,
+    marginRight: Spacing.sm,
+  },
+  xpTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.md,
+  },
+  xpValues: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  xpSeparator: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+  },
+  xpTotal: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.sm,
+  },
+  nextLevelText: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
+    marginTop: Spacing.sm,
+    textAlign: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   statCard: {
     flex: 1,
+  },
+  statCardContent: {
     alignItems: 'center',
     padding: Spacing.md,
-    borderRadius: BorderRadius.lg,
+  },
+  statIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
   },
   statIcon: {
-    width: 24,
-    height: 24,
-    marginBottom: Spacing.xs,
+    width: 22,
+    height: 22,
+  },
+  statValue: {
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
   },
   timerCard: {
+    marginBottom: Spacing.lg,
+    overflow: 'hidden',
+  },
+  timerCardContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.sm,
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+  },
+  timerGlow: {
+    position: 'absolute',
+    top: -50,
+    right: -50,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    opacity: 0.1,
+  },
+  timerInfo: {
+    flex: 1,
+  },
+  phaseBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    marginBottom: Spacing.sm,
+  },
+  phaseIcon: {
+    width: 14,
+    height: 14,
+    marginRight: 6,
+  },
+  phaseText: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.xs,
+  },
+  timerTime: {
+    fontFamily: InterFonts.light,
+    fontSize: 48,
+    letterSpacing: -1,
+  },
+  timerAction: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.md,
+  },
+  timerActionIcon: {
+    width: 24,
+    height: 24,
   },
   section: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  emptyState: {
-    alignItems: 'center',
-    padding: Spacing.xl,
+  sectionTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.lg,
   },
-  emptyIcon: {
-    width: 48,
-    height: 48,
-    marginBottom: Spacing.sm,
-  },
-  todoCard: {
-    marginBottom: Spacing.xs,
-    borderRadius: BorderRadius.md,
-  },
-  todoItem: {
+  seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  seeAllText: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.sm,
+  },
+  seeAllIcon: {
+    width: 16,
+    height: 16,
+    marginLeft: 4,
+  },
+  emptyCard: {
+    marginTop: Spacing.sm,
+  },
+  emptyContent: {
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  emptyIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  emptyIcon: {
+    width: 32,
+    height: 32,
+  },
+  emptyTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.lg,
+    marginBottom: Spacing.xs,
+  },
+  emptySubtitle: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.lg,
+  },
+  emptyButton: {
+    marginTop: Spacing.sm,
+  },
+  todosList: {
+    gap: Spacing.sm,
+  },
+  todoCard: {
+    marginBottom: 0,
+  },
+  todoCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.lg,
+  },
   todoContent: {
     flex: 1,
+  },
+  todoTitle: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.md,
+  },
+  dueDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  dueDateIcon: {
+    width: 12,
+    height: 12,
+    marginRight: 4,
+  },
+  dueDateText: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
   },
   chevron: {
     width: 20,
@@ -304,7 +647,7 @@ const styles = StyleSheet.create({
   },
   actionsRow: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.md,
   },
   actionButton: {
     flex: 1,

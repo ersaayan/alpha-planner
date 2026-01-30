@@ -1,16 +1,29 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as eva from '@eva-design/eva';
 import { ApplicationProvider } from '@ui-kitten/components';
+import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  Inter_300Light,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from '@expo-google-fonts/inter';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { alphaTheme, alphaDarkTheme } from '@/constants/eva-theme';
 import { notificationService } from '@/services/notifications';
-import { useCategoryStore, useSettingsStore } from '@/stores';
+import { useCategoryStore, usePomodoroStore, useSettingsStore } from '@/stores';
 import { Colors } from '@/constants/theme';
+
+// Prevent splash screen from auto-hiding
+SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -49,6 +62,28 @@ export default function RootLayout() {
   const notificationsEnabled = useSettingsStore(
     (state) => state.settings.notificationsEnabled
   );
+  const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
+
+  // Load Inter fonts
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_300Light,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+  });
+
+  // Hide splash screen when fonts are loaded
+  const onLayoutRootView = useCallback(async () => {
+    if (fontsLoaded || fontError) {
+      await SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    onLayoutRootView();
+  }, [onLayoutRootView]);
 
   useEffect(() => {
     // Initialize default categories on first launch
@@ -61,9 +96,18 @@ export default function RootLayout() {
     }
   }, [notificationsEnabled]);
 
+  useEffect(() => {
+    usePomodoroStore.getState().applySettingsToTimer(pomodoroSettings);
+  }, [pomodoroSettings]);
+
   const isDark = colorScheme === 'dark';
   const evaTheme = isDark ? { ...eva.dark, ...alphaDarkTheme } : { ...eva.light, ...alphaTheme };
   const navigationTheme = isDark ? AlphaDarkTheme : AlphaLightTheme;
+
+  // Don't render until fonts are loaded
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <ApplicationProvider {...eva} theme={evaTheme}>
@@ -75,7 +119,6 @@ export default function RootLayout() {
           <Stack.Screen
             name="todo/[id]"
             options={{
-              presentation: 'modal',
               headerShown: true,
               title: 'Todo Details',
             }}
@@ -83,7 +126,6 @@ export default function RootLayout() {
           <Stack.Screen
             name="todo/create"
             options={{
-              presentation: 'modal',
               headerShown: true,
               title: 'New Todo',
             }}

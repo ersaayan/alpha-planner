@@ -5,10 +5,11 @@ import type { PomodoroTimerState, PomodoroSession, PomodoroPhase, PomodoroSettin
 import { INITIAL_TIMER_STATE } from '@/types';
 import { generateId } from '@/utils/uuid';
 import { useSettingsStore } from './settings-store';
-import { scheduleTimerNotification, cancelScheduledTimerNotifications } from '@/services/background';
+import { cancelScheduledTimerNotifications } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import { useGamificationStore } from './gamification-store';
 import { useTodoStore } from './todo-store';
+import { AppState } from 'react-native';
 
 // Global interval reference - outside of React lifecycle
 let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -68,6 +69,7 @@ interface PomodoroState {
   // Utility
   getProgress: () => number;
   formatTime: () => string;
+  applySettingsToTimer: (settings?: PomodoroSettings) => void;
 }
 
 export const usePomodoroStore = create<PomodoroState>()(
@@ -104,6 +106,10 @@ export const usePomodoroStore = create<PomodoroState>()(
       },
 
       startTimer: (linkedTodoId) => {
+        if (autoStartTimeout) {
+          clearTimeout(autoStartTimeout);
+          autoStartTimeout = null;
+        }
         const { pomodoroSettings, settings } = useSettingsStore.getState();
         if (settings.notificationsEnabled) {
           notificationService.dismissTimerNotification();
@@ -151,19 +157,6 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Start the interval after state is set
         _startTicking();
 
-        // Schedule background notification for when timer completes
-        if (settings.notificationsEnabled) {
-          scheduleTimerNotification(
-            phase as 'focus' | 'short_break' | 'long_break',
-            remainingTime,
-            {
-              soundEnabled: settings.soundEnabled,
-              vibrationEnabled: pomodoroSettings.vibrationEnabled,
-            }
-          ).catch((error) => {
-            console.warn('Failed to schedule timer notification:', error);
-          });
-        }
       },
 
       pauseTimer: () => {
@@ -193,18 +186,6 @@ export const usePomodoroStore = create<PomodoroState>()(
         const startedAt = Date.now() - elapsedSeconds * 1000;
 
         const { pomodoroSettings, settings } = useSettingsStore.getState();
-
-        // Reschedule notification with remaining time
-        if (settings.notificationsEnabled) {
-          scheduleTimerNotification(
-            timer.phase as 'focus' | 'short_break' | 'long_break',
-            timer.remainingTime,
-            {
-              soundEnabled: settings.soundEnabled,
-              vibrationEnabled: pomodoroSettings.vibrationEnabled,
-            }
-          );
-        }
 
         set({
           timer: {
@@ -263,8 +244,15 @@ export const usePomodoroStore = create<PomodoroState>()(
         const { _stopTicking } = get();
         _stopTicking();
 
+        const { pomodoroSettings } = useSettingsStore.getState();
+        const focusDuration = pomodoroSettings.focusDuration;
+
         set({
-          timer: INITIAL_TIMER_STATE,
+          timer: {
+            ...INITIAL_TIMER_STATE,
+            remainingTime: focusDuration,
+            totalTime: focusDuration,
+          },
           currentSession: null,
         });
       },
@@ -445,7 +433,8 @@ export const usePomodoroStore = create<PomodoroState>()(
         }
 
         const { settings } = useSettingsStore.getState();
-        if (options?.shouldNotify !== false && settings.notificationsEnabled) {
+        const isAppActive = AppState.currentState === 'active';
+        if (options?.shouldNotify !== false && settings.notificationsEnabled && !isAppActive) {
           notificationService.sendTimerCompleteNotification(
             timer.phase as 'focus' | 'short_break' | 'long_break',
             {
@@ -515,6 +504,24 @@ export const usePomodoroStore = create<PomodoroState>()(
         const minutes = Math.floor(remaining / 60);
         const seconds = remaining % 60;
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      },
+
+      applySettingsToTimer: (settingsOverride) => {
+        const { timer } = get();
+        if (timer.state !== 'stopped') return;
+
+        const settings = settingsOverride ?? useSettingsStore.getState().pomodoroSettings;
+        const totalTime = getPhaseDuration(timer.phase, settings);
+
+        if (timer.remainingTime === totalTime && timer.totalTime === totalTime) return;
+
+        set({
+          timer: {
+            ...timer,
+            remainingTime: totalTime,
+            totalTime,
+          },
+        });
       },
     }),
     {

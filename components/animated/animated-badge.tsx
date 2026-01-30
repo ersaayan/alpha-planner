@@ -1,0 +1,413 @@
+/**
+ * AnimatedBadge - Level and achievement badges with animations
+ */
+
+import React, { useEffect } from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withSequence,
+  withRepeat,
+  withDelay,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
+import { Text } from '@ui-kitten/components';
+import { Colors, GamificationColors, BorderRadius, Shadows, InterFonts, FontSize } from '@/constants/theme';
+import { SpringConfig, AnimationDuration } from '@/constants/animations';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Icon } from '@/components/icon';
+
+interface LevelBadgeProps {
+  level: number;
+  title?: string;
+  size?: 'sm' | 'md' | 'lg';
+  showGlow?: boolean;
+  isLevelingUp?: boolean;
+  style?: ViewStyle;
+}
+
+export function LevelBadge({
+  level,
+  title,
+  size = 'md',
+  showGlow = false,
+  isLevelingUp = false,
+  style,
+}: LevelBadgeProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  const scale = useSharedValue(1);
+  const ringScale = useSharedValue(1);
+  const ringOpacity = useSharedValue(0);
+  const glowOpacity = useSharedValue(showGlow ? 0.3 : 0);
+
+  // Size configurations
+  const sizeConfig = {
+    sm: { container: 48, font: FontSize.lg, icon: 16 },
+    md: { container: 72, font: FontSize.xxl, icon: 20 },
+    lg: { container: 96, font: FontSize.xxxl, icon: 24 },
+  };
+
+  const config = sizeConfig[size];
+
+  useEffect(() => {
+    if (isLevelingUp) {
+      // Level up celebration animation
+      scale.value = withSequence(
+        withTiming(0.8, { duration: 100 }),
+        withSpring(1.3, SpringConfig.bouncy),
+        withSpring(1, SpringConfig.default)
+      );
+
+      // Ring expand animation
+      ringOpacity.value = withSequence(
+        withTiming(0.8, { duration: 100 }),
+        withDelay(600, withTiming(0, { duration: 400 }))
+      );
+      ringScale.value = withSequence(
+        withTiming(1, { duration: 100 }),
+        withTiming(2.5, { duration: 800 })
+      );
+
+      // Glow pulse
+      glowOpacity.value = withSequence(
+        withTiming(0.6, { duration: 200 }),
+        withTiming(0.3, { duration: 600 })
+      );
+    }
+  }, [isLevelingUp]);
+
+  useEffect(() => {
+    if (showGlow) {
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.4, { duration: 1500 }),
+          withTiming(0.2, { duration: 1500 })
+        ),
+        -1,
+        true
+      );
+    }
+  }, [showGlow]);
+
+  const badgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const ringStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ringScale.value }],
+    opacity: ringOpacity.value,
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+  }));
+
+  return (
+    <View style={[styles.container, { width: config.container, height: config.container }, style]}>
+      {/* Glow effect */}
+      <Animated.View
+        style={[
+          styles.glow,
+          {
+            width: config.container * 1.5,
+            height: config.container * 1.5,
+            borderRadius: config.container * 0.75,
+            backgroundColor: GamificationColors.levelUp,
+          },
+          glowStyle,
+        ]}
+      />
+
+      {/* Level up ring */}
+      <Animated.View
+        style={[
+          styles.ring,
+          {
+            width: config.container,
+            height: config.container,
+            borderRadius: config.container / 2,
+            borderColor: GamificationColors.xp,
+          },
+          ringStyle,
+        ]}
+      />
+
+      {/* Badge body */}
+      <Animated.View
+        style={[
+          styles.badge,
+          {
+            width: config.container,
+            height: config.container,
+            borderRadius: config.container / 2,
+            backgroundColor: colors.primary,
+          },
+          Shadows.md,
+          badgeStyle,
+        ]}
+      >
+        {/* Inner shadow effect */}
+        <View
+          style={[
+            styles.innerShadow,
+            {
+              width: config.container - 8,
+              height: config.container - 8,
+              borderRadius: (config.container - 8) / 2,
+            },
+          ]}
+        />
+
+        {/* Level number */}
+        <Text
+          style={[
+            styles.levelNumber,
+            {
+              fontSize: config.font,
+              color: '#fff',
+            },
+          ]}
+        >
+          {level}
+        </Text>
+      </Animated.View>
+
+      {/* Title below */}
+      {title && (
+        <Text
+          style={[
+            styles.title,
+            { color: colors.text },
+          ]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+interface AchievementBadgeProps {
+  icon: string;
+  title: string;
+  isUnlocked: boolean;
+  isUnlocking?: boolean;
+  rarity?: 'common' | 'rare' | 'epic' | 'legendary';
+  size?: 'sm' | 'md' | 'lg';
+  style?: ViewStyle;
+}
+
+export function AchievementBadge({
+  icon,
+  title,
+  isUnlocked,
+  isUnlocking = false,
+  rarity = 'common',
+  size = 'md',
+  style,
+}: AchievementBadgeProps) {
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  const sparkleOpacity = useSharedValue(0);
+
+  const sizeConfig = {
+    sm: { container: 56, icon: 24, border: 2 },
+    md: { container: 72, icon: 32, border: 3 },
+    lg: { container: 96, icon: 40, border: 4 },
+  };
+
+  const rarityColors = {
+    common: GamificationColors.achievementBronze,
+    rare: GamificationColors.achievementSilver,
+    epic: GamificationColors.achievementGold,
+    legendary: '#9B59B6', // Purple for legendary
+  };
+
+  const config = sizeConfig[size];
+
+  useEffect(() => {
+    if (isUnlocking) {
+      // Unlock animation
+      scale.value = withSequence(
+        withTiming(0, { duration: 100 }),
+        withSpring(1.2, SpringConfig.wobbly),
+        withSpring(1, SpringConfig.default)
+      );
+
+      rotation.value = withSequence(
+        withTiming(-10, { duration: 100 }),
+        withTiming(10, { duration: 100 }),
+        withTiming(-5, { duration: 100 }),
+        withTiming(5, { duration: 100 }),
+        withTiming(0, { duration: 100 })
+      );
+
+      sparkleOpacity.value = withSequence(
+        withTiming(1, { duration: 200 }),
+        withDelay(400, withTiming(0, { duration: 300 }))
+      );
+    }
+  }, [isUnlocking]);
+
+  const badgeStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { rotate: `${rotation.value}deg` },
+    ],
+    opacity: isUnlocked ? 1 : 0.4,
+  }));
+
+  const sparkleStyle = useAnimatedStyle(() => ({
+    opacity: sparkleOpacity.value,
+  }));
+
+  return (
+    <View style={[styles.achievementContainer, style]}>
+      <Animated.View
+        style={[
+          styles.achievementBadge,
+          {
+            width: config.container,
+            height: config.container,
+            borderRadius: config.container / 2,
+            borderWidth: config.border,
+            borderColor: isUnlocked ? rarityColors[rarity] : colors.border,
+            backgroundColor: isUnlocked ? colors.card : colors.backgroundSecondary,
+          },
+          isUnlocked && Shadows.sm,
+          badgeStyle,
+        ]}
+      >
+        {/* Locked overlay */}
+        {!isUnlocked && (
+          <View style={[styles.lockedOverlay, { borderRadius: config.container / 2 }]}>
+            <Icon
+              name="lock"
+              fill={colors.textMuted}
+              style={{ width: config.icon * 0.6, height: config.icon * 0.6 }}
+            />
+          </View>
+        )}
+
+        {/* Icon */}
+        {isUnlocked && (
+          <Icon
+            name={icon}
+            fill={rarityColors[rarity]}
+            style={{ width: config.icon, height: config.icon }}
+          />
+        )}
+
+        {/* Sparkle effects */}
+        <Animated.View style={[styles.sparkles, sparkleStyle]}>
+          {[0, 60, 120, 180, 240, 300].map((angle, i) => (
+            <View
+              key={i}
+              style={[
+                styles.sparkle,
+                {
+                  transform: [
+                    { rotate: `${angle}deg` },
+                    { translateY: -config.container * 0.6 },
+                  ],
+                  backgroundColor: GamificationColors.xp,
+                },
+              ]}
+            />
+          ))}
+        </Animated.View>
+      </Animated.View>
+
+      {/* Title */}
+      <Text
+        style={[
+          styles.achievementTitle,
+          {
+            color: isUnlocked ? colors.text : colors.textMuted,
+          },
+        ]}
+        numberOfLines={2}
+      >
+        {title}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glow: {
+    position: 'absolute',
+  },
+  ring: {
+    position: 'absolute',
+    borderWidth: 3,
+  },
+  badge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  innerShadow: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  levelNumber: {
+    fontFamily: InterFonts.bold,
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  title: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.sm,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  achievementContainer: {
+    alignItems: 'center',
+    width: 80,
+  },
+  achievementBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lockedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sparkles: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sparkle: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  achievementTitle: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+});
+
+export default LevelBadge;

@@ -1,14 +1,20 @@
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, G } from 'react-native-svg';
+import Svg, { Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
+  useAnimatedStyle,
   withTiming,
+  withRepeat,
+  withSequence,
   Easing,
+  interpolate,
 } from 'react-native-reanimated';
+import { GamificationColors, Shadows } from '@/constants/theme';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedView = Animated.View;
 
 interface CircularProgressProps {
   size: number;
@@ -16,6 +22,9 @@ interface CircularProgressProps {
   progress: number; // 0 to 1
   progressColor: string;
   backgroundColor: string;
+  secondaryColor?: string; // For gradient end color
+  showGlow?: boolean;
+  isRunning?: boolean;
   children?: React.ReactNode;
 }
 
@@ -25,14 +34,23 @@ export function CircularProgress({
   progress,
   progressColor,
   backgroundColor,
+  secondaryColor,
+  showGlow = false,
+  isRunning = false,
   children,
 }: CircularProgressProps) {
   const animatedProgress = useSharedValue(0);
+  const pulseScale = useSharedValue(1);
+  const glowOpacity = useSharedValue(showGlow ? 0.3 : 0);
 
   // Calculate circle properties
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
+
+  // Gradient colors
+  const gradientStart = progressColor;
+  const gradientEnd = secondaryColor || GamificationColors.progressEnd;
 
   useEffect(() => {
     animatedProgress.value = withTiming(progress, {
@@ -41,6 +59,31 @@ export function CircularProgress({
     });
   }, [progress]);
 
+  // Pulse animation when timer is running
+  useEffect(() => {
+    if (isRunning) {
+      pulseScale.value = withRepeat(
+        withSequence(
+          withTiming(1.02, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1,
+        true
+      );
+      glowOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: 1500 }),
+          withTiming(0.2, { duration: 1500 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      pulseScale.value = withTiming(1, { duration: 300 });
+      glowOpacity.value = withTiming(showGlow ? 0.3 : 0, { duration: 300 });
+    }
+  }, [isRunning, showGlow]);
+
   const animatedProps = useAnimatedProps(() => {
     const strokeDashoffset = circumference * (1 - animatedProgress.value);
     return {
@@ -48,9 +91,44 @@ export function CircularProgress({
     };
   });
 
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pulseScale.value }],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    shadowOpacity: glowOpacity.value,
+  }));
+
   return (
-    <View style={[styles.container, { width: size, height: size }]}>
+    <AnimatedView style={[styles.container, { width: size, height: size }, containerStyle]}>
+      {/* Outer glow effect */}
+      {(showGlow || isRunning) && (
+        <AnimatedView
+          style={[
+            styles.glow,
+            {
+              width: size + 40,
+              height: size + 40,
+              borderRadius: (size + 40) / 2,
+              top: -20,
+              left: -20,
+              backgroundColor: progressColor,
+            },
+            glowStyle,
+          ]}
+        />
+      )}
+
       <Svg width={size} height={size}>
+        <Defs>
+          {/* Define gradient for progress arc */}
+          <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor={gradientStart} stopOpacity="1" />
+            <Stop offset="100%" stopColor={gradientEnd} stopOpacity="1" />
+          </LinearGradient>
+        </Defs>
+
         {/* Rotate the group to start from top */}
         <G rotation="-90" origin={`${center}, ${center}`}>
           {/* Background circle */}
@@ -62,12 +140,12 @@ export function CircularProgress({
             strokeWidth={strokeWidth}
             fill="transparent"
           />
-          {/* Progress circle */}
+          {/* Progress circle with gradient */}
           <AnimatedCircle
             cx={center}
             cy={center}
             r={radius}
-            stroke={progressColor}
+            stroke="url(#progressGradient)"
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeDasharray={circumference}
@@ -76,17 +154,22 @@ export function CircularProgress({
           />
         </G>
       </Svg>
+
       {/* Center content */}
       <View style={[styles.content, { width: size, height: size }]}>
         {children}
       </View>
-    </View>
+    </AnimatedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
+  },
+  glow: {
+    position: 'absolute',
+    ...Shadows.lg,
   },
   content: {
     position: 'absolute',
