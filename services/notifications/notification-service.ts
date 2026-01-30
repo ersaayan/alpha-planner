@@ -59,7 +59,7 @@ class NotificationService {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#5A7868',
-        sound: 'timer-complete.wav',
+        sound: 'timer_complete.wav',
       });
 
       await Notifications.setNotificationChannelAsync(COMPLETION_CHANNELS.soundOnly, {
@@ -67,7 +67,7 @@ class NotificationService {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: null,
         lightColor: '#5A7868',
-        sound: 'timer-complete.wav',
+        sound: 'timer_complete.wav',
       });
 
       await Notifications.setNotificationChannelAsync(COMPLETION_CHANNELS.vibrateOnly, {
@@ -287,7 +287,7 @@ class NotificationService {
         title: message.title,
         body: message.body,
         // Use custom sound - reference the filename from app.json plugin config
-        sound: soundEnabled ? 'timer-complete.wav' : false,
+        sound: soundEnabled ? 'timer_complete.wav' : false,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         ...(Platform.OS === 'android' && {
           channelId,
@@ -339,7 +339,7 @@ class NotificationService {
       content: {
         title: message.title,
         body: message.body,
-        sound: soundEnabled ? 'timer-complete.wav' : false,
+        sound: soundEnabled ? 'timer_complete.wav' : false,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         ...(Platform.OS === 'android' && {
           channelId,

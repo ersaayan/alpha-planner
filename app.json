@@ -35,7 +35,8 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "WAKE_LOCK"
-      ]
+      ],
+      "package": "com.ersaayan.alphaplanner"
     },
     "web": {
       "output": "static",
@@ -47,7 +48,7 @@
         "expo-notifications",
         {
           "sounds": [
-            "./assets/sounds/timer-complete.wav"
+            "./assets/sounds/timer_complete.wav"
           ],
           "icon": "./assets/images/notification-icon.png",
           "color": "#5A7868",

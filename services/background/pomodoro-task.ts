@@ -127,7 +127,7 @@ export async function scheduleTimerNotification(
     content: {
       title: message.title,
       body: message.body,
-      sound: soundEnabled ? 'timer-complete.wav' : false,
+      sound: soundEnabled ? 'timer_complete.wav' : false,
       priority: Notifications.AndroidNotificationPriority.HIGH,
       ...(Platform.OS === 'android' && {
         channelId,
