@@ -9,12 +9,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { BorderRadius, Colors, Spacing } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { notificationService } from "@/services/notifications";
-import {
-  useGamificationStore,
-  usePomodoroStore,
-  useSettingsStore,
-  useTodoStore,
-} from "@/stores";
+import { usePomodoroStore, useSettingsStore } from "@/stores";
 
 export default function PomodoroScreen() {
   const insets = useSafeAreaInsets();
@@ -43,14 +38,8 @@ export default function PomodoroScreen() {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
   const skipToNextPhase = usePomodoroStore((state) => state.skipToNextPhase);
-  const completeSession = usePomodoroStore((state) => state.completeSession);
-  const incrementPomodoroCount = useTodoStore(
-    (state) => state.incrementPomodoroCount,
-  );
-  const incrementPomodoro = useGamificationStore(
-    (state) => state.incrementPomodoro,
-  );
   const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
+  const appSettings = useSettingsStore((state) => state.settings);
 
   // Keep screen awake while timer is running (if enabled in settings)
   useEffect(() => {
@@ -67,38 +56,6 @@ export default function PomodoroScreen() {
     };
   }, [pomodoroSettings.keepScreenAwake, timerState]);
 
-  // Handle timer completion (gamification, notifications, and auto-start)
-  useEffect(() => {
-    if (remainingTime === 0 && timerState === "running") {
-      // Dismiss ongoing notification and send completion notification
-      notificationService.dismissTimerNotification();
-      notificationService.sendTimerCompleteNotification(timerPhase as 'focus' | 'short_break' | 'long_break');
-
-      if (timerPhase === "focus") {
-        completeSession();
-        incrementPomodoro(pomodoroSettings.focusDuration);
-        if (linkedTodoId) {
-          incrementPomodoroCount(linkedTodoId);
-        }
-      }
-
-      // Stop the timer
-      stopTimer();
-
-      // Handle auto-start for next phase
-      const shouldAutoStartBreak = pomodoroSettings.autoStartBreaks && timerPhase === 'focus';
-      const shouldAutoStartFocus = pomodoroSettings.autoStartFocus && (timerPhase === 'short_break' || timerPhase === 'long_break');
-
-      if (shouldAutoStartBreak || shouldAutoStartFocus) {
-        // Small delay before starting next phase for better UX
-        setTimeout(() => {
-          skipToNextPhase();
-          startTimer();
-        }, 1500);
-      }
-    }
-  }, [remainingTime, timerState, timerPhase, linkedTodoId, completeSession, incrementPomodoro, incrementPomodoroCount, pomodoroSettings.focusDuration, pomodoroSettings.autoStartBreaks, pomodoroSettings.autoStartFocus, stopTimer, skipToNextPhase, startTimer]);
-
   // Set up notification action callbacks
   useEffect(() => {
     notificationService.setActionCallbacks({
@@ -112,6 +69,11 @@ export default function PomodoroScreen() {
   // Note: We only update on state changes, not every second
   // Android chronometer handles the countdown automatically
   useEffect(() => {
+    if (!appSettings.notificationsEnabled) {
+      notificationService.dismissTimerNotification();
+      return;
+    }
+
     if (timerState === 'running') {
       // Show notification when timer starts running
       notificationService.showTimerNotification(
@@ -134,7 +96,7 @@ export default function PomodoroScreen() {
     }
     // Only trigger on state/phase changes, not every remainingTime change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timerState, timerPhase]);
+  }, [timerState, timerPhase, appSettings.notificationsEnabled]);
 
   // Cleanup notification on unmount
   useEffect(() => {
@@ -187,7 +149,6 @@ export default function PomodoroScreen() {
   };
 
   const handleSkip = () => {
-    stopTimer();
     skipToNextPhase();
   };
 
@@ -272,7 +233,9 @@ export default function PomodoroScreen() {
             )}
             onPress={handleStart}
           >
-            Start Focus
+            {timerPhase === "short_break" || timerPhase === "long_break"
+              ? "Start Break"
+              : "Start Focus"}
           </Button>
         ) : (
           <View style={styles.activeControls}>

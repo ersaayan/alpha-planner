@@ -5,10 +5,11 @@ import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-import { useTodoStore, useCategoryStore } from '@/stores';
+import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { formatDate } from '@/utils/date';
 
 const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
   { status: 'pending', title: 'To Do', color: '#90AB8B' },
@@ -28,6 +29,7 @@ export default function KanbanScreen() {
   const todos = useTodoStore((state) => state.todos);
   const updateTodo = useTodoStore((state) => state.updateTodo);
   const categories = useCategoryStore((state) => state.categories);
+  const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
 
   const getTodosByStatus = (status: TodoStatus): Todo[] => {
     return todos.filter((todo) => todo.status === status);
@@ -104,13 +106,13 @@ export default function KanbanScreen() {
             <View style={styles.dueDateBadge}>
               <Icon name="calendar-outline" fill={colors.textMuted} size={12} />
               <Text category="c2" style={{ color: colors.textMuted }}>
-                {new Date(todo.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {formatDate(new Date(todo.dueDate), dateFormat)}
               </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.moveButtons}>
+        <View style={[styles.moveButtons, { borderTopColor: colors.separator }]}>
           <Pressable
             style={[styles.moveButton, !canMoveLeft && styles.moveButtonDisabled]}
             onPress={() => canMoveLeft && handleMoveLeft(todo)}
@@ -292,7 +294,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
   },
   moveButton: {
     padding: Spacing.xs,

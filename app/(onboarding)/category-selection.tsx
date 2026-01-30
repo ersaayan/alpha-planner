@@ -19,6 +19,7 @@ export default function CategorySelectionScreen() {
 
   const categories = useCategoryStore((state) => state.categories);
   const addCategory = useCategoryStore((state) => state.addCategory);
+  const applyCategorySelection = useCategoryStore((state) => state.applyCategorySelection);
   const completeOnboarding = useSettingsStore((state) => state.completeOnboarding);
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
@@ -50,6 +51,7 @@ export default function CategorySelectionScreen() {
   };
 
   const handleFinish = () => {
+    applyCategorySelection(selectedCategories);
     completeOnboarding();
     router.replace('/(tabs)');
   };
@@ -175,7 +177,7 @@ export default function CategorySelectionScreen() {
         <View style={styles.infoBox}>
           <Icon name="info-outline" fill={colors.textMuted} style={styles.infoIcon} />
           <Text category="c1" style={{ color: colors.textMuted, flex: 1 }}>
-            You can always add or modify categories later in Settings
+            You can add more categories later in Settings
           </Text>
         </View>
       </ScrollView>

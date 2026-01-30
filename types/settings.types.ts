@@ -14,7 +14,7 @@ export interface AppSettings {
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   hasCompletedOnboarding: false,
-  theme: 'light',
+  theme: 'system',
   defaultView: 'list',
   notificationsEnabled: true,
   soundEnabled: true,

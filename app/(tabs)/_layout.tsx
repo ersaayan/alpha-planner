@@ -5,12 +5,16 @@ import { Icon } from '@/components/icon';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { HapticTab } from '@/components/haptic-tab';
-import { usePomodoroStore } from '@/stores';
+import { usePomodoroStore, useSettingsStore } from '@/stores';
 import { notificationService } from '@/services/notifications';
+import { cancelScheduledTimerNotifications } from '@/services/background';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const notificationsEnabled = useSettingsStore(
+    (state) => state.settings.notificationsEnabled
+  );
 
   // Handle app state for background/foreground transitions
   useEffect(() => {
@@ -31,6 +35,7 @@ export default function TabLayout() {
         currentTimer.state === 'running' &&
         currentTimer.startedAt
       ) {
+        if (!notificationsEnabled) return;
         const elapsed = Math.floor((Date.now() - currentTimer.startedAt) / 1000);
         const currentRemaining = Math.max(0, currentTimer.totalTime - elapsed);
 
@@ -49,16 +54,13 @@ export default function TabLayout() {
         currentTimer.state === 'running' &&
         currentTimer.startedAt
       ) {
-        const elapsed = Math.floor((Date.now() - currentTimer.startedAt) / 1000);
-        const newRemaining = Math.max(0, currentTimer.totalTime - elapsed);
-
-        // Update remaining time
-        usePomodoroStore.setState({
-          timer: { ...currentTimer, remainingTime: newRemaining },
-        });
+        // Sync remaining time (accounts for pause-aware startedAt)
+        store.syncTimer({ fromBackground: previousState !== 'active' });
 
         // Restart the interval (it may have been suspended in background)
-        store._startTicking();
+        if (usePomodoroStore.getState().timer.state === 'running') {
+          store._startTicking();
+        }
 
         // Dismiss the ongoing notification
         notificationService.dismissTimerNotification();
@@ -66,7 +68,14 @@ export default function TabLayout() {
     });
 
     return () => subscription.remove();
-  }, []);
+  }, [notificationsEnabled]);
+
+  useEffect(() => {
+    if (!notificationsEnabled) {
+      notificationService.dismissTimerNotification();
+      cancelScheduledTimerNotifications();
+    }
+  }, [notificationsEnabled]);
 
   return (
     <Tabs

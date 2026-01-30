@@ -14,10 +14,11 @@ import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
-import { useTodoStore, useCategoryStore, usePomodoroStore } from '@/stores';
+import { useTodoStore, useCategoryStore, usePomodoroStore, useSettingsStore } from '@/stores';
 import type { TodoPriority, TodoStatus } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { formatDate } from '@/utils/date';
 
 const PRIORITIES: { value: TodoPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: '#90AB8B' },
@@ -49,6 +50,7 @@ export default function TodoDetailScreen() {
   const categories = useCategoryStore((state) => state.categories);
   const linkTodo = usePomodoroStore((state) => state.linkTodo);
   const timer = usePomodoroStore((state) => state.timer);
+  const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -253,7 +255,7 @@ export default function TodoDetailScreen() {
             <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
               <View style={styles.infoContent}>
                 <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                <Text category="s2">{new Date(todo.dueDate).toLocaleDateString()}</Text>
+                <Text category="s2">{formatDate(new Date(todo.dueDate), dateFormat)}</Text>
               </View>
             </Card>
           )}
@@ -278,7 +280,7 @@ export default function TodoDetailScreen() {
         </View>
 
         {todo.subtasks.length > 0 && (
-          <View style={styles.progressBar}>
+          <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
             <View
               style={[
                 styles.progressFill,
@@ -444,7 +446,6 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#E8F0E6',
     borderRadius: 2,
     marginBottom: Spacing.md,
     overflow: 'hidden',

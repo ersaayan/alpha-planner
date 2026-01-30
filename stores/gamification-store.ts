@@ -15,13 +15,14 @@ interface GamificationState {
   addXp: (amount: number) => void;
 
   // Stat tracking
-  incrementPomodoro: (focusTime: number) => void;
+  incrementPomodoro: (focusTime: number, completedAt?: Date) => void;
   incrementTaskCompleted: () => void;
   updateStreak: () => void;
 
   // Achievement actions
   checkAchievements: () => void;
   dismissNotification: (achievementId: string) => void;
+  unlockAchievement: (achievementId: string) => void;
 
   // Daily stats
   updateDailyStats: (updates: Partial<Omit<DailyStats, 'date'>>) => void;
@@ -57,8 +58,9 @@ export const useGamificationStore = create<GamificationState>()(
         get().checkAchievements();
       },
 
-      incrementPomodoro: (focusTime) => {
+      incrementPomodoro: (focusTime, completedAt) => {
         const { stats } = get();
+        const completionDate = completedAt ?? new Date();
 
         set({
           stats: {
@@ -74,6 +76,14 @@ export const useGamificationStore = create<GamificationState>()(
           focusTime,
         });
         get().updateStreak();
+
+        const hour = completionDate.getHours();
+        if (hour < 7) {
+          get().unlockAchievement('early_bird');
+        }
+        if (hour >= 23) {
+          get().unlockAchievement('night_owl');
+        }
       },
 
       incrementTaskCompleted: () => {
@@ -180,6 +190,29 @@ export const useGamificationStore = create<GamificationState>()(
             ua.achievementId === achievementId ? { ...ua, notified: true } : ua
           ),
         }));
+      },
+
+      unlockAchievement: (achievementId) => {
+        const { unlockedAchievements } = get();
+        if (unlockedAchievements.some((ua) => ua.achievementId === achievementId)) {
+          return;
+        }
+
+        const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
+        if (!achievement) return;
+
+        const newAchievement: UserAchievement = {
+          achievementId: achievement.id,
+          unlockedAt: new Date().toISOString(),
+          notified: false,
+        };
+
+        set({
+          unlockedAchievements: [...unlockedAchievements, newAchievement],
+          pendingNotifications: [...get().pendingNotifications, achievement],
+        });
+
+        get().addXp(achievement.xpReward);
       },
 
       updateDailyStats: (updates) => {

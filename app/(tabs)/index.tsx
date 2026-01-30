@@ -4,10 +4,11 @@ import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-import { useTodoStore, usePomodoroStore, useGamificationStore } from '@/stores';
+import { useTodoStore, usePomodoroStore, useGamificationStore, useSettingsStore } from '@/stores';
 import { getLevelTitle } from '@/constants/gamification';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { formatDate } from '@/utils/date';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -22,6 +23,7 @@ export default function HomeScreen() {
   const remainingTime = usePomodoroStore((state) => state.timer.remainingTime);
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
+  const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
 
   // Calculate formatted time locally instead of using store function
   const formatTime = () => {
@@ -171,7 +173,7 @@ export default function HomeScreen() {
                   </Text>
                   {todo.dueDate && (
                     <Text category="c1" style={{ color: colors.textMuted }}>
-                      Due: {new Date(todo.dueDate).toLocaleDateString()}
+                      Due: {formatDate(new Date(todo.dueDate), dateFormat)}
                     </Text>
                   )}
                 </View>

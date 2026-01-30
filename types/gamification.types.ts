@@ -54,5 +54,5 @@ export const INITIAL_USER_STATS: UserStats = {
   level: 1,
   currentXp: 0,
   totalXp: 0,
-  lastActiveDate: new Date().toISOString().split('T')[0],
+  lastActiveDate: '',
 };

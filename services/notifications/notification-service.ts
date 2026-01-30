@@ -5,6 +5,13 @@ import { Platform } from 'react-native';
 const TIMER_NOTIFICATION_ID = 'pomodoro-timer-ongoing';
 const TIMER_CATEGORY_ID = 'pomodoro-timer-actions';
 
+const COMPLETION_CHANNELS = {
+  soundVibrate: 'pomodoro',
+  soundOnly: 'pomodoro-sound',
+  vibrateOnly: 'pomodoro-vibrate',
+  silent: 'pomodoro-silent',
+};
+
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -46,13 +53,37 @@ class NotificationService {
     this.hasPermission = finalStatus === 'granted';
 
     if (Platform.OS === 'android') {
-      // Regular notification channel with custom sound
-      await Notifications.setNotificationChannelAsync('pomodoro', {
+      // Completion channels for sound/vibration combinations
+      await Notifications.setNotificationChannelAsync(COMPLETION_CHANNELS.soundVibrate, {
         name: 'Pomodoro Timer',
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#5A7868',
         sound: 'timer-complete.wav',
+      });
+
+      await Notifications.setNotificationChannelAsync(COMPLETION_CHANNELS.soundOnly, {
+        name: 'Pomodoro Timer (Sound Only)',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: null,
+        lightColor: '#5A7868',
+        sound: 'timer-complete.wav',
+      });
+
+      await Notifications.setNotificationChannelAsync(COMPLETION_CHANNELS.vibrateOnly, {
+        name: 'Pomodoro Timer (Vibrate Only)',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#5A7868',
+        sound: null,
+      });
+
+      await Notifications.setNotificationChannelAsync(COMPLETION_CHANNELS.silent, {
+        name: 'Pomodoro Timer (Silent)',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: null,
+        lightColor: '#5A7868',
+        sound: null,
       });
 
       // Ongoing timer notification channel (low importance = no sound/vibration)
@@ -213,7 +244,10 @@ class NotificationService {
     await Notifications.dismissNotificationAsync(TIMER_NOTIFICATION_ID);
   }
 
-  async sendTimerCompleteNotification(phase: 'focus' | 'short_break' | 'long_break'): Promise<void> {
+  async sendTimerCompleteNotification(
+    phase: 'focus' | 'short_break' | 'long_break',
+    options?: { soundEnabled?: boolean; vibrationEnabled?: boolean }
+  ): Promise<void> {
     if (!this.hasPermission) {
       console.warn('Notification permission not granted');
       return;
@@ -236,15 +270,27 @@ class NotificationService {
 
     const message = messages[phase];
 
+    const soundEnabled = options?.soundEnabled ?? true;
+    const vibrationEnabled = options?.vibrationEnabled ?? true;
+
+    const channelId =
+      soundEnabled && vibrationEnabled
+        ? COMPLETION_CHANNELS.soundVibrate
+        : soundEnabled
+          ? COMPLETION_CHANNELS.soundOnly
+          : vibrationEnabled
+            ? COMPLETION_CHANNELS.vibrateOnly
+            : COMPLETION_CHANNELS.silent;
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: message.title,
         body: message.body,
         // Use custom sound - reference the filename from app.json plugin config
-        sound: 'timer-complete.wav',
+        sound: soundEnabled ? 'timer-complete.wav' : false,
         priority: Notifications.AndroidNotificationPriority.HIGH,
         ...(Platform.OS === 'android' && {
-          channelId: 'pomodoro',
+          channelId,
         }),
       },
       trigger: null, // Send immediately

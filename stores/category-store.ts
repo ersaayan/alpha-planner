@@ -15,6 +15,7 @@ interface CategoryState {
   updateCategory: (id: string, updates: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
   reorderCategories: (categoryIds: string[]) => void;
+  applyCategorySelection: (categoryIds: string[]) => void;
 
   // Utility
   getCategoryById: (id: string) => Category | undefined;
@@ -83,6 +84,15 @@ export const useCategoryStore = create<CategoryState>()(
             const newOrder = categoryIds.indexOf(category.id);
             return newOrder !== -1 ? { ...category, order: newOrder } : category;
           }),
+        }));
+      },
+
+      applyCategorySelection: (categoryIds) => {
+        const selected = new Set(categoryIds);
+        set((state) => ({
+          categories: state.categories
+            .filter((category) => selected.has(category.id))
+            .map((category, index) => ({ ...category, order: index })),
         }));
       },
 

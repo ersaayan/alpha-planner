@@ -5,16 +5,18 @@ import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-import { useTodoStore, useCategoryStore } from '@/stores';
+import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
 import type { TodoStatus } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { formatDate } from '@/utils/date';
 
 const STATUS_TABS: { label: string; value: TodoStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
   { label: 'Pending', value: 'pending' },
   { label: 'In Progress', value: 'in_progress' },
   { label: 'Completed', value: 'completed' },
+  { label: 'Archived', value: 'archived' },
 ];
 
 export default function TodosScreen() {
@@ -30,6 +32,7 @@ export default function TodosScreen() {
   const toggleTodoStatus = useTodoStore((state) => state.toggleTodoStatus);
   const categories = useCategoryStore((state) => state.categories);
   const getCategoryColor = useCategoryStore((state) => state.getCategoryColor);
+  const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
 
   const filteredTodos = todos.filter((todo) => {
     if (activeTab !== 'all' && todo.status !== activeTab) return false;
@@ -227,7 +230,7 @@ export default function TodosScreen() {
                     {/* Due date */}
                     {item.dueDate && (
                       <Text category="c1" style={{ color: colors.textMuted }}>
-                        {new Date(item.dueDate).toLocaleDateString()}
+                        {formatDate(new Date(item.dueDate), dateFormat)}
                       </Text>
                     )}
 

@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Todo, TodoFilter, Subtask, TodoStatus } from '@/types';
 import { generateId } from '@/utils/uuid';
+import { useGamificationStore } from './gamification-store';
 
 interface TodoState {
   todos: Todo[];
@@ -60,6 +61,11 @@ export const useTodoStore = create<TodoState>()(
       },
 
       updateTodo: (id, updates) => {
+        const existing = get().todos.find((todo) => todo.id === id);
+        const hasStatusUpdate = typeof updates.status !== 'undefined';
+        const didComplete =
+          updates.status === 'completed' && existing?.status !== 'completed';
+
         set((state) => ({
           todos: state.todos.map((todo) =>
             todo.id === id
@@ -68,15 +74,21 @@ export const useTodoStore = create<TodoState>()(
                   ...updates,
                   updatedAt: new Date().toISOString(),
                   completedAt:
-                    updates.status === 'completed' && todo.status !== 'completed'
-                      ? new Date().toISOString()
-                      : updates.status !== 'completed'
-                        ? null
-                        : todo.completedAt,
+                    hasStatusUpdate
+                      ? updates.status === 'completed' && todo.status !== 'completed'
+                        ? new Date().toISOString()
+                        : updates.status !== 'completed' && todo.status === 'completed'
+                          ? null
+                          : todo.completedAt
+                      : todo.completedAt,
                 }
               : todo
           ),
         }));
+
+        if (didComplete) {
+          useGamificationStore.getState().incrementTaskCompleted();
+        }
       },
 
       deleteTodo: (id) => {

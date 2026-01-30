@@ -288,7 +288,7 @@ export default function TimelineScreen() {
 
         {/* Unscheduled Section */}
         {unscheduledTodos.length > 0 && (
-          <View style={styles.unscheduledSection}>
+          <View style={[styles.unscheduledSection, { borderTopColor: colors.separator }]}>
             <View style={styles.unscheduledHeader}>
               <Icon name="inbox-outline" fill={colors.textMuted} size={20} />
               <Text category="s1" style={{ marginLeft: Spacing.sm }}>
@@ -420,7 +420,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
   },
   unscheduledHeader: {
     flexDirection: 'row',

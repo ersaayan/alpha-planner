@@ -42,6 +42,10 @@ export default function CreateTodoScreen() {
   const handleCreate = () => {
     if (!title.trim()) return;
 
+    const parsedPomodoros = parseInt(estimatedPomodoros, 10);
+    const estimatedPomodorosValue =
+      Number.isFinite(parsedPomodoros) && parsedPomodoros > 0 ? parsedPomodoros : null;
+
     addTodo({
       title: title.trim(),
       description: description.trim() || null,
@@ -49,7 +53,7 @@ export default function CreateTodoScreen() {
       status: 'pending',
       categoryId: selectedCategory?.id || null,
       priority: selectedPriority.value,
-      estimatedPomodoros: estimatedPomodoros ? parseInt(estimatedPomodoros, 10) : null,
+      estimatedPomodoros: estimatedPomodorosValue,
       completedAt: null,
       order: todos.length,
     });
@@ -128,7 +132,7 @@ export default function CreateTodoScreen() {
       </Select>
 
       {/* Priority */}
-      <Text category="label" style={styles.label}>
+      <Text category="label" style={[styles.label, { color: colors.textMuted }]}>
         Priority
       </Text>
       <View style={styles.priorityContainer}>
@@ -208,7 +212,6 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: Spacing.xs,
-    color: '#8F9BB3',
   },
   priorityContainer: {
     flexDirection: 'row',

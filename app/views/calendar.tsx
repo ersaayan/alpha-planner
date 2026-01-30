@@ -17,7 +17,7 @@ import {
   subMonths,
 } from 'date-fns';
 
-import { useTodoStore, useCategoryStore } from '@/stores';
+import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
 import type { Todo } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -29,6 +29,7 @@ export default function CalendarScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const weekStartsOn = useSettingsStore((state) => state.settings.weekStartsOn);
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -46,8 +47,8 @@ export default function CalendarScreen() {
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
+    const startDate = startOfWeek(monthStart, { weekStartsOn });
+    const endDate = endOfWeek(monthEnd, { weekStartsOn });
 
     const days: Date[] = [];
     let day = startDate;
@@ -58,7 +59,7 @@ export default function CalendarScreen() {
     }
 
     return days;
-  }, [currentMonth]);
+  }, [currentMonth, weekStartsOn]);
 
   // Get todos for a specific date
   const getTodosForDate = (date: Date): Todo[] => {
@@ -119,7 +120,10 @@ export default function CalendarScreen() {
 
       {/* Weekday Headers */}
       <View style={styles.weekdaysRow}>
-        {WEEKDAYS.map((day) => (
+        {(weekStartsOn === 1
+          ? [...WEEKDAYS.slice(1), WEEKDAYS[0]]
+          : WEEKDAYS
+        ).map((day) => (
           <View key={day} style={styles.weekdayCell}>
             <Text category="c2" style={{ color: colors.textMuted }}>
               {day}
@@ -183,7 +187,7 @@ export default function CalendarScreen() {
 
       {/* Selected Date Tasks */}
       {selectedDate && (
-        <View style={styles.selectedDateSection}>
+        <View style={[styles.selectedDateSection, { borderTopColor: colors.separator }]}>
           <Text category="s1" style={{ marginBottom: Spacing.sm }}>
             {format(selectedDate, 'EEEE, MMMM d')}
           </Text>
@@ -292,7 +296,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8E8',
     paddingTop: Spacing.md,
   },
   tasksList: {
