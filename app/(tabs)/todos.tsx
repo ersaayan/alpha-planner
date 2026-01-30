@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { StyleSheet, View, FlatList, Pressable } from 'react-native';
 import { Text, Button, Input, Card } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
@@ -34,17 +34,19 @@ export default function TodosScreen() {
   const getCategoryColor = useCategoryStore((state) => state.getCategoryColor);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
 
-  const filteredTodos = todos.filter((todo) => {
-    if (activeTab !== 'all' && todo.status !== activeTab) return false;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        todo.title.toLowerCase().includes(query) ||
-        todo.description?.toLowerCase().includes(query)
-      );
-    }
-    return true;
-  });
+  const filteredTodos = useMemo(() => {
+    return todos.filter((todo) => {
+      if (activeTab !== 'all' && todo.status !== activeTab) return false;
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          todo.title.toLowerCase().includes(query) ||
+          todo.description?.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    });
+  }, [todos, activeTab, searchQuery]);
 
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return null;
@@ -71,22 +73,31 @@ export default function TodosScreen() {
         <Text category="h5">My Tasks</Text>
         <View style={styles.headerActions}>
           {/* View Toggle Buttons */}
-          <View style={styles.viewToggle}>
+          <View style={styles.viewToggle} accessibilityRole="tablist">
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/kanban')}
+              accessibilityRole="button"
+              accessibilityLabel="Kanban board view"
+              accessibilityHint="Opens tasks in a kanban board layout"
             >
               <Icon name="grid-outline" fill={colors.primary} size={18} />
             </Pressable>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/calendar')}
+              accessibilityRole="button"
+              accessibilityLabel="Calendar view"
+              accessibilityHint="Opens tasks in a calendar layout"
             >
               <Icon name="calendar-outline" fill={colors.primary} size={18} />
             </Pressable>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/timeline')}
+              accessibilityRole="button"
+              accessibilityLabel="Timeline view"
+              accessibilityHint="Opens tasks in a timeline layout"
             >
               <Icon name="activity-outline" fill={colors.primary} size={18} />
             </Pressable>

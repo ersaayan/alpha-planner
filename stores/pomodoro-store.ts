@@ -12,6 +12,8 @@ import { useTodoStore } from './todo-store';
 
 // Global interval reference - outside of React lifecycle
 let timerInterval: ReturnType<typeof setInterval> | null = null;
+// Timeout for auto-starting next phase
+let autoStartTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const getPhaseDuration = (phase: PomodoroPhase, settings: PomodoroSettings) => {
   if (phase === 'focus') return settings.focusDuration;
@@ -89,11 +91,15 @@ export const usePomodoroStore = create<PomodoroState>()(
         }, 1000);
       },
 
-      // Internal: Stop the ticking interval
+      // Internal: Stop the ticking interval and cancel pending auto-start
       _stopTicking: () => {
         if (timerInterval) {
           clearInterval(timerInterval);
           timerInterval = null;
+        }
+        if (autoStartTimeout) {
+          clearTimeout(autoStartTimeout);
+          autoStartTimeout = null;
         }
       },
 
@@ -438,6 +444,7 @@ export const usePomodoroStore = create<PomodoroState>()(
           }
         }
 
+        const { settings } = useSettingsStore.getState();
         if (options?.shouldNotify !== false && settings.notificationsEnabled) {
           notificationService.sendTimerCompleteNotification(
             timer.phase as 'focus' | 'short_break' | 'long_break',
@@ -454,7 +461,12 @@ export const usePomodoroStore = create<PomodoroState>()(
           (timer.phase === 'short_break' || timer.phase === 'long_break');
 
         if (shouldAutoStartBreak || shouldAutoStartFocus) {
-          setTimeout(() => {
+          // Clear any existing auto-start timeout before setting a new one
+          if (autoStartTimeout) {
+            clearTimeout(autoStartTimeout);
+          }
+          autoStartTimeout = setTimeout(() => {
+            autoStartTimeout = null;
             get().startTimer();
           }, 1500);
         }

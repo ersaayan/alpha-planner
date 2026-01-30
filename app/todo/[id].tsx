@@ -262,7 +262,9 @@ export default function TodoDetailScreen() {
           <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
             <View style={styles.infoContent}>
               <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
-              <Text category="s2">{todo.pomodoroSessions} pomodoros</Text>
+              <Text category="s2">
+                {todo.pomodoroSessions} {todo.pomodoroSessions === 1 ? 'pomodoro' : 'pomodoros'}
+              </Text>
             </View>
           </Card>
         </View>
@@ -291,7 +293,7 @@ export default function TodoDetailScreen() {
         )}
 
         {todo.subtasks.map((subtask) => (
-          <View key={subtask.id} style={styles.subtaskItem}>
+          <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
             <Pressable
               style={[
                 styles.checkbox,
@@ -301,6 +303,10 @@ export default function TodoDetailScreen() {
                 },
               ]}
               onPress={() => toggleSubtask(id, subtask.id)}
+              accessibilityRole="checkbox"
+              accessibilityLabel={subtask.title}
+              accessibilityState={{ checked: subtask.isCompleted }}
+              accessibilityHint={subtask.isCompleted ? 'Double tap to mark as incomplete' : 'Double tap to mark as complete'}
             >
               {subtask.isCompleted && (
                 <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
@@ -312,10 +318,15 @@ export default function TodoDetailScreen() {
                 styles.subtaskText,
                 subtask.isCompleted && { textDecorationLine: 'line-through', opacity: 0.6 },
               ]}
+              accessibilityElementsHidden
             >
               {subtask.title}
             </Text>
-            <Pressable onPress={() => deleteSubtask(id, subtask.id)}>
+            <Pressable
+              onPress={() => deleteSubtask(id, subtask.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete subtask: ${subtask.title}`}
+            >
               <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
             </Pressable>
           </View>

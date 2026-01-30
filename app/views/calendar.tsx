@@ -133,12 +133,17 @@ export default function CalendarScreen() {
       </View>
 
       {/* Calendar Grid */}
-      <View style={styles.calendarGrid}>
+      <View style={styles.calendarGrid} accessibilityLabel="Calendar days">
         {calendarDays.map((day, index) => {
           const dayTodos = getTodosForDate(day);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
-          const isToday = isSameDay(day, new Date());
+          const isDayToday = isSameDay(day, new Date());
+          const taskCountLabel = dayTodos.length === 0
+            ? 'no tasks'
+            : dayTodos.length === 1
+              ? '1 task'
+              : `${dayTodos.length} tasks`;
 
           return (
             <Pressable
@@ -149,12 +154,16 @@ export default function CalendarScreen() {
                 isSelected && { backgroundColor: colors.primary + '20' },
               ]}
               onPress={() => handleDatePress(day)}
+              accessibilityRole="button"
+              accessibilityLabel={`${format(day, 'EEEE, MMMM d')}, ${taskCountLabel}${isDayToday ? ', today' : ''}${isSelected ? ', selected' : ''}`}
+              accessibilityState={{ selected: isSelected ?? false }}
+              accessibilityHint="Double tap to view tasks for this day"
             >
               <Text
                 category="s2"
                 style={[
                   { color: isCurrentMonth ? colors.text : colors.textMuted },
-                  isToday && { color: colors.primary, fontWeight: 'bold' },
+                  isDayToday && { color: colors.primary, fontWeight: 'bold' },
                   isSelected && { color: colors.primary },
                 ]}
               >
@@ -164,7 +173,7 @@ export default function CalendarScreen() {
               {/* Todo indicators */}
               {dayTodos.length > 0 && (
                 <View style={styles.todoIndicators}>
-                  {dayTodos.slice(0, 3).map((todo, i) => (
+                  {dayTodos.slice(0, 3).map((todo) => (
                     <View
                       key={todo.id}
                       style={[

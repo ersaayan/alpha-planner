@@ -117,6 +117,10 @@ export default function KanbanScreen() {
             style={[styles.moveButton, !canMoveLeft && styles.moveButtonDisabled]}
             onPress={() => canMoveLeft && handleMoveLeft(todo)}
             disabled={!canMoveLeft}
+            accessibilityRole="button"
+            accessibilityLabel={`Move task to ${currentIndex > 0 ? COLUMNS[currentIndex - 1].title : 'previous column'}`}
+            accessibilityState={{ disabled: !canMoveLeft }}
+            accessibilityHint="Moves task to the previous status column"
           >
             <Icon
               name="arrow-back-outline"
@@ -128,6 +132,10 @@ export default function KanbanScreen() {
             style={[styles.moveButton, !canMoveRight && styles.moveButtonDisabled]}
             onPress={() => canMoveRight && handleMoveRight(todo)}
             disabled={!canMoveRight}
+            accessibilityRole="button"
+            accessibilityLabel={`Move task to ${currentIndex < COLUMNS.length - 1 ? COLUMNS[currentIndex + 1].title : 'next column'}`}
+            accessibilityState={{ disabled: !canMoveRight }}
+            accessibilityHint="Moves task to the next status column"
           >
             <Icon
               name="arrow-forward-outline"

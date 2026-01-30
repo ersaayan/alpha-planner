@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Card, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
@@ -32,13 +33,19 @@ export default function HomeScreen() {
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const pendingTodos = todos.filter((t) => t.status === 'pending' || t.status === 'in_progress');
-  const todayCompleted = todos.filter(
-    (t) =>
-      t.status === 'completed' &&
-      t.completedAt &&
-      new Date(t.completedAt).toDateString() === new Date().toDateString()
-  ).length;
+  const pendingTodos = useMemo(
+    () => todos.filter((t) => t.status === 'pending' || t.status === 'in_progress'),
+    [todos]
+  );
+  const todayCompleted = useMemo(() => {
+    const todayString = new Date().toDateString();
+    return todos.filter(
+      (t) =>
+        t.status === 'completed' &&
+        t.completedAt &&
+        new Date(t.completedAt).toDateString() === todayString
+    ).length;
+  }, [todos]);
 
   const xpProgress = getXpProgress();
 

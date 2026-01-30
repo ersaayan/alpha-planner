@@ -15,7 +15,8 @@ interface CategoryState {
   updateCategory: (id: string, updates: Partial<Category>) => void;
   deleteCategory: (id: string) => void;
   reorderCategories: (categoryIds: string[]) => void;
-  applyCategorySelection: (categoryIds: string[]) => void;
+  /** Keeps only the specified categories and permanently deletes the rest. Use during onboarding only. */
+  keepOnlyCategories: (categoryIds: string[]) => void;
 
   // Utility
   getCategoryById: (id: string) => Category | undefined;
@@ -87,7 +88,8 @@ export const useCategoryStore = create<CategoryState>()(
         }));
       },
 
-      applyCategorySelection: (categoryIds) => {
+      /** Keeps only the specified categories and permanently deletes the rest. Use during onboarding only. */
+      keepOnlyCategories: (categoryIds) => {
         const selected = new Set(categoryIds);
         set((state) => ({
           categories: state.categories

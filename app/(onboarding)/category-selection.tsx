@@ -19,7 +19,7 @@ export default function CategorySelectionScreen() {
 
   const categories = useCategoryStore((state) => state.categories);
   const addCategory = useCategoryStore((state) => state.addCategory);
-  const applyCategorySelection = useCategoryStore((state) => state.applyCategorySelection);
+  const keepOnlyCategories = useCategoryStore((state) => state.keepOnlyCategories);
   const completeOnboarding = useSettingsStore((state) => state.completeOnboarding);
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
@@ -51,7 +51,7 @@ export default function CategorySelectionScreen() {
   };
 
   const handleFinish = () => {
-    applyCategorySelection(selectedCategories);
+    keepOnlyCategories(selectedCategories);
     completeOnboarding();
     router.replace('/(tabs)');
   };

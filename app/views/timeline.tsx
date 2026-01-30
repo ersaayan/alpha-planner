@@ -111,10 +111,10 @@ export default function TimelineScreen() {
 
   const getPriorityColor = (priority: string): string => {
     switch (priority) {
-      case 'urgent': return '#D85656';
-      case 'high': return '#E47F7F';
-      case 'medium': return '#B5A45E';
-      case 'low': return '#90AB8B';
+      case 'urgent': return colors.priorityUrgent;
+      case 'high': return colors.priorityHigh;
+      case 'medium': return colors.priorityMedium;
+      case 'low': return colors.priorityLow;
       default: return colors.textMuted;
     }
   };
@@ -124,6 +124,9 @@ export default function TimelineScreen() {
       key={todo.id}
       style={[styles.todoCard, { backgroundColor: colors.card }]}
       onPress={() => handleTodoPress(todo.id)}
+      accessibilityRole="button"
+      accessibilityLabel={`${todo.title}${isOverdue ? ', overdue' : ''}${todo.priority !== 'low' ? `, ${todo.priority} priority` : ''}`}
+      accessibilityHint="Double tap to view task details"
     >
       <View style={styles.cardContent}>
         <View
@@ -139,15 +142,15 @@ export default function TimelineScreen() {
               numberOfLines={2}
               style={[
                 { flex: 1 },
-                isOverdue && { color: '#D85656' },
+                isOverdue && { color: colors.priorityUrgent },
               ]}
             >
               {todo.title}
             </Text>
             {isOverdue && (
               <View style={styles.overdueBadge}>
-                <Icon name="alert-circle-outline" fill="#D85656" size={12} />
-                <Text category="c2" style={{ color: '#D85656', marginLeft: 2 }}>
+                <Icon name="alert-circle-outline" fill={colors.priorityUrgent} size={12} />
+                <Text category="c2" style={{ color: colors.priorityUrgent, marginLeft: 2 }}>
                   Overdue
                 </Text>
               </View>
@@ -250,7 +253,7 @@ export default function TimelineScreen() {
                   styles.timelineNode,
                   {
                     backgroundColor: day.isOverdue
-                      ? '#D85656'
+                      ? colors.priorityUrgent
                       : isToday(day.date)
                         ? colors.primary
                         : colors.border,
@@ -268,7 +271,7 @@ export default function TimelineScreen() {
                 <Text
                   category="s1"
                   style={[
-                    day.isOverdue && { color: '#D85656' },
+                    day.isOverdue && { color: colors.priorityUrgent },
                     isToday(day.date) && { color: colors.primary },
                   ]}
                 >

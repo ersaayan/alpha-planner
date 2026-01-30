@@ -1,8 +1,8 @@
 import { Button, Card, Text } from "@ui-kitten/components";
 import { Icon } from "@/components/icon";
 import { CircularProgress } from "@/components/pomodoro";
-import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { StyleSheet, View, AccessibilityInfo } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
@@ -104,6 +104,18 @@ export default function PomodoroScreen() {
       notificationService.dismissTimerNotification();
     };
   }, []);
+
+  // Track previous remaining time to detect completion
+  const prevRemainingTimeRef = useRef(remainingTime);
+  useEffect(() => {
+    // Announce when timer reaches zero (was running, now completed)
+    if (prevRemainingTimeRef.current > 0 && remainingTime === 0 && timerState === 'running') {
+      const phaseLabel = timerPhase === 'focus' ? 'Focus session' :
+        timerPhase === 'short_break' ? 'Short break' : 'Long break';
+      AccessibilityInfo.announceForAccessibility(`${phaseLabel} complete. Timer finished.`);
+    }
+    prevRemainingTimeRef.current = remainingTime;
+  }, [remainingTime, timerState, timerPhase]);
 
   const getPhaseColor = () => {
     switch (timerPhase) {
