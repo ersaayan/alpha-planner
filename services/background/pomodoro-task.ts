@@ -1,8 +1,6 @@
-import * as TaskManager from 'expo-task-manager';
-import * as BackgroundFetch from 'expo-background-fetch';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COMPLETION_CHANNELS = {
   soundVibrate: 'pomodoro',
@@ -41,43 +39,6 @@ async function storeScheduledNotificationId(id: string | null): Promise<void> {
   }
 }
 
-export const POMODORO_BACKGROUND_TASK = 'pomodoro-background-task';
-
-// Define the background task
-TaskManager.defineTask(POMODORO_BACKGROUND_TASK, async () => {
-  try {
-    // This task runs periodically when app is in background
-    // We use it mainly to schedule notifications
-    // The actual timer state is managed by startedAt timestamp
-    console.log('Background task executed');
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch (error) {
-    console.error('Background task error:', error);
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
-
-export async function registerBackgroundTask(): Promise<void> {
-  try {
-    await BackgroundFetch.registerTaskAsync(POMODORO_BACKGROUND_TASK, {
-      minimumInterval: 60, // 1 minute minimum
-      stopOnTerminate: false,
-      startOnBoot: true,
-    });
-    console.log('Background task registered');
-  } catch (error) {
-    console.error('Failed to register background task:', error);
-  }
-}
-
-export async function unregisterBackgroundTask(): Promise<void> {
-  try {
-    await BackgroundFetch.unregisterTaskAsync(POMODORO_BACKGROUND_TASK);
-    console.log('Background task unregistered');
-  } catch (error) {
-    console.error('Failed to unregister background task:', error);
-  }
-}
 
 // Schedule a notification for when the timer should complete
 export async function scheduleTimerNotification(

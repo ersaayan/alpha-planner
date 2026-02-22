@@ -1,26 +1,27 @@
-import { useEffect, useCallback } from 'react';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import * as eva from '@eva-design/eva';
-import { ApplicationProvider } from '@ui-kitten/components';
-import * as SplashScreen from 'expo-splash-screen';
 import {
-  useFonts,
   Inter_300Light,
   Inter_400Regular,
   Inter_500Medium,
   Inter_600SemiBold,
   Inter_700Bold,
   Inter_800ExtraBold,
+  useFonts,
 } from '@expo-google-fonts/inter';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { ApplicationProvider } from '@ui-kitten/components';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import 'react-native-reanimated';
 
+import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
+import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { alphaTheme, alphaDarkTheme } from '@/constants/eva-theme';
 import { notificationService } from '@/services/notifications';
 import { useCategoryStore, usePomodoroStore, useSettingsStore } from '@/stores';
-import { Colors } from '@/constants/theme';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -56,7 +57,59 @@ const AlphaDarkTheme = {
   },
 };
 
+function usePomodoroBackgroundSync() {
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const previousState = appStateRef.current;
+      appStateRef.current = nextAppState;
+
+      // App coming to foreground
+      if (nextAppState === 'active') {
+        const store = usePomodoroStore.getState();
+        const currentTimer = store.timer;
+
+        if (currentTimer.state === 'running' && currentTimer.startedAt) {
+          // Sync remaining time
+          store.syncTimer({ fromBackground: previousState !== 'active' });
+
+          // Restart the ticking interval if it's still running
+          if (usePomodoroStore.getState().timer.state === 'running') {
+            store._startTicking();
+          }
+        }
+
+        // Always dismiss the ongoing background notification when opening the app
+        notificationService.dismissTimerNotification();
+      } else if (nextAppState === 'background') {
+        // App going into background
+        const store = usePomodoroStore.getState();
+        const currentTimer = store.timer;
+        if (currentTimer.state === 'running' && currentTimer.startedAt) {
+          // Stop internal interval to save battery, rely on syncTimer when reopening
+          store._stopTicking();
+
+          // Re-affirm the completion notification is scheduled
+          const { settings, pomodoroSettings } = useSettingsStore.getState();
+          import('@/services/background').then(({ scheduleTimerNotification }) => {
+            scheduleTimerNotification(
+              currentTimer.phase as 'focus' | 'short_break' | 'long_break',
+              currentTimer.remainingTime,
+              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+            );
+          });
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+}
+
 export default function RootLayout() {
+  usePomodoroBackgroundSync();
+
   const colorScheme = useColorScheme();
   const initializeCategories = useCategoryStore((state) => state.initializeCategories);
   const notificationsEnabled = useSettingsStore(

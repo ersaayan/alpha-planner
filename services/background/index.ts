@@ -1,7 +1,4 @@
 export {
-  POMODORO_BACKGROUND_TASK,
-  registerBackgroundTask,
-  unregisterBackgroundTask,
-  scheduleTimerNotification,
-  cancelScheduledTimerNotifications,
+    cancelScheduledTimerNotifications, scheduleTimerNotification
 } from './pomodoro-task';
+

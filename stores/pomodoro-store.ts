@@ -1,15 +1,15 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PomodoroTimerState, PomodoroSession, PomodoroPhase, PomodoroSettings } from '@/types';
+import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
+import { notificationService } from '@/services/notifications';
+import type { PomodoroPhase, PomodoroSession, PomodoroSettings, PomodoroTimerState } from '@/types';
 import { INITIAL_TIMER_STATE } from '@/types';
 import { generateId } from '@/utils/uuid';
-import { useSettingsStore } from './settings-store';
-import { cancelScheduledTimerNotifications } from '@/services/background';
-import { notificationService } from '@/services/notifications';
-import { useGamificationStore } from './gamification-store';
-import { useTodoStore } from './todo-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { useGamificationStore } from './gamification-store';
+import { useSettingsStore } from './settings-store';
+import { useTodoStore } from './todo-store';
 
 // Global interval reference - outside of React lifecycle
 let timerInterval: ReturnType<typeof setInterval> | null = null;
@@ -56,7 +56,7 @@ interface PomodoroState {
   // Internal timer management
   _startTicking: () => void;
   _stopTicking: () => void;
-  _handleCompletion: (options?: { shouldNotify?: boolean }) => void;
+  _handleCompletion: (options?: { shouldNotify?: boolean; _isSyncing?: boolean; _syncState?: PomodoroTimerState }) => void;
 
   // Phase management
   setPhase: (phase: PomodoroPhase) => void;
@@ -157,6 +157,13 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Start the interval after state is set
         _startTicking();
 
+        // Schedule notification for completion immediately
+        const { soundEnabled } = settings;
+        const { vibrationEnabled } = pomodoroSettings;
+        scheduleTimerNotification(phase, totalTime, {
+          soundEnabled,
+          vibrationEnabled,
+        });
       },
 
       pauseTimer: () => {
@@ -202,6 +209,15 @@ export const usePomodoroStore = create<PomodoroState>()(
 
         // Start the interval after state is set
         _startTicking();
+
+        // Reschedule notification
+        const { soundEnabled } = settings;
+        const { vibrationEnabled } = pomodoroSettings;
+        const newRemaining = Math.max(0, timer.totalTime - elapsedSeconds);
+        scheduleTimerNotification(timer.phase as 'focus' | 'short_break' | 'long_break', newRemaining, {
+          soundEnabled,
+          vibrationEnabled,
+        });
       },
 
       stopTimer: () => {
@@ -285,20 +301,108 @@ export const usePomodoroStore = create<PomodoroState>()(
         if (timer.state !== 'running' || !timer.startedAt) return;
 
         const nowMs = options?.now ?? Date.now();
-        const elapsedSeconds = calculateElapsedSeconds(timer, nowMs);
-        const newRemaining = Math.max(0, timer.totalTime - elapsedSeconds);
+        const { pomodoroSettings } = useSettingsStore.getState();
 
-        if (newRemaining === timer.remainingTime) return;
+        let currentTimer = { ...timer };
+        let elapsedSeconds = calculateElapsedSeconds(currentTimer, nowMs);
 
-        set({
-          timer: {
-            ...timer,
-            remainingTime: newRemaining,
-          },
-        });
+        // Process completed phases during the background period
+        while (elapsedSeconds >= currentTimer.remainingTime) {
+          elapsedSeconds -= currentTimer.remainingTime;
 
-        if (newRemaining === 0) {
-          get()._handleCompletion({ shouldNotify: !options?.fromBackground });
+          const isFocus = currentTimer.phase === 'focus';
+          const newSessionsCompleted = isFocus
+            ? currentTimer.sessionsCompleted + 1
+            : currentTimer.sessionsCompleted;
+          const nextPhase = getNextPhase(
+            currentTimer.phase,
+            newSessionsCompleted,
+            pomodoroSettings
+          );
+
+          // Force Gamification Updates for missed phases
+          if (isFocus) {
+            const completionAtMs = currentTimer.startedAt! + currentTimer.totalTime * 1000;
+            const { incrementPomodoro } = useGamificationStore.getState();
+            const { incrementPomodoroCount } = useTodoStore.getState();
+            incrementPomodoro(pomodoroSettings.focusDuration, new Date(completionAtMs));
+            if (currentTimer.linkedTodoId) {
+              incrementPomodoroCount(currentTimer.linkedTodoId);
+            }
+          }
+
+          const shouldAutoContinue =
+            (isFocus && pomodoroSettings.autoStartBreaks) ||
+            (!isFocus && pomodoroSettings.autoStartFocus);
+
+          if (!shouldAutoContinue) {
+            // Reached a phase that requires manual start. End catch-up here.
+            get()._handleCompletion({ shouldNotify: false, _isSyncing: true, _syncState: { ...currentTimer, sessionsCompleted: newSessionsCompleted } });
+            return; 
+          }
+
+          // Advance to next phase
+          const nextDuration = getPhaseDuration(nextPhase, pomodoroSettings);
+          // Recalculate startedAt moving forward in time
+          const nextStartedAt = currentTimer.startedAt! + currentTimer.totalTime * 1000;
+          
+          currentTimer = {
+            ...currentTimer,
+            phase: nextPhase,
+            remainingTime: nextDuration,
+            totalTime: nextDuration,
+            sessionsCompleted: newSessionsCompleted,
+            startedAt: nextStartedAt,
+          };
+          
+          // Complete session silently
+          let newSessions = get().sessions;
+          if (get().currentSession) {
+            const completedSession: PomodoroSession = {
+                ...get().currentSession!,
+                endedAt: new Date(nextStartedAt).toISOString(),
+                duration: currentTimer.totalTime,
+                wasCompleted: true,
+            };
+            newSessions = [...newSessions, completedSession];
+            
+            // Create next session
+            const newSession: PomodoroSession = {
+              id: generateId(),
+              todoId: currentTimer.linkedTodoId,
+              phase: nextPhase,
+              startedAt: new Date(nextStartedAt).toISOString(),
+              endedAt: null,
+              pausedDuration: 0,
+              wasCompleted: false,
+              duration: 0,
+              targetDuration: nextDuration,
+            };
+            set({ sessions: newSessions, currentSession: newSession });
+          }
+        }
+
+        // Apply remaining time
+        const newRemaining = Math.max(0, currentTimer.totalTime - elapsedSeconds);
+        
+        // If we skipped phases, update the store fully
+        if (currentTimer.phase !== timer.phase || newRemaining !== timer.remainingTime) {
+          set({
+            timer: {
+              ...currentTimer,
+              remainingTime: newRemaining,
+            },
+          });
+          
+          if (currentTimer.phase !== timer.phase) {
+            // Need to reschedule notification for the newly entered phase
+            const { settings } = useSettingsStore.getState();
+            scheduleTimerNotification(
+              currentTimer.phase as 'focus' | 'short_break' | 'long_break', 
+              newRemaining, 
+              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+            );
+          }
         }
       },
 
@@ -376,8 +480,9 @@ export const usePomodoroStore = create<PomodoroState>()(
         });
       },
 
-      _handleCompletion: (options) => {
-        const { timer, currentSession, sessions, _stopTicking } = get();
+      _handleCompletion: (options?: { shouldNotify?: boolean; _isSyncing?: boolean; _syncState?: PomodoroTimerState }) => {
+        const { timer: originalTimer, currentSession, sessions, _stopTicking } = get();
+        const timer = options?._syncState ?? originalTimer;
         if (timer.state !== 'running') return;
 
         _stopTicking();
@@ -449,7 +554,7 @@ export const usePomodoroStore = create<PomodoroState>()(
           pomodoroSettings.autoStartFocus &&
           (timer.phase === 'short_break' || timer.phase === 'long_break');
 
-        if (shouldAutoStartBreak || shouldAutoStartFocus) {
+        if ((shouldAutoStartBreak || shouldAutoStartFocus) && !options?._isSyncing) {
           // Clear any existing auto-start timeout before setting a new one
           if (autoStartTimeout) {
             clearTimeout(autoStartTimeout);
