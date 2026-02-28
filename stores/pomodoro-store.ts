@@ -1,4 +1,4 @@
-import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
+import { cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, scheduleTimerNotification, unregisterPomodoroBackgroundTask } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import type { PomodoroPhase, PomodoroSession, PomodoroSettings, PomodoroTimerState } from '@/types';
 import { INITIAL_TIMER_STATE } from '@/types';
@@ -164,6 +164,9 @@ export const usePomodoroStore = create<PomodoroState>()(
           soundEnabled,
           vibrationEnabled,
         });
+
+        // Register background task for periodic check-ins
+        registerPomodoroBackgroundTask();
       },
 
       pauseTimer: () => {
@@ -218,6 +221,9 @@ export const usePomodoroStore = create<PomodoroState>()(
           soundEnabled,
           vibrationEnabled,
         });
+
+        // Re-register background task
+        registerPomodoroBackgroundTask();
       },
 
       stopTimer: () => {
@@ -233,6 +239,9 @@ export const usePomodoroStore = create<PomodoroState>()(
         if (settings.notificationsEnabled) {
           notificationService.dismissTimerNotification();
         }
+
+        // Unregister background task since timer is stopped
+        unregisterPomodoroBackgroundTask();
 
         if (currentSession) {
           const endedSession: PomodoroSession = {
@@ -259,6 +268,10 @@ export const usePomodoroStore = create<PomodoroState>()(
       resetTimer: () => {
         const { _stopTicking } = get();
         _stopTicking();
+
+        // Cancel notifications and background task
+        cancelScheduledTimerNotifications();
+        unregisterPomodoroBackgroundTask();
 
         const { pomodoroSettings } = useSettingsStore.getState();
         const focusDuration = pomodoroSettings.focusDuration;
@@ -435,6 +448,9 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Cancel any scheduled notifications
         cancelScheduledTimerNotifications();
 
+        // Unregister background task since timer is being stopped
+        unregisterPomodoroBackgroundTask();
+
         const { settings } = useSettingsStore.getState();
         if (settings.notificationsEnabled) {
           notificationService.dismissTimerNotification();
@@ -524,7 +540,7 @@ export const usePomodoroStore = create<PomodoroState>()(
             startedAt: null,
             pausedAt: null,
             currentSessionId: null,
-            linkedTodoId: null,
+            linkedTodoId: timer.linkedTodoId,
           },
         });
 
@@ -634,26 +650,21 @@ export const usePomodoroStore = create<PomodoroState>()(
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         sessions: state.sessions,
-        // Only persist session count and linked todo, not the full timer state
-        _persistedTimer: {
-          sessionsCompleted: state.timer.sessionsCompleted,
-          linkedTodoId: state.timer.linkedTodoId,
-        },
+        timer: state.timer,
+        currentSession: state.currentSession,
       }),
-      // Merge persisted partial state with initial state
+      // Merge persisted state — restores full timer state for app-kill recovery
       merge: (persistedState, currentState) => {
         const persisted = persistedState as {
           sessions?: PomodoroSession[];
-          _persistedTimer?: { sessionsCompleted?: number; linkedTodoId?: string | null };
+          timer?: PomodoroTimerState;
+          currentSession?: PomodoroSession | null;
         };
         return {
           ...currentState,
           sessions: persisted?.sessions ?? [],
-          timer: {
-            ...INITIAL_TIMER_STATE,
-            sessionsCompleted: persisted?._persistedTimer?.sessionsCompleted ?? 0,
-            linkedTodoId: persisted?._persistedTimer?.linkedTodoId ?? null,
-          },
+          timer: persisted?.timer ?? INITIAL_TIMER_STATE,
+          currentSession: persisted?.currentSession ?? null,
         };
       },
     }

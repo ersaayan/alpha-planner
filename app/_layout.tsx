@@ -20,6 +20,7 @@ import 'react-native-reanimated';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, scheduleTimerNotification } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import { useCategoryStore, usePomodoroStore, useSettingsStore } from '@/stores';
 
@@ -71,34 +72,56 @@ function usePomodoroBackgroundSync() {
         const currentTimer = store.timer;
 
         if (currentTimer.state === 'running' && currentTimer.startedAt) {
-          // Sync remaining time
+          // Sync remaining time — catches up all elapsed seconds
           store.syncTimer({ fromBackground: previousState !== 'active' });
 
-          // Restart the ticking interval if it's still running
+          // Restart the ticking interval if timer is still running after sync
           if (usePomodoroStore.getState().timer.state === 'running') {
             store._startTicking();
           }
         }
 
-        // Always dismiss the ongoing background notification when opening the app
+        // Dismiss ongoing notification & cancel scheduled completion notification
+        // (the foreground interval will handle everything from here)
         notificationService.dismissTimerNotification();
+        cancelScheduledTimerNotifications();
       } else if (nextAppState === 'background') {
-        // App going into background
+        // ── App going into background ──
         const store = usePomodoroStore.getState();
         const currentTimer = store.timer;
+        const { settings, pomodoroSettings } = useSettingsStore.getState();
+
         if (currentTimer.state === 'running' && currentTimer.startedAt) {
-          // Stop internal interval to save battery, rely on syncTimer when reopening
+          // Stop internal interval to save battery
           store._stopTicking();
 
-          // Re-affirm the completion notification is scheduled
-          const { settings, pomodoroSettings } = useSettingsStore.getState();
-          import('@/services/background').then(({ scheduleTimerNotification }) => {
-            scheduleTimerNotification(
+          // Show ongoing notification with countdown
+          if (settings.notificationsEnabled) {
+            notificationService.showTimerNotification(
               currentTimer.phase as 'focus' | 'short_break' | 'long_break',
               currentTimer.remainingTime,
-              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+              currentTimer.totalTime,
+              false,
             );
-          });
+          }
+
+          // Schedule exact completion notification
+          scheduleTimerNotification(
+            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
+            currentTimer.remainingTime,
+            {
+              soundEnabled: settings.soundEnabled,
+              vibrationEnabled: pomodoroSettings.vibrationEnabled,
+            },
+          );
+        } else if (currentTimer.state === 'paused' && settings.notificationsEnabled) {
+          // Show paused state in notification shade
+          notificationService.showTimerNotification(
+            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
+            currentTimer.remainingTime,
+            currentTimer.totalTime,
+            true,
+          );
         }
       }
     });
@@ -107,8 +130,34 @@ function usePomodoroBackgroundSync() {
   }, []);
 }
 
+/**
+ * Handles recovery after the app has been killed and restarted.
+ * Zustand rehydrates the timer state from AsyncStorage; this hook
+ * detects a previously-running timer and syncs it forward.
+ */
+function usePomodoroRehydrationSync() {
+  useEffect(() => {
+    const unsubscribe = usePomodoroStore.persist.onFinishHydration((state) => {
+      if (state.timer.state === 'running' && state.timer.startedAt) {
+        // Timer was running when the app was killed — catch up
+        usePomodoroStore.getState().syncTimer({ fromBackground: true });
+
+        // If timer is still running after sync, restart ticking & background task
+        const synced = usePomodoroStore.getState();
+        if (synced.timer.state === 'running') {
+          synced._startTicking();
+          registerPomodoroBackgroundTask();
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+}
+
 export default function RootLayout() {
   usePomodoroBackgroundSync();
+  usePomodoroRehydrationSync();
 
   const colorScheme = useColorScheme();
   const initializeCategories = useCategoryStore((state) => state.initializeCategories);
@@ -145,7 +194,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (notificationsEnabled) {
-      notificationService.initialize();
+      notificationService.initialize().then(() => {
+        // Wire notification action callbacks so pause/resume/stop work from notification shade
+        notificationService.setActionCallbacks({
+          onPause: () => usePomodoroStore.getState().pauseTimer(),
+          onResume: () => usePomodoroStore.getState().resumeTimer(),
+          onStop: () => usePomodoroStore.getState().stopTimer(),
+        });
+      });
     }
   }, [notificationsEnabled]);
 
