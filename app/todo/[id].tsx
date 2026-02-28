@@ -1,23 +1,23 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Icon } from '@/components/icon';
 import {
-  Text,
   Button,
+  Card,
+  Datepicker,
+  IndexPath,
   Input,
   Select,
   SelectItem,
-  IndexPath,
-  Datepicker,
-  Card,
+  Text,
 } from '@ui-kitten/components';
-import { Icon } from '@/components/icon';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 
-import { useTodoStore, useCategoryStore, usePomodoroStore, useSettingsStore } from '@/stores';
-import type { TodoPriority, TodoStatus } from '@/types';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCategoryStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
+import type { TodoPriority, TodoStatus } from '@/types';
 import { formatDate } from '@/utils/date';
 
 const PRIORITIES: { value: TodoPriority; label: string; color: string }[] = [
@@ -95,6 +95,8 @@ export default function TodoDetailScreen() {
   const selectedStatus = STATUSES[selectedStatusIndex.row];
 
   const handleSave = () => {
+    if (!title.trim()) return;
+
     updateTodo(id, {
       title: title.trim(),
       description: description.trim() || null,
@@ -149,260 +151,261 @@ export default function TodoDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         keyboardShouldPersistTaps="handled"
       >
-      {/* Status Badge */}
-      <View style={styles.statusRow}>
-        <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
-          <Text category="c1" style={{ color: colors.primary }}>
-            {selectedStatus.label}
-          </Text>
-        </View>
-        <View style={[styles.priorityBadge, { backgroundColor: selectedPriority.color + '20' }]}>
-          <View style={[styles.priorityDot, { backgroundColor: selectedPriority.color }]} />
-          <Text category="c1" style={{ color: selectedPriority.color }}>
-            {selectedPriority.label}
-          </Text>
-        </View>
-      </View>
-
-      {/* Title & Description */}
-      {isEditing ? (
-        <>
-          <Input
-            label="Title"
-            value={title}
-            onChangeText={setTitle}
-            style={styles.input}
-            size="large"
-          />
-          <Input
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            style={styles.input}
-            multiline
-            numberOfLines={3}
-          />
-        </>
-      ) : (
-        <View style={styles.detailSection}>
-          <Text category="h5">{todo.title}</Text>
-          {todo.description && (
-            <Text category="p1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-              {todo.description}
+        {/* Status Badge */}
+        <View style={styles.statusRow}>
+          <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
+            <Text category="c1" style={{ color: colors.primary }}>
+              {selectedStatus.label}
             </Text>
-          )}
-        </View>
-      )}
-
-      {/* Category & Priority (Edit Mode) */}
-      {isEditing && (
-        <>
-          <Select
-            label="Category"
-            placeholder="Select a category"
-            value={selectedCategory?.name}
-            selectedIndex={selectedCategoryIndex}
-            onSelect={(index) => setSelectedCategoryIndex(index as IndexPath)}
-            style={styles.input}
-          >
-            {categories.map((category) => (
-              <SelectItem key={category.id} title={category.name} />
-            ))}
-          </Select>
-
-          <Select
-            label="Priority"
-            value={selectedPriority.label}
-            selectedIndex={selectedPriorityIndex}
-            onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
-            style={styles.input}
-          >
-            {PRIORITIES.map((priority) => (
-              <SelectItem key={priority.value} title={priority.label} />
-            ))}
-          </Select>
-
-          <Select
-            label="Status"
-            value={selectedStatus.label}
-            selectedIndex={selectedStatusIndex}
-            onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
-            style={styles.input}
-          >
-            {STATUSES.map((status) => (
-              <SelectItem key={status.value} title={status.label} />
-            ))}
-          </Select>
-
-          <Datepicker
-            label="Due Date"
-            placeholder="Pick a date"
-            date={dueDate}
-            onSelect={(date) => setDueDate(date)}
-            style={styles.input}
-          />
-        </>
-      )}
-
-      {/* Info Cards */}
-      {!isEditing && (
-        <View style={styles.infoCards}>
-          {selectedCategory && (
-            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-              <View style={styles.infoContent}>
-                <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                <Text category="s2">{selectedCategory.name}</Text>
-              </View>
-            </Card>
-          )}
-          {todo.dueDate && (
-            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-              <View style={styles.infoContent}>
-                <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                <Text category="s2">{formatDate(new Date(todo.dueDate), dateFormat)}</Text>
-              </View>
-            </Card>
-          )}
-          <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-            <View style={styles.infoContent}>
-              <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
-              <Text category="s2">
-                {todo.pomodoroSessions} {todo.pomodoroSessions === 1 ? 'pomodoro' : 'pomodoros'}
-              </Text>
-            </View>
-          </Card>
-        </View>
-      )}
-
-      {/* Subtasks */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text category="s1">Subtasks</Text>
-          {todo.subtasks.length > 0 && (
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {completedSubtasks}/{todo.subtasks.length}
-            </Text>
-          )}
-        </View>
-
-        {todo.subtasks.length > 0 && (
-          <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${subtaskProgress * 100}%`, backgroundColor: colors.primary },
-              ]}
-            />
           </View>
-        )}
-
-        {todo.subtasks.map((subtask) => (
-          <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
-            <Pressable
-              style={[
-                styles.checkbox,
-                {
-                  borderColor: subtask.isCompleted ? colors.primary : colors.border,
-                  backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
-                },
-              ]}
-              onPress={() => toggleSubtask(id, subtask.id)}
-              accessibilityRole="checkbox"
-              accessibilityLabel={subtask.title}
-              accessibilityState={{ checked: subtask.isCompleted }}
-              accessibilityHint={subtask.isCompleted ? 'Double tap to mark as incomplete' : 'Double tap to mark as complete'}
-            >
-              {subtask.isCompleted && (
-                <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
-              )}
-            </Pressable>
-            <Text
-              category="p2"
-              style={[
-                styles.subtaskText,
-                subtask.isCompleted && { textDecorationLine: 'line-through', opacity: 0.6 },
-              ]}
-              accessibilityElementsHidden
-            >
-              {subtask.title}
+          <View style={[styles.priorityBadge, { backgroundColor: selectedPriority.color + '20' }]}>
+            <View style={[styles.priorityDot, { backgroundColor: selectedPriority.color }]} />
+            <Text category="c1" style={{ color: selectedPriority.color }}>
+              {selectedPriority.label}
             </Text>
-            <Pressable
-              onPress={() => deleteSubtask(id, subtask.id)}
-              accessibilityRole="button"
-              accessibilityLabel={`Delete subtask: ${subtask.title}`}
-            >
-              <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
-            </Pressable>
           </View>
-        ))}
-
-        <View style={styles.addSubtaskRow}>
-          <Input
-            placeholder="Add a subtask..."
-            value={newSubtask}
-            onChangeText={setNewSubtask}
-            style={styles.subtaskInput}
-            onSubmitEditing={handleAddSubtask}
-          />
-          <Button
-            size="small"
-            appearance="ghost"
-            accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
-            onPress={handleAddSubtask}
-            disabled={!newSubtask.trim()}
-          />
         </View>
-      </View>
 
-      {/* Actions */}
-      <View style={styles.actions}>
+        {/* Title & Description */}
         {isEditing ? (
           <>
-            <Button appearance="ghost" onPress={() => setIsEditing(false)}>
-              Cancel
-            </Button>
-            <Button onPress={handleSave}>Save Changes</Button>
+            <Input
+              label="Title"
+              value={title}
+              onChangeText={setTitle}
+              style={styles.input}
+              size="large"
+            />
+            <Input
+              label="Description"
+              value={description}
+              onChangeText={setDescription}
+              style={styles.input}
+              multiline
+              numberOfLines={3}
+            />
           </>
         ) : (
-          <>
-            <Button
-              appearance="outline"
-              accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
-              onPress={() => setIsEditing(true)}
-            >
-              Edit
-            </Button>
-            {timer.linkedTodoId === id ? (
-              <Button
-                appearance="ghost"
-                status="basic"
-                accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
-                onPress={handleUnlinkFromPomodoro}
-              >
-                Unlink
-              </Button>
-            ) : (
-              <Button
-                accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
-                onPress={handleLinkToPomodoro}
-              >
-                Start Focus
-              </Button>
+          <View style={styles.detailSection}>
+            <Text category="h5">{todo.title}</Text>
+            {todo.description && (
+              <Text category="p1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
+                {todo.description}
+              </Text>
             )}
+          </View>
+        )}
+
+        {/* Category & Priority (Edit Mode) */}
+        {isEditing && (
+          <>
+            <Select
+              label="Category"
+              placeholder="Select a category"
+              value={selectedCategory?.name}
+              selectedIndex={selectedCategoryIndex}
+              onSelect={(index) => setSelectedCategoryIndex(index as IndexPath)}
+              style={styles.input}
+            >
+              {categories.map((category) => (
+                <SelectItem key={category.id} title={category.name} />
+              ))}
+            </Select>
+
+            <Select
+              label="Priority"
+              value={selectedPriority.label}
+              selectedIndex={selectedPriorityIndex}
+              onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
+              style={styles.input}
+            >
+              {PRIORITIES.map((priority) => (
+                <SelectItem key={priority.value} title={priority.label} />
+              ))}
+            </Select>
+
+            <Select
+              label="Status"
+              value={selectedStatus.label}
+              selectedIndex={selectedStatusIndex}
+              onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
+              style={styles.input}
+            >
+              {STATUSES.map((status) => (
+                <SelectItem key={status.value} title={status.label} />
+              ))}
+            </Select>
+
+            <Datepicker
+              label="Due Date"
+              placeholder="Pick a date"
+              date={dueDate}
+              onSelect={(date) => setDueDate(date)}
+              style={styles.input}
+              min={new Date()}
+            />
           </>
         )}
-      </View>
 
-      {/* Delete */}
-      <Button
-        appearance="ghost"
-        status="danger"
-        accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
-        onPress={handleDelete}
-        style={styles.deleteButton}
-      >
-        Delete Task
-      </Button>
+        {/* Info Cards */}
+        {!isEditing && (
+          <View style={styles.infoCards}>
+            {selectedCategory && (
+              <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+                <View style={styles.infoContent}>
+                  <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                  <Text category="s2">{selectedCategory.name}</Text>
+                </View>
+              </Card>
+            )}
+            {todo.dueDate && (
+              <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+                <View style={styles.infoContent}>
+                  <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                  <Text category="s2">{formatDate(new Date(todo.dueDate), dateFormat)}</Text>
+                </View>
+              </Card>
+            )}
+            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+              <View style={styles.infoContent}>
+                <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                <Text category="s2">
+                  {todo.pomodoroSessions} {todo.pomodoroSessions === 1 ? 'pomodoro' : 'pomodoros'}
+                </Text>
+              </View>
+            </Card>
+          </View>
+        )}
+
+        {/* Subtasks */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text category="s1">Subtasks</Text>
+            {todo.subtasks.length > 0 && (
+              <Text category="c1" style={{ color: colors.textMuted }}>
+                {completedSubtasks}/{todo.subtasks.length}
+              </Text>
+            )}
+          </View>
+
+          {todo.subtasks.length > 0 && (
+            <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${subtaskProgress * 100}%`, backgroundColor: colors.primary },
+                ]}
+              />
+            </View>
+          )}
+
+          {todo.subtasks.map((subtask) => (
+            <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
+              <Pressable
+                style={[
+                  styles.checkbox,
+                  {
+                    borderColor: subtask.isCompleted ? colors.primary : colors.border,
+                    backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
+                  },
+                ]}
+                onPress={() => toggleSubtask(id, subtask.id)}
+                accessibilityRole="checkbox"
+                accessibilityLabel={subtask.title}
+                accessibilityState={{ checked: subtask.isCompleted }}
+                accessibilityHint={subtask.isCompleted ? 'Double tap to mark as incomplete' : 'Double tap to mark as complete'}
+              >
+                {subtask.isCompleted && (
+                  <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
+                )}
+              </Pressable>
+              <Text
+                category="p2"
+                style={[
+                  styles.subtaskText,
+                  subtask.isCompleted && { textDecorationLine: 'line-through', opacity: 0.6 },
+                ]}
+                accessibilityElementsHidden
+              >
+                {subtask.title}
+              </Text>
+              <Pressable
+                onPress={() => deleteSubtask(id, subtask.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete subtask: ${subtask.title}`}
+              >
+                <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
+              </Pressable>
+            </View>
+          ))}
+
+          <View style={styles.addSubtaskRow}>
+            <Input
+              placeholder="Add a subtask..."
+              value={newSubtask}
+              onChangeText={setNewSubtask}
+              style={styles.subtaskInput}
+              onSubmitEditing={handleAddSubtask}
+            />
+            <Button
+              size="small"
+              appearance="ghost"
+              accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
+              onPress={handleAddSubtask}
+              disabled={!newSubtask.trim()}
+            />
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.actions}>
+          {isEditing ? (
+            <>
+              <Button appearance="ghost" onPress={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button onPress={handleSave}>Save Changes</Button>
+            </>
+          ) : (
+            <>
+              <Button
+                appearance="outline"
+                accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
+                onPress={() => setIsEditing(true)}
+              >
+                Edit
+              </Button>
+              {timer.linkedTodoId === id ? (
+                <Button
+                  appearance="ghost"
+                  status="basic"
+                  accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
+                  onPress={handleUnlinkFromPomodoro}
+                >
+                  Unlink
+                </Button>
+              ) : (
+                <Button
+                  accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
+                  onPress={handleLinkToPomodoro}
+                >
+                  Start Focus
+                </Button>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Delete */}
+        <Button
+          appearance="ghost"
+          status="danger"
+          accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
+          onPress={handleDelete}
+          style={styles.deleteButton}
+        >
+          Delete Task
+        </Button>
       </ScrollView>
     </KeyboardAvoidingView>
   );

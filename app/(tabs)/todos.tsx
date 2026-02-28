@@ -1,29 +1,23 @@
-import { useState, useMemo, useCallback } from 'react';
-import { StyleSheet, View, FlatList, Pressable, TextInput } from 'react-native';
-import { Text, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
   FadeIn,
-  FadeOut,
-  Layout,
+  Layout
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
-import type { TodoStatus, Todo } from '@/types';
-import { Colors, Spacing, BorderRadius, Shadows, InterFonts, FontSize } from '@/constants/theme';
-import { SpringConfig, AnimationDuration } from '@/constants/animations';
+import { BorderRadius, Colors, FontSize, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
+import type { Todo, TodoStatus } from '@/types';
 import { formatDate } from '@/utils/date';
 
+import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCheckbox } from '@/components/animated/animated-checkbox';
-import { AnimatedButton } from '@/components/animated/animated-button';
 
 const STATUS_TABS: { label: string; value: TodoStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -58,7 +52,7 @@ export default function TodosScreen() {
         );
       }
       return true;
-    });
+    }).sort((a, b) => a.order - b.order);
   }, [todos, activeTab, searchQuery]);
 
   const getCategoryName = useCallback((categoryId: string | null) => {

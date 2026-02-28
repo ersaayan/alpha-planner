@@ -157,16 +157,25 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Start the interval after state is set
         _startTicking();
 
-        // Schedule notification for completion immediately
-        const { soundEnabled } = settings;
-        const { vibrationEnabled } = pomodoroSettings;
-        scheduleTimerNotification(phase, totalTime, {
-          soundEnabled,
-          vibrationEnabled,
-        });
+        // Schedule notification for completion & register background task
+        if (settings.notificationsEnabled) {
+          const { soundEnabled } = settings;
+          const { vibrationEnabled } = pomodoroSettings;
+          try {
+            scheduleTimerNotification(phase, remainingTime, {
+              soundEnabled,
+              vibrationEnabled,
+            });
+          } catch (e) {
+            console.warn('[Pomodoro] Failed to schedule notification:', e);
+          }
 
-        // Register background task for periodic check-ins
-        registerPomodoroBackgroundTask();
+          try {
+            registerPomodoroBackgroundTask();
+          } catch (e) {
+            console.warn('[Pomodoro] Failed to register background task:', e);
+          }
+        }
       },
 
       pauseTimer: () => {
@@ -214,16 +223,25 @@ export const usePomodoroStore = create<PomodoroState>()(
         _startTicking();
 
         // Reschedule notification
-        const { soundEnabled } = settings;
-        const { vibrationEnabled } = pomodoroSettings;
-        const newRemaining = Math.max(0, timer.totalTime - elapsedSeconds);
-        scheduleTimerNotification(timer.phase as 'focus' | 'short_break' | 'long_break', newRemaining, {
-          soundEnabled,
-          vibrationEnabled,
-        });
+        if (useSettingsStore.getState().settings.notificationsEnabled) {
+          const { soundEnabled } = settings;
+          const { vibrationEnabled } = pomodoroSettings;
+          const newRemaining = Math.max(0, timer.totalTime - elapsedSeconds);
+          try {
+            scheduleTimerNotification(timer.phase as 'focus' | 'short_break' | 'long_break', newRemaining, {
+              soundEnabled,
+              vibrationEnabled,
+            });
+          } catch (e) {
+            console.warn('[Pomodoro] Failed to schedule notification:', e);
+          }
 
-        // Re-register background task
-        registerPomodoroBackgroundTask();
+          try {
+            registerPomodoroBackgroundTask();
+          } catch (e) {
+            console.warn('[Pomodoro] Failed to register background task:', e);
+          }
+        }
       },
 
       stopTimer: () => {
@@ -632,7 +650,9 @@ export const usePomodoroStore = create<PomodoroState>()(
         if (timer.state !== 'stopped') return;
 
         const settings = settingsOverride ?? useSettingsStore.getState().pomodoroSettings;
-        const totalTime = getPhaseDuration(timer.phase, settings);
+        // Treat 'idle' phase as 'focus' for duration lookup
+        const phase = timer.phase === 'idle' ? 'focus' : timer.phase;
+        const totalTime = getPhaseDuration(phase, settings);
 
         if (timer.remainingTime === totalTime && timer.totalTime === totalTime) return;
 
@@ -648,11 +668,19 @@ export const usePomodoroStore = create<PomodoroState>()(
     {
       name: 'pomodoro-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        sessions: state.sessions,
-        timer: state.timer,
-        currentSession: state.currentSession,
-      }),
+      partialize: (state) => {
+        // Prune sessions older than 90 days to prevent unbounded growth
+        const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
+        const recentSessions = state.sessions.filter((s) => {
+          const startedAt = new Date(s.startedAt).getTime();
+          return startedAt >= ninetyDaysAgo;
+        });
+        return {
+          sessions: recentSessions,
+          timer: state.timer,
+          currentSession: state.currentSession,
+        };
+      },
       // Merge persisted state — restores full timer state for app-kill recovery
       merge: (persistedState, currentState) => {
         const persisted = persistedState as {

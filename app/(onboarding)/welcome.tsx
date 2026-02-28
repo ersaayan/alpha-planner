@@ -1,11 +1,11 @@
-import { StyleSheet, View } from 'react-native';
-import { Text, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function WelcomeScreen() {
@@ -82,7 +82,7 @@ export default function WelcomeScreen() {
         <Button
           size="giant"
           style={styles.ctaButton}
-          onPress={() => router.push('/(onboarding)/pomodoro-setup')}
+          onPress={() => router.replace('/(onboarding)/pomodoro-setup')}
         >
           Get Started
         </Button>

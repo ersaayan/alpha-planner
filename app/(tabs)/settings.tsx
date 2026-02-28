@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { StyleSheet, View, ScrollView, Alert, Pressable } from 'react-native';
-import { Text, Card, Toggle, Button, Divider, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
+import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useCategoryStore, useSettingsStore } from '@/stores';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCategoryStore, useSettingsStore } from '@/stores';
 
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
@@ -46,6 +46,25 @@ export default function SettingsScreen() {
           text: 'Reset',
           style: 'destructive',
           onPress: () => updateSettings({ hasCompletedOnboarding: false }),
+        },
+      ]
+    );
+  };
+
+  const handleResetAllData = () => {
+    Alert.alert(
+      'Reset All Data',
+      'This will permanently delete all your tasks, progress, achievements, and settings. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Everything',
+          style: 'destructive',
+          onPress: async () => {
+            const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+            await AsyncStorage.clear();
+            Alert.alert('Done', 'All data has been reset. Please restart the app.');
+          },
         },
       ]
     );
@@ -111,7 +130,7 @@ export default function SettingsScreen() {
           maximumValue={60}
           step={5}
           value={focusMinutes}
-          onValueChange={(value) => updatePomodoroSettings({ focusDuration: value * 60 })}
+          onValueChange={(value) => updatePomodoroSettings({ focusDuration: Math.round(value) * 60 })}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.primary}
@@ -144,7 +163,7 @@ export default function SettingsScreen() {
           maximumValue={15}
           step={1}
           value={shortBreakMinutes}
-          onValueChange={(value) => updatePomodoroSettings({ shortBreakDuration: value * 60 })}
+          onValueChange={(value) => updatePomodoroSettings({ shortBreakDuration: Math.round(value) * 60 })}
           minimumTrackTintColor={colors.secondary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.secondary}
@@ -177,7 +196,7 @@ export default function SettingsScreen() {
           maximumValue={30}
           step={5}
           value={longBreakMinutes}
-          onValueChange={(value) => updatePomodoroSettings({ longBreakDuration: value * 60 })}
+          onValueChange={(value) => updatePomodoroSettings({ longBreakDuration: Math.round(value) * 60 })}
           minimumTrackTintColor={colors.accent}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.accent}
@@ -207,7 +226,7 @@ export default function SettingsScreen() {
           maximumValue={6}
           step={1}
           value={pomodoroSettings.sessionsUntilLongBreak}
-          onValueChange={(value) => updatePomodoroSettings({ sessionsUntilLongBreak: value })}
+          onValueChange={(value) => updatePomodoroSettings({ sessionsUntilLongBreak: Math.round(value) })}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.primary}
@@ -339,6 +358,153 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
+      {/* Appearance */}
+      <Text category="s1" style={styles.sectionTitle}>
+        Appearance
+      </Text>
+      <Card style={[styles.card, { backgroundColor: colors.card }]}>
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text category="s1">Theme</Text>
+          </View>
+        </View>
+        <View style={styles.pillGroup}>
+          {(['system', 'light', 'dark'] as const).map((option) => (
+            <Pressable
+              key={option}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: settings.theme === option ? colors.primary + '20' : colors.backgroundSecondary,
+                  borderColor: settings.theme === option ? colors.primary : 'transparent'
+                },
+              ]}
+              onPress={() => updateSettings({ theme: option })}
+            >
+              <Text category="c1" style={{ color: settings.theme === option ? colors.primary : colors.text }}>
+                {option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+
+      {/* Preferences */}
+      <Text category="s1" style={styles.sectionTitle}>
+        Preferences
+      </Text>
+      <Card style={[styles.card, { backgroundColor: colors.card }]}>
+        {/* Date Format */}
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text category="s1">Date Format</Text>
+          </View>
+        </View>
+        <View style={styles.pillGroup}>
+          {(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] as const).map((fmt) => (
+            <Pressable
+              key={fmt}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: settings.dateFormat === fmt ? colors.primary + '20' : colors.backgroundSecondary,
+                  borderColor: settings.dateFormat === fmt ? colors.primary : 'transparent'
+                },
+              ]}
+              onPress={() => updateSettings({ dateFormat: fmt })}
+            >
+              <Text category="c1" style={{ color: settings.dateFormat === fmt ? colors.primary : colors.text }}>
+                {fmt}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Divider style={styles.divider} />
+
+        {/* Time Format */}
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text category="s1">Time Format</Text>
+          </View>
+        </View>
+        <View style={styles.pillGroup}>
+          {(['12h', '24h'] as const).map((fmt) => (
+            <Pressable
+              key={fmt}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: settings.timeFormat === fmt ? colors.primary + '20' : colors.backgroundSecondary,
+                  borderColor: settings.timeFormat === fmt ? colors.primary : 'transparent'
+                },
+              ]}
+              onPress={() => updateSettings({ timeFormat: fmt })}
+            >
+              <Text category="c1" style={{ color: settings.timeFormat === fmt ? colors.primary : colors.text }}>
+                {fmt === '12h' ? '12 Hour' : '24 Hour'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Divider style={styles.divider} />
+
+        {/* Week Starts On */}
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text category="s1">Week Starts On</Text>
+          </View>
+        </View>
+        <View style={styles.pillGroup}>
+          {([0, 1] as const).map((day) => (
+            <Pressable
+              key={day}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: settings.weekStartsOn === day ? colors.primary + '20' : colors.backgroundSecondary,
+                  borderColor: settings.weekStartsOn === day ? colors.primary : 'transparent'
+                },
+              ]}
+              onPress={() => updateSettings({ weekStartsOn: day })}
+            >
+              <Text category="c1" style={{ color: settings.weekStartsOn === day ? colors.primary : colors.text }}>
+                {day === 0 ? 'Sunday' : 'Monday'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Divider style={styles.divider} />
+
+        {/* Default View */}
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <Text category="s1">Default Task View</Text>
+          </View>
+        </View>
+        <View style={styles.pillGroup}>
+          {(['list', 'kanban', 'calendar', 'timeline'] as const).map((view) => (
+            <Pressable
+              key={view}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: settings.defaultView === view ? colors.primary + '20' : colors.backgroundSecondary,
+                  borderColor: settings.defaultView === view ? colors.primary : 'transparent'
+                },
+              ]}
+              onPress={() => updateSettings({ defaultView: view })}
+            >
+              <Text category="c1" style={{ color: settings.defaultView === view ? colors.primary : colors.text }}>
+                {view.charAt(0).toUpperCase() + view.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+
       {/* Categories */}
       <Text category="s1" style={styles.sectionTitle}>
         Categories
@@ -419,6 +585,18 @@ export default function SettingsScreen() {
           style={styles.dangerButton}
         >
           Reset Onboarding
+        </Button>
+
+        <Divider style={styles.divider} />
+
+        <Button
+          appearance="ghost"
+          status="danger"
+          accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
+          onPress={handleResetAllData}
+          style={styles.dangerButton}
+        >
+          Reset All Data
         </Button>
       </Card>
 
@@ -517,5 +695,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.xl,
     marginBottom: Spacing.lg,
+  },
+  pillGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  pill: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
 });

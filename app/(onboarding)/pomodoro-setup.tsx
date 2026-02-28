@@ -1,14 +1,14 @@
-import { useState } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Button, Card } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import Slider from '@react-native-community/slider';
+import { Button, Card, Text } from '@ui-kitten/components';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useSettingsStore } from '@/stores';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSettingsStore } from '@/stores';
 
 export default function PomodoroSetupScreen() {
   const insets = useSafeAreaInsets();
@@ -30,7 +30,7 @@ export default function PomodoroSetupScreen() {
       longBreakDuration: longBreak * 60,
       sessionsUntilLongBreak,
     });
-    router.push('/(onboarding)/category-selection');
+    router.replace('/(onboarding)/category-selection');
   };
 
   const handleUseDefaults = () => {
@@ -77,7 +77,7 @@ export default function PomodoroSetupScreen() {
             maximumValue={60}
             step={5}
             value={focusDuration}
-            onValueChange={setFocusDuration}
+            onValueChange={(v) => setFocusDuration(Math.round(v))}
             minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={colors.border}
             thumbTintColor={colors.primary}
@@ -109,7 +109,7 @@ export default function PomodoroSetupScreen() {
             maximumValue={15}
             step={1}
             value={shortBreak}
-            onValueChange={setShortBreak}
+            onValueChange={(v) => setShortBreak(Math.round(v))}
             minimumTrackTintColor={colors.secondary}
             maximumTrackTintColor={colors.border}
             thumbTintColor={colors.secondary}
@@ -141,7 +141,7 @@ export default function PomodoroSetupScreen() {
             maximumValue={30}
             step={5}
             value={longBreak}
-            onValueChange={setLongBreak}
+            onValueChange={(v) => setLongBreak(Math.round(v))}
             minimumTrackTintColor={colors.accent}
             maximumTrackTintColor={colors.border}
             thumbTintColor={colors.accent}
@@ -173,7 +173,7 @@ export default function PomodoroSetupScreen() {
             maximumValue={6}
             step={1}
             value={sessionsUntilLongBreak}
-            onValueChange={setSessionsUntilLongBreak}
+            onValueChange={(v) => setSessionsUntilLongBreak(Math.round(v))}
             minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={colors.border}
             thumbTintColor={colors.primary}

@@ -1,31 +1,29 @@
-import { useMemo, useCallback, useEffect } from 'react';
-import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
-import { Text } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
-  useSharedValue,
+  Easing,
   useAnimatedStyle,
-  withSpring,
+  useSharedValue,
   withRepeat,
   withSequence,
-  withTiming,
-  Easing,
+  withTiming
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTodoStore, usePomodoroStore, useGamificationStore, useSettingsStore } from '@/stores';
 import { getLevelTitle } from '@/constants/gamification';
-import { Colors, Spacing, BorderRadius, Shadows, InterFonts, FontSize, GamificationColors, Typography } from '@/constants/theme';
-import { SpringConfig, AnimationDuration } from '@/constants/animations';
+import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useGamificationStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDate } from '@/utils/date';
 
-import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
-import { AnimatedCard } from '@/components/animated/animated-card';
-import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedCounter } from '@/components/animated/animated-counter';
+import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -149,7 +147,9 @@ export default function HomeScreen() {
           backgroundColor={colors.backgroundSecondary}
         />
         <Text style={[styles.nextLevelText, { color: colors.textMuted }]}>
-          {xpProgress.required - xpProgress.current} XP to Level {stats.level + 1}
+          {stats.level >= 10
+            ? '✨ Max Level Reached!'
+            : `${xpProgress.required - xpProgress.current} XP to Level ${stats.level + 1}`}
         </Text>
       </AnimatedCard>
 
@@ -262,7 +262,7 @@ export default function HomeScreen() {
               All caught up!
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              You've completed all your tasks
+              You&apos;ve completed all your tasks
             </Text>
             <AnimatedButton
               title="Add a Task"

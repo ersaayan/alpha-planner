@@ -1,9 +1,9 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { UserStats, UserAchievement, Achievement, DailyStats } from '@/types';
+import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpForNextLevel } from '@/constants/gamification';
+import type { Achievement, DailyStats, UserAchievement, UserStats } from '@/types';
 import { INITIAL_USER_STATS } from '@/types';
-import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getXpForNextLevel, getCurrentLevelXp } from '@/constants/gamification';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface GamificationState {
   stats: UserStats;
@@ -41,34 +41,33 @@ export const useGamificationStore = create<GamificationState>()(
       pendingNotifications: [],
 
       addXp: (amount) => {
-        const { stats } = get();
-        const newTotalXp = stats.totalXp + amount;
-        const newLevel = calculateLevel(newTotalXp);
-        const currentLevelXp = getCurrentLevelXp(newLevel);
-
-        set({
-          stats: {
-            ...stats,
-            totalXp: newTotalXp,
-            currentXp: newTotalXp - currentLevelXp,
-            level: newLevel,
-          },
+        set((state) => {
+          const newTotalXp = state.stats.totalXp + amount;
+          const newLevel = calculateLevel(newTotalXp);
+          const currentLevelXp = getCurrentLevelXp(newLevel);
+          return {
+            stats: {
+              ...state.stats,
+              totalXp: newTotalXp,
+              currentXp: newTotalXp - currentLevelXp,
+              level: newLevel,
+            },
+          };
         });
 
         get().checkAchievements();
       },
 
       incrementPomodoro: (focusTime, completedAt) => {
-        const { stats } = get();
         const completionDate = completedAt ?? new Date();
 
-        set({
+        set((state) => ({
           stats: {
-            ...stats,
-            totalPomodoros: stats.totalPomodoros + 1,
-            totalFocusTime: stats.totalFocusTime + focusTime,
+            ...state.stats,
+            totalPomodoros: state.stats.totalPomodoros + 1,
+            totalFocusTime: state.stats.totalFocusTime + focusTime,
           },
-        });
+        }));
 
         get().addXp(XP_VALUES.POMODORO_COMPLETE);
         get().updateDailyStats({
@@ -87,14 +86,12 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       incrementTaskCompleted: () => {
-        const { stats } = get();
-
-        set({
+        set((state) => ({
           stats: {
-            ...stats,
-            totalTasksCompleted: stats.totalTasksCompleted + 1,
+            ...state.stats,
+            totalTasksCompleted: state.stats.totalTasksCompleted + 1,
           },
-        });
+        }));
 
         get().addXp(XP_VALUES.TASK_COMPLETE);
         get().updateDailyStats({ tasksCompleted: 1 });
@@ -102,8 +99,8 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       updateStreak: () => {
-        const { stats } = get();
         const today = new Date().toISOString().split('T')[0];
+        const { stats } = get();
         const lastActive = stats.lastActiveDate;
 
         if (lastActive === today) return;
@@ -112,31 +109,32 @@ export const useGamificationStore = create<GamificationState>()(
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-        let newStreak = stats.currentStreak;
+        const isConsecutive = lastActive === yesterdayStr;
+        const shouldAwardStreakXp = isConsecutive;
 
-        if (lastActive === yesterdayStr) {
-          // Consecutive day
-          newStreak += 1;
-          get().addXp(XP_VALUES.DAILY_STREAK);
-        } else if (lastActive !== today) {
-          // Streak broken
-          newStreak = 1;
-        }
-
-        set({
-          stats: {
-            ...stats,
-            currentStreak: newStreak,
-            longestStreak: Math.max(stats.longestStreak, newStreak),
-            lastActiveDate: today,
-          },
+        set((state) => {
+          const currentStreak = isConsecutive
+            ? state.stats.currentStreak + 1
+            : 1;
+          return {
+            stats: {
+              ...state.stats,
+              currentStreak,
+              longestStreak: Math.max(state.stats.longestStreak, currentStreak),
+              lastActiveDate: today,
+            },
+          };
         });
+
+        if (shouldAwardStreakXp) {
+          get().addXp(XP_VALUES.DAILY_STREAK);
+        }
 
         get().checkAchievements();
       },
 
       checkAchievements: () => {
-        const { stats, unlockedAchievements } = get();
+        const { stats } = get();
         const newlyUnlocked: Achievement[] = [];
 
         for (const achievement of ACHIEVEMENTS) {
@@ -171,14 +169,15 @@ export const useGamificationStore = create<GamificationState>()(
             notified: false,
           }));
 
-          set({
-            unlockedAchievements: [...unlockedAchievements, ...newAchievements],
-            pendingNotifications: [...get().pendingNotifications, ...newlyUnlocked],
-          });
+          set((state) => ({
+            unlockedAchievements: [...state.unlockedAchievements, ...newAchievements],
+            pendingNotifications: [...state.pendingNotifications, ...newlyUnlocked],
+          }));
 
-          // Add XP for achievements
-          for (const achievement of newlyUnlocked) {
-            get().addXp(achievement.xpReward);
+          // Add XP for achievements — accumulate total to avoid cascading stale writes
+          const totalAchievementXp = newlyUnlocked.reduce((sum, a) => sum + a.xpReward, 0);
+          if (totalAchievementXp > 0) {
+            get().addXp(totalAchievementXp);
           }
         }
       },

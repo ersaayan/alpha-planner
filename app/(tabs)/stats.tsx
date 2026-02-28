@@ -1,22 +1,22 @@
-import { useMemo } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Text } from '@ui-kitten/components';
 import { startOfDay } from 'date-fns';
+import { useRouter } from 'expo-router';
+import { useMemo } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+import { DistributionChart, WeeklyChart } from '@/components/charts';
 import { ACHIEVEMENTS, getLevelTitle } from '@/constants/gamification';
-import { Colors, Spacing, BorderRadius, Shadows, InterFonts, FontSize, GamificationColors } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { WeeklyChart, DistributionChart } from '@/components/charts';
+import { useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
 
-import { AnimatedCard } from '@/components/animated/animated-card';
-import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
-import { AnimatedCounter } from '@/components/animated/animated-counter';
-import { LevelBadge, AchievementBadge } from '@/components/animated/animated-badge';
+import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedCounter } from '@/components/animated/animated-counter';
+import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
@@ -186,10 +186,10 @@ export default function StatsScreen() {
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
             <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-              Progress to Level {stats.level + 1}
+              {stats.level >= 10 ? '✨ Max Level!' : `Progress to Level ${stats.level + 1}`}
             </Text>
             <Text style={[styles.progressValue, { color: colors.text }]}>
-              {xpProgress.current} / {xpProgress.required} XP
+              {stats.level >= 10 ? `${stats.totalXp} XP` : `${xpProgress.current} / ${xpProgress.required} XP`}
             </Text>
           </View>
           <AnimatedProgressBar

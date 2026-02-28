@@ -5,10 +5,11 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useEffect, useRef } from "react";
 import {
   AccessibilityInfo,
+  Alert,
   Pressable,
   StyleSheet,
   View,
-  useWindowDimensions,
+  useWindowDimensions
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -177,8 +178,26 @@ export default function PomodoroScreen() {
   };
 
   const handleStop = () => {
-    stopTimer();
-    notificationService.dismissTimerNotification();
+    if (timerState === 'running' || timerState === 'paused') {
+      Alert.alert(
+        'Stop Timer?',
+        'Your current progress for this session will be lost.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Stop',
+            style: 'destructive',
+            onPress: () => {
+              stopTimer();
+              notificationService.dismissTimerNotification();
+            },
+          },
+        ]
+      );
+    } else {
+      stopTimer();
+      notificationService.dismissTimerNotification();
+    }
   };
 
   const handleSkip = () => {

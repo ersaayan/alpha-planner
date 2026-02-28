@@ -1,9 +1,10 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Category } from '@/types';
 import { DEFAULT_CATEGORIES } from '@/types';
 import { generateId } from '@/utils/uuid';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { useTodoStore } from './todo-store';
 
 interface CategoryState {
   categories: Category[];
@@ -77,6 +78,14 @@ export const useCategoryStore = create<CategoryState>()(
         set((state) => ({
           categories: state.categories.filter((c) => c.id !== id),
         }));
+
+        // Clean up orphaned categoryId references on todos
+        const todoStore = useTodoStore.getState();
+        todoStore.todos.forEach((todo) => {
+          if (todo.categoryId === id) {
+            todoStore.updateTodo(todo.id, { categoryId: null });
+          }
+        });
       },
 
       reorderCategories: (categoryIds) => {

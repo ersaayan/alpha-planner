@@ -1,8 +1,8 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Todo, TodoFilter, Subtask, TodoStatus } from '@/types';
+import type { Subtask, Todo, TodoFilter } from '@/types';
 import { generateId } from '@/utils/uuid';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import { useGamificationStore } from './gamification-store';
 
 interface TodoState {
@@ -101,14 +101,10 @@ export const useTodoStore = create<TodoState>()(
         const todo = get().todos.find((t) => t.id === id);
         if (!todo) return;
 
-        const nextStatus: Record<TodoStatus, TodoStatus> = {
-          pending: 'in_progress',
-          in_progress: 'completed',
-          completed: 'pending',
-          archived: 'pending',
-        };
+        // Binary toggle: unchecked → completed, checked → pending
+        const nextStatus = todo.status === 'completed' ? 'pending' : 'completed';
 
-        get().updateTodo(id, { status: nextStatus[todo.status] });
+        get().updateTodo(id, { status: nextStatus });
       },
 
       reorderTodos: (todoIds) => {
@@ -160,6 +156,10 @@ export const useTodoStore = create<TodoState>()(
       },
 
       toggleSubtask: (todoId, subtaskId) => {
+        const todo = get().todos.find((t) => t.id === todoId);
+        const subtask = todo?.subtasks.find((s) => s.id === subtaskId);
+        const wasCompleted = subtask?.isCompleted ?? false;
+
         set((state) => ({
           todos: state.todos.map((todo) =>
             todo.id === todoId
@@ -173,6 +173,11 @@ export const useTodoStore = create<TodoState>()(
               : todo
           ),
         }));
+
+        // Award XP when subtask is toggled to completed
+        if (!wasCompleted) {
+          useGamificationStore.getState().addXp(3); // SUBTASK_COMPLETE XP
+        }
       },
 
       deleteSubtask: (todoId, subtaskId) => {

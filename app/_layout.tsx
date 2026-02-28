@@ -14,7 +14,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import 'react-native-reanimated';
 
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
@@ -22,7 +22,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, scheduleTimerNotification } from '@/services/background';
 import { notificationService } from '@/services/notifications';
-import { useCategoryStore, usePomodoroStore, useSettingsStore } from '@/stores';
+import { useCategoryStore, useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -161,9 +161,6 @@ export default function RootLayout() {
 
   const colorScheme = useColorScheme();
   const initializeCategories = useCategoryStore((state) => state.initializeCategories);
-  const notificationsEnabled = useSettingsStore(
-    (state) => state.settings.notificationsEnabled
-  );
   const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
 
   // Load Inter fonts
@@ -193,17 +190,33 @@ export default function RootLayout() {
   }, [initializeCategories]);
 
   useEffect(() => {
-    if (notificationsEnabled) {
-      notificationService.initialize().then(() => {
-        // Wire notification action callbacks so pause/resume/stop work from notification shade
-        notificationService.setActionCallbacks({
-          onPause: () => usePomodoroStore.getState().pauseTimer(),
-          onResume: () => usePomodoroStore.getState().resumeTimer(),
-          onStop: () => usePomodoroStore.getState().stopTimer(),
-        });
+    // Always initialize notification service for permission check, channel setup, and action callbacks.
+    // This ensures hasPermission is up-to-date and channels are created even if notifications
+    // were disabled at first launch and enabled later.
+    notificationService.initialize().then(() => {
+      // Wire notification action callbacks so pause/resume/stop work from notification shade
+      notificationService.setActionCallbacks({
+        onPause: () => usePomodoroStore.getState().pauseTimer(),
+        onResume: () => usePomodoroStore.getState().resumeTimer(),
+        onStop: () => usePomodoroStore.getState().stopTimer(),
       });
+    });
+  }, []);
+
+  // Achievement celebration — show a brief alert when achievements are unlocked
+  const pendingNotifications = useGamificationStore((state) => state.pendingNotifications);
+  const dismissNotification = useGamificationStore((state) => state.dismissNotification);
+
+  useEffect(() => {
+    if (pendingNotifications.length > 0) {
+      const achievement = pendingNotifications[0];
+      Alert.alert(
+        `🏆 Achievement Unlocked!`,
+        `${achievement.name}\n${achievement.description}\n+${achievement.xpReward} XP`,
+        [{ text: 'Awesome!', onPress: () => dismissNotification(achievement.id) }],
+      );
     }
-  }, [notificationsEnabled]);
+  }, [pendingNotifications, dismissNotification]);
 
   useEffect(() => {
     usePomodoroStore.getState().applySettingsToTimer(pomodoroSettings);
