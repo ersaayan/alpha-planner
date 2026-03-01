@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G, Defs, LinearGradient, Stop } from 'react-native-svg';
 import Animated, {
@@ -9,7 +9,7 @@ import Animated, {
   withRepeat,
   withSequence,
   Easing,
-  interpolate,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { GamificationColors, Shadows } from '@/constants/theme';
 
@@ -39,6 +39,9 @@ export function CircularProgress({
   isRunning = false,
   children,
 }: CircularProgressProps) {
+  const instanceId = useId();
+  const gradientId = `progressGradient-${instanceId}`;
+
   const animatedProgress = useSharedValue(0);
   const pulseScale = useSharedValue(1);
   const glowOpacity = useSharedValue(showGlow ? 0.3 : 0);
@@ -82,6 +85,10 @@ export function CircularProgress({
       pulseScale.value = withTiming(1, { duration: 300 });
       glowOpacity.value = withTiming(showGlow ? 0.3 : 0, { duration: 300 });
     }
+    return () => {
+      cancelAnimation(pulseScale);
+      cancelAnimation(glowOpacity);
+    };
   }, [isRunning, showGlow]);
 
   const animatedProps = useAnimatedProps(() => {
@@ -123,7 +130,7 @@ export function CircularProgress({
       <Svg width={size} height={size}>
         <Defs>
           {/* Define gradient for progress arc */}
-          <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <LinearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
             <Stop offset="0%" stopColor={gradientStart} stopOpacity="1" />
             <Stop offset="100%" stopColor={gradientEnd} stopOpacity="1" />
           </LinearGradient>
@@ -145,7 +152,7 @@ export function CircularProgress({
             cx={center}
             cy={center}
             r={radius}
-            stroke="url(#progressGradient)"
+            stroke={`url(#${gradientId})`}
             strokeWidth={strokeWidth}
             fill="transparent"
             strokeDasharray={circumference}

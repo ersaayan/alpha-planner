@@ -10,6 +10,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontSize, InterFonts, Shadows, Spacing } from '@/constants/theme';
+import { TAB_BAR_BOTTOM_PADDING } from '@/constants/defaults';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: 100,
+    paddingBottom: TAB_BAR_BOTTOM_PADDING,
   },
   todoCard: {
     marginBottom: Spacing.sm,
@@ -452,7 +453,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: Spacing.xl,
-    paddingBottom: 100,
+    paddingBottom: TAB_BAR_BOTTOM_PADDING,
   },
   emptyIconContainer: {
     width: 80,

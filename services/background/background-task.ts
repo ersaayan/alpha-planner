@@ -130,6 +130,7 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
 
     // Walk through completed phases
     while (currentElapsed >= currentTimer.totalTime) {
+      if (currentTimer.totalTime <= 0) break;
       currentElapsed -= currentTimer.totalTime;
 
       const isFocus = currentTimer.phase === 'focus';

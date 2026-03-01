@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,12 +14,10 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
+import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize, Palette } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface XPGainToastProps {
   amount: number;
@@ -38,6 +36,7 @@ export function XPGainToast({
 }: XPGainToastProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
 
   const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
@@ -45,27 +44,28 @@ export function XPGainToast({
 
   useEffect(() => {
     if (visible) {
-      // Animate in
-      translateY.value = withSpring(0, SpringConfig.bouncy);
-      opacity.value = withTiming(1, { duration: AnimationDuration.fast });
+      // Animate in then auto-hide with withSequence to avoid conflicting animations
+      translateY.value = withSequence(
+        withSpring(0, SpringConfig.bouncy),
+        withDelay(
+          duration - AnimationDuration.medium,
+          withTiming(-100, { duration: AnimationDuration.medium }, (finished) => {
+            if (finished) {
+              runOnJS(onHide)();
+            }
+          })
+        )
+      );
+      opacity.value = withSequence(
+        withTiming(1, { duration: AnimationDuration.fast }),
+        withDelay(
+          duration - AnimationDuration.medium,
+          withTiming(0, { duration: AnimationDuration.medium })
+        )
+      );
       scale.value = withSequence(
         withSpring(1.1, SpringConfig.bouncy),
         withSpring(1, SpringConfig.default)
-      );
-
-      // Auto hide after duration
-      const hideDelay = duration - AnimationDuration.medium;
-      translateY.value = withDelay(
-        hideDelay,
-        withTiming(-100, { duration: AnimationDuration.medium }, (finished) => {
-          if (finished) {
-            runOnJS(onHide)();
-          }
-        })
-      );
-      opacity.value = withDelay(
-        hideDelay,
-        withTiming(0, { duration: AnimationDuration.medium })
       );
     }
   }, [visible, duration]);
@@ -81,13 +81,18 @@ export function XPGainToast({
   if (!visible) return null;
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
-      <View style={[styles.toast, { backgroundColor: colors.card }, Shadows.lg]}>
+    <Animated.View
+      style={[styles.container, animatedStyle]}
+      accessible={true}
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`Gained ${amount} XP${reason ? `, ${reason}` : ''}`}
+    >
+      <View style={[styles.toast, { backgroundColor: colors.card, maxWidth: SCREEN_WIDTH - Spacing.xl * 2 }, Shadows.lg]}>
         {/* XP Icon */}
         <View style={[styles.iconContainer, { backgroundColor: GamificationColors.xp }]}>
           <Icon
             name="star"
-            fill="#fff"
+            fill={Palette.white}
             style={styles.icon}
           />
         </View>
@@ -142,7 +147,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.lg,
     borderRadius: BorderRadius.xl,
-    maxWidth: SCREEN_WIDTH - Spacing.xl * 2,
     overflow: 'hidden',
   },
   iconContainer: {

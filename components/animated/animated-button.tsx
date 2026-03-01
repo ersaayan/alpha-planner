@@ -8,13 +8,12 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { Colors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
-import { SpringConfig, AnimationPresets, AnimationDuration } from '@/constants/animations';
+import { Colors, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
+import { SpringConfig, AnimationPresets } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
 
@@ -164,6 +163,8 @@ export function AnimatedButton({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={pressableProps.accessibilityLabel ?? title}
       style={[
         styles.button,
         {

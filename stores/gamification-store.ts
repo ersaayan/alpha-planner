@@ -99,7 +99,7 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       updateStreak: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
         const { stats } = get();
         const lastActive = stats.lastActiveDate;
 
@@ -107,7 +107,7 @@ export const useGamificationStore = create<GamificationState>()(
 
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
 
         const isConsecutive = lastActive === yesterdayStr;
         const shouldAwardStreakXp = isConsecutive;
@@ -134,11 +134,12 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       checkAchievements: () => {
-        const { stats } = get();
+        const { stats, unlockedAchievements } = get();
+        const unlockedIds = new Set(unlockedAchievements.map((ua) => ua.achievementId));
         const newlyUnlocked: Achievement[] = [];
 
         for (const achievement of ACHIEVEMENTS) {
-          if (get().isAchievementUnlocked(achievement.id)) continue;
+          if (unlockedIds.has(achievement.id)) continue;
 
           let isUnlocked = false;
 
@@ -169,16 +170,24 @@ export const useGamificationStore = create<GamificationState>()(
             notified: false,
           }));
 
-          set((state) => ({
-            unlockedAchievements: [...state.unlockedAchievements, ...newAchievements],
-            pendingNotifications: [...state.pendingNotifications, ...newlyUnlocked],
-          }));
-
-          // Add XP for achievements — accumulate total to avoid cascading stale writes
+          // Accumulate XP and apply in a single set to break recursion
           const totalAchievementXp = newlyUnlocked.reduce((sum, a) => sum + a.xpReward, 0);
-          if (totalAchievementXp > 0) {
-            get().addXp(totalAchievementXp);
-          }
+
+          set((state) => {
+            const newTotalXp = state.stats.totalXp + totalAchievementXp;
+            const newLevel = calculateLevel(newTotalXp);
+            const currentLevelXp = getCurrentLevelXp(newLevel);
+            return {
+              unlockedAchievements: [...state.unlockedAchievements, ...newAchievements],
+              pendingNotifications: [...state.pendingNotifications, ...newlyUnlocked],
+              stats: {
+                ...state.stats,
+                totalXp: newTotalXp,
+                currentXp: newTotalXp - currentLevelXp,
+                level: newLevel,
+              },
+            };
+          });
         }
       },
 
@@ -192,8 +201,7 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       unlockAchievement: (achievementId) => {
-        const { unlockedAchievements } = get();
-        if (unlockedAchievements.some((ua) => ua.achievementId === achievementId)) {
+        if (get().unlockedAchievements.some((ua) => ua.achievementId === achievementId)) {
           return;
         }
 
@@ -206,16 +214,16 @@ export const useGamificationStore = create<GamificationState>()(
           notified: false,
         };
 
-        set({
-          unlockedAchievements: [...unlockedAchievements, newAchievement],
-          pendingNotifications: [...get().pendingNotifications, achievement],
-        });
+        set((state) => ({
+          unlockedAchievements: [...state.unlockedAchievements, newAchievement],
+          pendingNotifications: [...state.pendingNotifications, achievement],
+        }));
 
         get().addXp(achievement.xpReward);
       },
 
       updateDailyStats: (updates) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
         const { dailyStats } = get();
 
         const existingIndex = dailyStats.findIndex((ds) => ds.date === today);
@@ -234,7 +242,7 @@ export const useGamificationStore = create<GamificationState>()(
               ...dailyStats.slice(0, existingIndex),
               updated,
               ...dailyStats.slice(existingIndex + 1),
-            ],
+            ].slice(-90),
           });
         } else {
           const newDailyStat: DailyStats = {
@@ -270,7 +278,11 @@ export const useGamificationStore = create<GamificationState>()(
     }),
     {
       name: 'gamification-storage',
+      version: 1,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        return persistedState as GamificationState;
+      },
     }
   )
 );

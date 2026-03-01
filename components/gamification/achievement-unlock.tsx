@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Dimensions, Pressable } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,9 +18,6 @@ import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts,
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
-import { AchievementBadge } from '@/components/animated/animated-badge';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface AchievementUnlockProps {
   visible: boolean;
@@ -47,6 +44,7 @@ export function AchievementUnlock({
 }: AchievementUnlockProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
 
   const translateY = useSharedValue(200);
   const opacity = useSharedValue(0);
@@ -69,11 +67,6 @@ export function AchievementUnlock({
 
   useEffect(() => {
     if (visible) {
-      // Animate in
-      translateY.value = withSpring(0, SpringConfig.bouncy);
-      opacity.value = withTiming(1, { duration: AnimationDuration.fast });
-      scale.value = withSpring(1, SpringConfig.default);
-
       // Badge pop in
       badgeScale.value = withDelay(
         200,
@@ -82,22 +75,33 @@ export function AchievementUnlock({
           withSpring(1, SpringConfig.default)
         )
       );
+      scale.value = withSpring(1, SpringConfig.default);
 
-      // Auto dismiss
       if (autoDismiss) {
         const hideDelay = autoDismissDelay - AnimationDuration.medium;
-        translateY.value = withDelay(
-          hideDelay,
-          withTiming(200, { duration: AnimationDuration.medium }, (finished) => {
-            if (finished) {
-              runOnJS(onClose)();
-            }
-          })
+        // Use withSequence to avoid conflicting animations on translateY
+        translateY.value = withSequence(
+          withSpring(0, SpringConfig.bouncy),
+          withDelay(
+            hideDelay,
+            withTiming(200, { duration: AnimationDuration.medium }, (finished) => {
+              if (finished) {
+                runOnJS(onClose)();
+              }
+            })
+          )
         );
-        opacity.value = withDelay(
-          hideDelay,
-          withTiming(0, { duration: AnimationDuration.medium })
+        opacity.value = withSequence(
+          withTiming(1, { duration: AnimationDuration.fast }),
+          withDelay(
+            hideDelay,
+            withTiming(0, { duration: AnimationDuration.medium })
+          )
         );
+      } else {
+        // No auto dismiss - just animate in
+        translateY.value = withSpring(0, SpringConfig.bouncy);
+        opacity.value = withTiming(1, { duration: AnimationDuration.fast });
       }
     }
   }, [visible, autoDismiss, autoDismissDelay]);
@@ -121,7 +125,7 @@ export function AchievementUnlock({
       <Animated.View
         style={[
           styles.container,
-          { backgroundColor: colors.card },
+          { backgroundColor: colors.card, width: SCREEN_WIDTH - Spacing.xl * 2 },
           Shadows.xl,
           containerStyle,
         ]}
@@ -214,7 +218,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   container: {
-    width: SCREEN_WIDTH - Spacing.xl * 2,
     maxWidth: 360,
     borderRadius: BorderRadius.xl,
     overflow: 'hidden',

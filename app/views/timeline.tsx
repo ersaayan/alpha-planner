@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
+import { useMemo, useState, useEffect } from 'react';
+import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Card, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,18 @@ export default function TimelineScreen() {
 
   const todos = useTodoStore((state) => state.todos);
   const categories = useCategoryStore((state) => state.categories);
+
+  // Track the current date so useMemo recomputes labels/overdue at midnight
+  const [todayKey, setTodayKey] = useState(() => startOfDay(new Date()).toISOString());
+  useEffect(() => {
+    const now = new Date();
+    const tomorrow = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+    const timer = setTimeout(() => {
+      setTodayKey(startOfDay(new Date()).toISOString());
+    }, msUntilMidnight);
+    return () => clearTimeout(timer);
+  }, [todayKey]);
 
   const getCategoryColor = (categoryId: string | null): string => {
     if (!categoryId) return colors.primary;
@@ -70,7 +82,7 @@ export default function TimelineScreen() {
 
     // Convert to array and sort by date
     const days: TimelineDay[] = [];
-    const today = startOfDay(new Date());
+    const today = new Date(todayKey);
 
     dateMap.forEach((dayTodos, dateKey) => {
       const date = new Date(dateKey);
@@ -93,7 +105,7 @@ export default function TimelineScreen() {
     days.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     return days;
-  }, [todos]);
+  }, [todos, todayKey]);
 
   // Todos without due date
   const unscheduledTodos = useMemo(() => {

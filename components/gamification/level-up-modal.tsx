@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Modal, Dimensions, Pressable } from 'react-native';
+import { View, StyleSheet, Modal, useWindowDimensions, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,17 +13,16 @@ import Animated, {
   withDelay,
   withRepeat,
   Easing,
+  runOnJS,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { BlurView } from 'expo-blur';
-import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize, Typography } from '@/constants/theme';
+import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
 import { LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface LevelUpModalProps {
   visible: boolean;
@@ -40,6 +39,7 @@ export function LevelUpModal({
 }: LevelUpModalProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
 
   const backdropOpacity = useSharedValue(0);
   const modalScale = useSharedValue(0.5);
@@ -79,6 +79,9 @@ export function LevelUpModal({
       titleTranslateY.value = 30;
       confettiRotation.value = 0;
     }
+    return () => {
+      cancelAnimation(confettiRotation);
+    };
   }, [visible]);
 
   const backdropStyle = useAnimatedStyle(() => ({
@@ -102,10 +105,11 @@ export function LevelUpModal({
   const handleClose = () => {
     backdropOpacity.value = withTiming(0, { duration: AnimationDuration.fast });
     modalScale.value = withTiming(0.8, { duration: AnimationDuration.fast });
-    modalOpacity.value = withTiming(0, { duration: AnimationDuration.fast }, () => {
-      // onClose will be called after animation
+    modalOpacity.value = withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
+      if (finished) {
+        runOnJS(onClose)();
+      }
     });
-    setTimeout(onClose, AnimationDuration.fast);
   };
 
   if (!visible) return null;
@@ -119,7 +123,7 @@ export function LevelUpModal({
         </Animated.View>
 
         {/* Confetti particles */}
-        <Animated.View style={[styles.confettiContainer, confettiStyle]}>
+        <Animated.View style={[styles.confettiContainer, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }, confettiStyle]}>
           {GamificationColors.confettiColors.map((color, i) =>
             [...Array(6)].map((_, j) => (
               <View
@@ -147,6 +151,8 @@ export function LevelUpModal({
             Shadows.xl,
             modalStyle,
           ]}
+          accessibilityViewIsModal={true}
+          accessibilityLabel={`Level up! You reached level ${newLevel}, ${levelTitle}`}
         >
           {/* Glow ring */}
           <View style={styles.glowRing} />
@@ -197,7 +203,7 @@ export function LevelUpModal({
 
           {/* Description */}
           <Text style={[styles.description, { color: colors.textMuted }]}>
-            You've reached Level {newLevel}! Keep up the great work and continue your productivity journey.
+            You&apos;ve reached Level {newLevel}! Keep up the great work and continue your productivity journey.
           </Text>
 
           {/* Continue button */}
@@ -228,8 +234,6 @@ const styles = StyleSheet.create({
   },
   confettiContainer: {
     position: 'absolute',
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },

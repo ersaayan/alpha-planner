@@ -130,7 +130,7 @@ export default function SettingsScreen() {
           maximumValue={60}
           step={5}
           value={focusMinutes}
-          onValueChange={(value) => updatePomodoroSettings({ focusDuration: Math.round(value) * 60 })}
+          onSlidingComplete={(value) => updatePomodoroSettings({ focusDuration: Math.round(value) * 60 })}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.primary}
@@ -163,7 +163,7 @@ export default function SettingsScreen() {
           maximumValue={15}
           step={1}
           value={shortBreakMinutes}
-          onValueChange={(value) => updatePomodoroSettings({ shortBreakDuration: Math.round(value) * 60 })}
+          onSlidingComplete={(value) => updatePomodoroSettings({ shortBreakDuration: Math.round(value) * 60 })}
           minimumTrackTintColor={colors.secondary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.secondary}
@@ -196,7 +196,7 @@ export default function SettingsScreen() {
           maximumValue={30}
           step={5}
           value={longBreakMinutes}
-          onValueChange={(value) => updatePomodoroSettings({ longBreakDuration: Math.round(value) * 60 })}
+          onSlidingComplete={(value) => updatePomodoroSettings({ longBreakDuration: Math.round(value) * 60 })}
           minimumTrackTintColor={colors.accent}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.accent}
@@ -226,7 +226,7 @@ export default function SettingsScreen() {
           maximumValue={6}
           step={1}
           value={pomodoroSettings.sessionsUntilLongBreak}
-          onValueChange={(value) => updatePomodoroSettings({ sessionsUntilLongBreak: Math.round(value) })}
+          onSlidingComplete={(value) => updatePomodoroSettings({ sessionsUntilLongBreak: Math.round(value) })}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.border}
           thumbTintColor={colors.primary}

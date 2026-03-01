@@ -49,6 +49,7 @@ export const useTodoStore = create<TodoState>()(
           id: generateId(),
           subtasks: [],
           pomodoroSessions: 0,
+          order: get().todos.length,
           createdAt: now,
           updatedAt: now,
         };
@@ -61,30 +62,34 @@ export const useTodoStore = create<TodoState>()(
       },
 
       updateTodo: (id, updates) => {
-        const existing = get().todos.find((todo) => todo.id === id);
         const hasStatusUpdate = typeof updates.status !== 'undefined';
-        const didComplete =
-          updates.status === 'completed' && existing?.status !== 'completed';
+        let didComplete = false;
 
-        set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === id
-              ? {
-                  ...todo,
-                  ...updates,
-                  updatedAt: new Date().toISOString(),
-                  completedAt:
-                    hasStatusUpdate
-                      ? updates.status === 'completed' && todo.status !== 'completed'
-                        ? new Date().toISOString()
-                        : updates.status !== 'completed' && todo.status === 'completed'
-                          ? null
-                          : todo.completedAt
-                      : todo.completedAt,
-                }
-              : todo
-          ),
-        }));
+        set((state) => {
+          const existing = state.todos.find((todo) => todo.id === id);
+          didComplete =
+            updates.status === 'completed' && existing?.status !== 'completed';
+
+          return {
+            todos: state.todos.map((todo) =>
+              todo.id === id
+                ? {
+                    ...todo,
+                    ...updates,
+                    updatedAt: new Date().toISOString(),
+                    completedAt:
+                      hasStatusUpdate
+                        ? updates.status === 'completed' && todo.status !== 'completed'
+                          ? new Date().toISOString()
+                          : updates.status !== 'completed' && todo.status === 'completed'
+                            ? null
+                            : todo.completedAt
+                        : todo.completedAt,
+                  }
+                : todo
+            ),
+          };
+        });
 
         if (didComplete) {
           useGamificationStore.getState().incrementTaskCompleted();
@@ -111,7 +116,8 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           todos: state.todos.map((todo) => {
             const newOrder = todoIds.indexOf(todo.id);
-            return newOrder !== -1 ? { ...todo, order: newOrder } : todo;
+            // Place unmatched todos after all explicitly ordered ones
+            return { ...todo, order: newOrder !== -1 ? newOrder : todoIds.length + todo.order };
           }),
         }));
       },
@@ -184,7 +190,7 @@ export const useTodoStore = create<TodoState>()(
               ...(allCompleted && !wasAllCompleted
                 ? { status: 'completed' as const, completedAt: now }
                 : !allCompleted && wasAllCompleted && t.status === 'completed'
-                  ? { status: 'in_progress' as const, completedAt: null }
+                  ? { status: 'pending' as const, completedAt: null }
                   : {}),
             };
           }),
@@ -207,15 +213,21 @@ export const useTodoStore = create<TodoState>()(
 
       deleteSubtask: (todoId, subtaskId) => {
         set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === todoId
-              ? {
-                  ...todo,
-                  subtasks: todo.subtasks.filter((subtask) => subtask.id !== subtaskId),
-                  updatedAt: new Date().toISOString(),
-                }
-              : todo
-          ),
+          todos: state.todos.map((todo) => {
+            if (todo.id !== todoId) return todo;
+            const remainingSubtasks = todo.subtasks.filter((subtask) => subtask.id !== subtaskId);
+            const allRemainingCompleted =
+              remainingSubtasks.length > 0 && remainingSubtasks.every((s) => s.isCompleted);
+            const now = new Date().toISOString();
+            return {
+              ...todo,
+              subtasks: remainingSubtasks,
+              updatedAt: now,
+              ...(allRemainingCompleted && todo.status !== 'completed'
+                ? { status: 'completed' as const, completedAt: now }
+                : {}),
+            };
+          }),
         }));
       },
 
@@ -284,8 +296,12 @@ export const useTodoStore = create<TodoState>()(
     }),
     {
       name: 'todo-storage',
+      version: 1,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ todos: state.todos }),
+      migrate: (persistedState: unknown, version: number) => {
+        return persistedState as TodoState;
+      },
     }
   )
 );

@@ -1,5 +1,6 @@
 import type { Category } from '@/types';
 import { DEFAULT_CATEGORIES } from '@/types';
+import { DEFAULT_CATEGORY_IDS } from '@/constants/defaults';
 import { generateId } from '@/utils/uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
@@ -33,10 +34,11 @@ export const useCategoryStore = create<CategoryState>()(
       initializeCategories: () => {
         if (get().isInitialized) return;
 
+        const stableIds = Object.values(DEFAULT_CATEGORY_IDS);
         const now = new Date().toISOString();
-        const defaultCategories: Category[] = DEFAULT_CATEGORIES.map((cat) => ({
+        const defaultCategories: Category[] = DEFAULT_CATEGORIES.map((cat, index) => ({
           ...cat,
-          id: generateId(),
+          id: stableIds[index] ?? generateId(),
           createdAt: now,
         }));
 
@@ -79,13 +81,16 @@ export const useCategoryStore = create<CategoryState>()(
           categories: state.categories.filter((c) => c.id !== id),
         }));
 
-        // Clean up orphaned categoryId references on todos
+        // Clean up orphaned categoryId references on todos in a single batch
         const todoStore = useTodoStore.getState();
-        todoStore.todos.forEach((todo) => {
-          if (todo.categoryId === id) {
-            todoStore.updateTodo(todo.id, { categoryId: null });
-          }
-        });
+        const affectedTodos = todoStore.todos.filter((todo) => todo.categoryId === id);
+        if (affectedTodos.length > 0) {
+          useTodoStore.setState((state) => ({
+            todos: state.todos.map((todo) =>
+              todo.categoryId === id ? { ...todo, categoryId: null, updatedAt: new Date().toISOString() } : todo
+            ),
+          }));
+        }
       },
 
       reorderCategories: (categoryIds) => {
@@ -119,7 +124,11 @@ export const useCategoryStore = create<CategoryState>()(
     }),
     {
       name: 'category-storage',
+      version: 1,
       storage: createJSONStorage(() => AsyncStorage),
+      migrate: (persistedState: unknown, version: number) => {
+        return persistedState as CategoryState;
+      },
     }
   )
 );

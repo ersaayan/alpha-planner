@@ -1,7 +1,7 @@
 import { Icon } from '@/components/icon';
 import { Button, Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
-import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
@@ -17,14 +17,13 @@ const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
   { status: 'archived', title: 'Archived', color: '#9E9E9E' },
 ];
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const COLUMN_WIDTH = SCREEN_WIDTH * 0.75;
-
 export default function KanbanScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const { width: screenWidth } = useWindowDimensions();
+  const columnWidth = screenWidth * 0.75;
 
   const todos = useTodoStore((state) => state.todos);
   const updateTodo = useTodoStore((state) => state.updateTodo);
@@ -173,14 +172,14 @@ export default function KanbanScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.columnsContainer}
         decelerationRate="fast"
-        snapToInterval={COLUMN_WIDTH + Spacing.md}
+        snapToInterval={columnWidth + Spacing.md}
       >
         {COLUMNS.map((column) => {
           const columnTodos = getTodosByStatus(column.status);
           return (
             <View
               key={column.status}
-              style={[styles.column, { width: COLUMN_WIDTH }]}
+              style={[styles.column, { width: columnWidth }]}
             >
               {/* Column Header */}
               <View style={styles.columnHeader}>

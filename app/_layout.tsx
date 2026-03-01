@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Alert, AppState } from 'react-native';
 import 'react-native-reanimated';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -232,33 +233,35 @@ export default function RootLayout() {
   }
 
   return (
-    <ApplicationProvider {...eva} theme={evaTheme}>
-      <ThemeProvider value={navigationTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="todo/[id]"
-            options={{
-              headerShown: true,
-              title: 'Todo Details',
-            }}
-          />
-          <Stack.Screen
-            name="todo/create"
-            options={{
-              headerShown: true,
-              title: 'New Todo',
-            }}
-          />
+    <ErrorBoundary>
+      <ApplicationProvider {...eva} theme={evaTheme}>
+        <ThemeProvider value={navigationTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="todo/[id]"
+              options={{
+                headerShown: true,
+                title: 'Todo Details',
+              }}
+            />
+            <Stack.Screen
+              name="todo/create"
+              options={{
+                headerShown: true,
+                title: 'New Todo',
+              }}
+            />
 
-          <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
-          <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
-          <Stack.Screen name="views/timeline" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-      </ThemeProvider>
-    </ApplicationProvider>
+            <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
+            <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
+            <Stack.Screen name="views/timeline" options={{ headerShown: false }} />
+          </Stack>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+        </ThemeProvider>
+      </ApplicationProvider>
+    </ErrorBoundary>
   );
 }

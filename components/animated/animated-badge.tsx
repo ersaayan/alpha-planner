@@ -12,12 +12,11 @@ import Animated, {
   withSequence,
   withRepeat,
   withDelay,
-  interpolate,
-  Extrapolation,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { Colors, GamificationColors, BorderRadius, Shadows, InterFonts, FontSize } from '@/constants/theme';
-import { SpringConfig, AnimationDuration } from '@/constants/animations';
+import { Colors, GamificationColors, Shadows, InterFonts, FontSize, Palette } from '@/constants/theme';
+import { SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
 
@@ -93,6 +92,9 @@ export function LevelBadge({
         true
       );
     }
+    return () => {
+      cancelAnimation(glowOpacity);
+    };
   }, [showGlow]);
 
   const badgeStyle = useAnimatedStyle(() => ({
@@ -170,7 +172,7 @@ export function LevelBadge({
             styles.levelNumber,
             {
               fontSize: config.font,
-              color: '#fff',
+              color: Palette.white,
             },
           ]}
         >

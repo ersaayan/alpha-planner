@@ -61,16 +61,32 @@ export default function CalendarScreen() {
     return days;
   }, [currentMonth, weekStartsOn]);
 
+  // Build a map of date -> todos for efficient lookups
+  const todosByDate = useMemo(() => {
+    const map = new Map<string, Todo[]>();
+    todos.forEach((todo) => {
+      if (!todo.dueDate) return;
+      const dateKey = format(new Date(todo.dueDate), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(todo);
+    });
+    return map;
+  }, [todos]);
+
   // Get todos for a specific date
   const getTodosForDate = (date: Date): Todo[] => {
-    return todos.filter((todo) => {
-      if (!todo.dueDate) return false;
-      return isSameDay(new Date(todo.dueDate), date);
-    });
+    const dateKey = format(date, 'yyyy-MM-dd');
+    return todosByDate.get(dateKey) ?? [];
   };
 
   // Get todos for selected date
-  const selectedDateTodos = selectedDate ? getTodosForDate(selectedDate) : [];
+  const selectedDateTodos = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    return todosByDate.get(dateKey) ?? [];
+  }, [selectedDate, todosByDate]);
 
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));

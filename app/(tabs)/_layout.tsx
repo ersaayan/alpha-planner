@@ -2,36 +2,11 @@ import { Icon } from '@/components/icon';
 import { CustomTabBar } from '@/components/navigation';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { notificationService } from '@/services/notifications';
-import { usePomodoroStore, useSettingsStore } from '@/stores';
 import { Tabs } from 'expo-router';
-import { useEffect } from 'react';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const notificationsEnabled = useSettingsStore((state) => state.settings.notificationsEnabled);
-  const soundEnabled = useSettingsStore((state) => state.settings.soundEnabled);
-  const vibrationEnabled = useSettingsStore((state) => state.pomodoroSettings.vibrationEnabled);
-
-  const timerState = usePomodoroStore((state) => state.timer.state);
-  const timerPhase = usePomodoroStore((state) => state.timer.phase);
-  const timerStartedAt = usePomodoroStore((state) => state.timer.startedAt);
-  const timerTotalTime = usePomodoroStore((state) => state.timer.totalTime);
-  const pausedRemainingTime = usePomodoroStore((state) =>
-    state.timer.state === 'paused' ? state.timer.remainingTime : null
-  );
-  const pauseTimer = usePomodoroStore((state) => state.pauseTimer);
-  const resumeTimer = usePomodoroStore((state) => state.resumeTimer);
-  const stopTimer = usePomodoroStore((state) => state.stopTimer);
-
-  useEffect(() => {
-    notificationService.setActionCallbacks({
-      onPause: pauseTimer,
-      onResume: resumeTimer,
-      onStop: stopTimer,
-    });
-  }, [pauseTimer, resumeTimer, stopTimer]);
 
   return (
     <Tabs

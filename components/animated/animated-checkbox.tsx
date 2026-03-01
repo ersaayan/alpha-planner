@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Pressable, ViewStyle } from 'react-native';
+import { StyleSheet, Pressable, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,15 +14,13 @@ import Animated, {
   withDelay,
   interpolate,
   Extrapolation,
-  runOnJS,
 } from 'react-native-reanimated';
-import Svg, { Path, Circle } from 'react-native-svg';
-import { Colors, BorderRadius, Shadows } from '@/constants/theme';
+import Svg, { Path } from 'react-native-svg';
+import { Colors, BorderRadius } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface AnimatedCheckboxProps {
   checked: boolean;
@@ -108,7 +106,7 @@ export function AnimatedCheckbox({
     );
 
     return {
-      backgroundColor: backgroundColor === 1 ? checkColor : 'transparent',
+      backgroundColor: backgroundColor > 0.5 ? checkColor : 'transparent',
       borderColor: checkProgress.value > 0.5 ? checkColor : colors.border,
     };
   });
@@ -123,7 +121,13 @@ export function AnimatedCheckbox({
   }));
 
   return (
-    <Pressable onPress={handlePress} disabled={disabled} style={style}>
+    <Pressable
+      onPress={handlePress}
+      disabled={disabled}
+      style={style}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+    >
       <Animated.View style={[styles.container, { width: size, height: size }, containerStyle]}>
         {/* Ripple effect */}
         <Animated.View

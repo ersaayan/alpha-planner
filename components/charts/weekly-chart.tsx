@@ -1,9 +1,20 @@
+import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@ui-kitten/components';
 import { format, subDays, isSameDay } from 'date-fns';
 
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+
+const DAY_LABELS: Record<string, string> = {
+  Mon: 'Mo',
+  Tue: 'Tu',
+  Wed: 'We',
+  Thu: 'Th',
+  Fri: 'Fr',
+  Sat: 'Sa',
+  Sun: 'Su',
+};
 
 interface DayData {
   date: Date;
@@ -22,24 +33,26 @@ export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: 
   const colors = Colors[colorScheme ?? 'light'];
   const chartBarColor = barColor ?? colors.primary;
 
-  // Get last 7 days
-  const today = new Date();
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(today, 6 - i);
-    const dayData = data.find((d) => isSameDay(d.date, date));
-    return {
-      date,
-      value: dayData?.value ?? 0,
-      label: format(date, 'EEE').charAt(0),
-      isToday: isSameDay(date, today),
-    };
-  });
+  // Get last 7 days with memoized computation
+  const { last7Days, maxValue, weekTotal } = useMemo(() => {
+    const today = new Date();
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = subDays(today, 6 - i);
+      const dayData = data.find((d) => isSameDay(d.date, date));
+      const shortName = format(date, 'EEE');
+      return {
+        date,
+        value: dayData?.value ?? 0,
+        label: DAY_LABELS[shortName] ?? shortName.charAt(0),
+        isToday: isSameDay(date, today),
+      };
+    });
 
-  // Find max value for scaling
-  const maxValue = Math.max(...last7Days.map((d) => d.value), 1);
+    const max = Math.max(...days.map((d) => d.value), 1);
+    const total = days.reduce((sum, d) => sum + d.value, 0);
 
-  // Calculate total for the week
-  const weekTotal = last7Days.reduce((sum, d) => sum + d.value, 0);
+    return { last7Days: days, maxValue: max, weekTotal: total };
+  }, [data]);
 
   return (
     <View style={styles.container}>
@@ -55,6 +68,8 @@ export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: 
           <View key={index} style={styles.barContainer}>
             <View style={styles.barWrapper}>
               <View
+                accessible={true}
+                accessibilityLabel={`${format(day.date, 'EEEE')}: ${day.value} ${valueLabel}`}
                 style={[
                   styles.bar,
                   {

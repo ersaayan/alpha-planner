@@ -2,20 +2,18 @@
  * CustomTabBar - Floating tab bar with glassmorphism and animations
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolate,
-  interpolateColor,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Colors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
+import { Colors, BorderRadius, Shadows, Spacing, InterFonts, Palette } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
@@ -60,7 +58,16 @@ function TabItem({
   const hapticEnabled = useSettingsStore((state) => state.settings.hapticFeedbackEnabled);
 
   const scale = useSharedValue(1);
+  const indicatorWidth = useSharedValue(isFocused ? 48 : 0);
+  const indicatorOpacity = useSharedValue(isFocused ? 1 : 0);
+  const iconScaleValue = useSharedValue(isFocused ? 1.1 : 1);
   const iconConfig = TAB_ICONS[routeName];
+
+  useEffect(() => {
+    indicatorWidth.value = withTiming(isFocused ? 48 : 0, { duration: AnimationDuration.normal });
+    indicatorOpacity.value = withTiming(isFocused ? 1 : 0, { duration: AnimationDuration.normal });
+    iconScaleValue.value = withSpring(isFocused ? 1.1 : 1, SpringConfig.default);
+  }, [isFocused]);
 
   const handlePressIn = () => {
     scale.value = withSpring(0.9, SpringConfig.snappy);
@@ -71,7 +78,7 @@ function TabItem({
   };
 
   const handlePress = () => {
-    if (hapticEnabled && Platform.OS === 'ios') {
+    if (hapticEnabled && (Platform.OS === 'ios' || Platform.OS === 'android')) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     onPress();
@@ -81,23 +88,14 @@ function TabItem({
     transform: [{ scale: scale.value }],
   }));
 
-  const indicatorStyle = useAnimatedStyle(() => {
-    const width = withTiming(isFocused ? 48 : 0, { duration: AnimationDuration.normal });
-    const opacity = withTiming(isFocused ? 1 : 0, { duration: AnimationDuration.normal });
+  const indicatorStyle = useAnimatedStyle(() => ({
+    width: indicatorWidth.value,
+    opacity: indicatorOpacity.value,
+  }));
 
-    return {
-      width,
-      opacity,
-    };
-  });
-
-  const iconScale = useAnimatedStyle(() => {
-    const scaleValue = withSpring(isFocused ? 1.1 : 1, SpringConfig.default);
-
-    return {
-      transform: [{ scale: scaleValue }],
-    };
-  });
+  const iconScale = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScaleValue.value }],
+  }));
 
   if (!iconConfig) return null;
 
@@ -163,11 +161,18 @@ export function CustomTabBar({ state, descriptors, navigation }: BottomTabBarPro
         ]}
       >
         {/* Blur background for glassmorphism effect */}
-        {Platform.OS === 'ios' && (
+        {Platform.OS === 'ios' ? (
           <BlurView
             intensity={80}
             tint={isDark ? 'dark' : 'light'}
             style={StyleSheet.absoluteFill}
+          />
+        ) : (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: isDark ? 'rgba(59, 73, 83, 0.95)' : 'rgba(255, 255, 255, 0.95)' },
+            ]}
           />
         )}
 
@@ -272,7 +277,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: InterFonts.semibold,
     fontSize: 10,
-    color: '#fff',
+    color: Palette.white,
   },
 });
 

@@ -9,13 +9,12 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withRepeat,
-  withSequence,
   Easing,
   interpolate,
-  interpolateColor,
+  runOnJS,
+  cancelAnimation,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { GamificationColors, BorderRadius, Shadows, AnimationDurations } from '@/constants/theme';
+import { GamificationColors, Palette } from '@/constants/theme';
 import { AnimationEasing, AnimationDuration } from '@/constants/animations';
 
 interface AnimatedProgressBarProps {
@@ -43,11 +42,11 @@ export function AnimatedProgressBar({
   // Animate progress when value changes
   useEffect(() => {
     animatedProgress.value = withTiming(progress, {
-      duration: AnimationDurations.xpBar,
+      duration: AnimationDuration.xpFill,
       easing: AnimationEasing.smooth,
     }, (finished) => {
       if (finished && progress >= 1 && onFillComplete) {
-        onFillComplete();
+        runOnJS(onFillComplete)();
       }
     });
   }, [progress]);
@@ -64,6 +63,9 @@ export function AnimatedProgressBar({
         false // Don't reverse
       );
     }
+    return () => {
+      cancelAnimation(shimmerPosition);
+    };
   }, [showShimmer, progress]);
 
   const progressStyle = useAnimatedStyle(() => {
@@ -90,7 +92,11 @@ export function AnimatedProgressBar({
   });
 
   return (
-    <View style={[styles.container, { height }, style]}>
+    <View
+      style={[styles.container, { height }, style]}
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+    >
       {/* Background track */}
       <View style={[styles.track, { backgroundColor, borderRadius: height / 2 }]} />
 
@@ -142,7 +148,7 @@ export function AnimatedProgressBar({
               styles.milestone,
               {
                 left: `${milestone * 100}%`,
-                backgroundColor: progress >= milestone ? '#fff' : 'rgba(255,255,255,0.3)',
+                backgroundColor: progress >= milestone ? Palette.white : 'rgba(255,255,255,0.3)',
               },
             ]}
           />

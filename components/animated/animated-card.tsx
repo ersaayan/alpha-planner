@@ -102,6 +102,7 @@ export function AnimatedCard({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || !onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
       style={[
         styles.card,
         getVariantStyle(),

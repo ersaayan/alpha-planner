@@ -104,8 +104,13 @@ export async function scheduleTimerNotification(
 }
 
 export async function cancelScheduledTimerNotifications(): Promise<void> {
-  const existingId = await loadScheduledNotificationId();
-  if (!existingId) return;
-  await Notifications.cancelScheduledNotificationAsync(existingId);
-  await storeScheduledNotificationId(null);
+  try {
+    const existingId = await loadScheduledNotificationId();
+    if (!existingId) return;
+    await Notifications.cancelScheduledNotificationAsync(existingId);
+  } catch (error) {
+    console.warn('[PomodoroTask] Failed to cancel scheduled timer notification:', error);
+  } finally {
+    await storeScheduledNotificationId(null);
+  }
 }

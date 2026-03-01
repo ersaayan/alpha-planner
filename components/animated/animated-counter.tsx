@@ -2,16 +2,15 @@
  * AnimatedCounter - Number counter with smooth counting animation
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { StyleSheet, TextStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  useDerivedValue,
+  useAnimatedReaction,
   withTiming,
   withSpring,
   withSequence,
-  Easing,
   runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
@@ -49,6 +48,15 @@ export function AnimatedCounter({
   const animatedValue = useSharedValue(0);
   const scale = useSharedValue(1);
   const previousValue = useSharedValue(0);
+  const [displayText, setDisplayText] = useState('0');
+
+  const updateDisplayText = useCallback((roundedValue: number) => {
+    if (formatNumber) {
+      setDisplayText(formatNumber(roundedValue));
+    } else {
+      setDisplayText(roundedValue.toLocaleString());
+    }
+  }, [formatNumber]);
 
   useEffect(() => {
     const diff = Math.abs(value - previousValue.value);
@@ -70,15 +78,13 @@ export function AnimatedCounter({
     previousValue.value = value;
   }, [value, duration]);
 
-  // Derive the display value
-  const displayValue = useDerivedValue(() => {
-    const roundedValue = Math.round(animatedValue.value);
-    if (formatNumber) {
-      return formatNumber(roundedValue);
-    }
-    // Default formatting with thousand separators
-    return roundedValue.toLocaleString();
-  });
+  // Transfer animated value to JS thread for display
+  useAnimatedReaction(
+    () => Math.round(animatedValue.value),
+    (roundedValue) => {
+      runOnJS(updateDisplayText)(roundedValue);
+    },
+  );
 
   const scaleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -103,35 +109,10 @@ export function AnimatedCounter({
 
   return (
     <Animated.View style={scaleStyle}>
-      <AnimatedText
-        value={displayValue}
-        prefix={prefix}
-        suffix={suffix}
-        style={{ ...getTypographyStyle(), color: textColor, ...style }}
-      />
+      <Text style={{ ...getTypographyStyle(), color: textColor, ...style }}>
+        {prefix}{displayText}{suffix}
+      </Text>
     </Animated.View>
-  );
-}
-
-// Helper component to render the animated text
-interface AnimatedTextProps {
-  value: { value: string };
-  prefix: string;
-  suffix: string;
-  style: TextStyle;
-}
-
-function AnimatedText({ value, prefix, suffix, style }: AnimatedTextProps) {
-  const [displayText, setDisplayText] = React.useState('0');
-
-  useDerivedValue(() => {
-    runOnJS(setDisplayText)(value.value);
-  }, [value]);
-
-  return (
-    <Text style={style}>
-      {prefix}{displayText}{suffix}
-    </Text>
   );
 }
 

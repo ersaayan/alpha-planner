@@ -14,12 +14,21 @@ const COMPLETION_CHANNELS = {
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const identifier = notification.request.identifier ?? '';
+    const category =
+      (notification.request.content.categoryIdentifier as string) ?? '';
+    // Suppress sound for ongoing timer notifications to avoid repeated alerts
+    const isTimerNotification =
+      identifier.includes('timer') || category.includes('timer');
+
+    return {
+      shouldPlaySound: !isTimerNotification,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 export interface NotificationConfig {
@@ -41,6 +50,8 @@ class NotificationService {
   private actionCallbacks: NotificationActionCallback = {};
   private responseSubscription: Notifications.EventSubscription | null = null;
   private lastCategoryIsPaused: boolean | null = null;
+  // Track scheduled task-due notifications by todoId to prevent duplicates
+  private scheduledTaskDueNotifications = new Map<string, string>();
 
   async initialize(): Promise<boolean> {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -87,6 +98,15 @@ class NotificationService {
         sound: null,
       });
 
+      // General notifications channel for achievements, reminders, task due
+      await Notifications.setNotificationChannelAsync('general', {
+        name: 'General Notifications',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#5A7868',
+        sound: 'default',
+      });
+
       // Ongoing timer notification channel (low importance = no sound/vibration)
       await Notifications.setNotificationChannelAsync('pomodoro-ongoing', {
         name: 'Timer Progress',
@@ -104,6 +124,13 @@ class NotificationService {
     // Listen for notification action responses
     this.setupResponseListener();
 
+    return this.hasPermission;
+  }
+
+  // Re-check notification permissions (e.g. user may revoke after initial grant)
+  async checkPermission(): Promise<boolean> {
+    const { status } = await Notifications.getPermissionsAsync();
+    this.hasPermission = status === 'granted';
     return this.hasPermission;
   }
 
@@ -154,8 +181,9 @@ class NotificationService {
 
   // Format seconds to MM:SS
   private formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const safe = Math.max(0, seconds);
+    const mins = Math.floor(safe / 60);
+    const secs = safe % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
@@ -166,6 +194,7 @@ class NotificationService {
     totalSeconds: number,
     isPaused: boolean = false
   ): Promise<void> {
+    await this.checkPermission();
     if (!this.hasPermission) return;
 
     const phaseLabels = {
@@ -243,10 +272,11 @@ class NotificationService {
     await this.showTimerNotification(phase, remainingSeconds, totalSeconds, isPaused);
   }
 
-  // Dismiss ongoing timer notification
+  // Dismiss and cancel ongoing timer notification
   async dismissTimerNotification(): Promise<void> {
     this.lastCategoryIsPaused = null;
     await Notifications.dismissNotificationAsync(TIMER_NOTIFICATION_ID);
+    await Notifications.cancelScheduledNotificationAsync(TIMER_NOTIFICATION_ID);
   }
 
   async sendTimerCompleteNotification(
@@ -362,6 +392,7 @@ class NotificationService {
         title: 'Task Reminder 📋',
         body: `Don't forget: ${todoTitle}`,
         sound: true,
+        ...(Platform.OS === 'android' && { channelId: 'general' }),
       },
       trigger: null,
     });
@@ -375,6 +406,7 @@ class NotificationService {
         title: 'Achievement Unlocked! 🏆',
         body: achievementTitle,
         sound: true,
+        ...(Platform.OS === 'android' && { channelId: 'general' }),
       },
       trigger: null,
     });
@@ -392,6 +424,17 @@ class NotificationService {
   ): Promise<string | null> {
     if (!this.hasPermission) return null;
 
+    // Cancel any existing notification for this todo to prevent duplicates
+    const existingId = this.scheduledTaskDueNotifications.get(todoId);
+    if (existingId) {
+      try {
+        await Notifications.cancelScheduledNotificationAsync(existingId);
+      } catch {
+        // Notification may have already fired or been dismissed
+      }
+      this.scheduledTaskDueNotifications.delete(todoId);
+    }
+
     // Schedule 1 hour before due
     const triggerDate = new Date(dueDate.getTime() - 60 * 60 * 1000);
 
@@ -405,12 +448,15 @@ class NotificationService {
         body: `"${todoTitle}" is due in 1 hour`,
         data: { todoId },
         sound: true,
+        ...(Platform.OS === 'android' && { channelId: 'general' }),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
         date: triggerDate,
       },
     });
+
+    this.scheduledTaskDueNotifications.set(todoId, identifier);
 
     return identifier;
   }

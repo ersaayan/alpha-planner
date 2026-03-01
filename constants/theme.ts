@@ -219,6 +219,7 @@ export const Typography = {
 } as const;
 
 export const Spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,  // Updated: more compact (was 16)
@@ -326,13 +327,6 @@ export const GamificationColors = {
   confettiColors: ['#FFD700', '#FF6B35', '#90AB8B', '#5A7868', '#E8B4BC'],
 } as const;
 
-// Animation timing constants
-export const AnimationDurations = {
-  instant: 100,
-  fast: 200,
-  normal: 300,
-  slow: 500,
-  xpBar: 800,
-  levelUp: 1000,
-  achievement: 600,
-} as const;
+// Animation timing constants — use AnimationDuration from '@/constants/animations' instead.
+// Kept as re-export for backwards compatibility.
+export { AnimationDuration as AnimationDurations } from './animations';

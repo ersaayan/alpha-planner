@@ -57,26 +57,35 @@ export function DistributionChart({ data, title, formatValue }: DistributionChar
 
       {/* Progress Bar */}
       <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-        {data.map((item, index) => {
-          const percentage = (item.value / total) * 100;
-          if (percentage === 0) return null;
-          return (
-            <View
-              key={index}
-              style={[
-                styles.progressSegment,
-                {
-                  width: `${percentage}%`,
-                  backgroundColor: item.color,
-                  borderTopLeftRadius: index === 0 ? BorderRadius.full : 0,
-                  borderBottomLeftRadius: index === 0 ? BorderRadius.full : 0,
-                  borderTopRightRadius: index === data.length - 1 ? BorderRadius.full : 0,
-                  borderBottomRightRadius: index === data.length - 1 ? BorderRadius.full : 0,
-                },
-              ]}
-            />
-          );
-        })}
+        {(() => {
+          const visibleSegments = data
+            .map((item, index) => ({ ...item, originalIndex: index }))
+            .filter((item) => item.value > 0);
+
+          return visibleSegments.map((item, visibleIndex) => {
+            const percentage = (item.value / total) * 100;
+            const isFirst = visibleIndex === 0;
+            const isLast = visibleIndex === visibleSegments.length - 1;
+            return (
+              <View
+                key={item.originalIndex}
+                accessible={true}
+                accessibilityLabel={`${item.label}: ${format(item.value)}, ${Math.round(percentage)}%`}
+                style={[
+                  styles.progressSegment,
+                  {
+                    width: `${percentage}%`,
+                    backgroundColor: item.color,
+                    borderTopLeftRadius: isFirst ? BorderRadius.full : 0,
+                    borderBottomLeftRadius: isFirst ? BorderRadius.full : 0,
+                    borderTopRightRadius: isLast ? BorderRadius.full : 0,
+                    borderBottomRightRadius: isLast ? BorderRadius.full : 0,
+                  },
+                ]}
+              />
+            );
+          });
+        })()}
       </View>
 
       {/* Legend */}

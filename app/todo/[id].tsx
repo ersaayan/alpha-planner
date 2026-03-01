@@ -84,8 +84,16 @@ export default function TodoDetailScreen() {
 
   if (!todo) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, styles.notFoundContainer, { backgroundColor: colors.background }]}>
         <Text category="h6">Todo not found</Text>
+        <Button
+          appearance="outline"
+          style={{ marginTop: Spacing.md }}
+          accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
+          onPress={() => router.back()}
+        >
+          Go Back
+        </Button>
       </View>
     );
   }
@@ -381,7 +389,7 @@ export default function TodoDetailScreen() {
               <Button appearance="ghost" onPress={() => setIsEditing(false)}>
                 Cancel
               </Button>
-              <Button onPress={handleSave}>Save Changes</Button>
+              <Button onPress={handleSave} disabled={!title.trim()}>Save Changes</Button>
             </>
           ) : (
             <>
@@ -432,6 +440,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: Spacing.md,
+  },
+  notFoundContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusRow: {
     flexDirection: 'row',
