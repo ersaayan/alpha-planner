@@ -1,26 +1,26 @@
-import { useState, useMemo } from 'react';
-import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
-import { Text, Card, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Button, Card, Text } from '@ui-kitten/components';
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
   addDays,
-  isSameMonth,
-  isSameDay,
   addMonths,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
   subMonths,
 } from 'date-fns';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
-import type { Todo } from '@/types';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
+import type { Todo } from '@/types';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -112,7 +112,14 @@ export default function CalendarScreen() {
         <Pressable onPress={handlePrevMonth} style={styles.navButton}>
           <Icon name="arrow-back-outline" fill={colors.text} size={20} />
         </Pressable>
-        <Text category="h6">{format(currentMonth, 'MMMM yyyy')}</Text>
+        <Pressable
+          onPress={() => {
+            setCurrentMonth(new Date());
+            setSelectedDate(new Date());
+          }}
+        >
+          <Text category="h6">{format(currentMonth, 'MMMM yyyy')}</Text>
+        </Pressable>
         <Pressable onPress={handleNextMonth} style={styles.navButton}>
           <Icon name="arrow-forward-outline" fill={colors.text} size={20} />
         </Pressable>

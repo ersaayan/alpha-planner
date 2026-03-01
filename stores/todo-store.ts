@@ -161,22 +161,47 @@ export const useTodoStore = create<TodoState>()(
         const wasCompleted = subtask?.isCompleted ?? false;
 
         set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === todoId
-              ? {
-                  ...todo,
-                  subtasks: todo.subtasks.map((subtask) =>
-                    subtask.id === subtaskId ? { ...subtask, isCompleted: !subtask.isCompleted } : subtask
-                  ),
-                  updatedAt: new Date().toISOString(),
-                }
-              : todo
-          ),
+          todos: state.todos.map((t) => {
+            if (t.id !== todoId) return t;
+
+            const updatedSubtasks = t.subtasks.map((s) =>
+              s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s
+            );
+
+            // Check if all subtasks are now completed
+            const allCompleted =
+              updatedSubtasks.length > 0 && updatedSubtasks.every((s) => s.isCompleted);
+            const wasAllCompleted =
+              t.subtasks.length > 0 && t.subtasks.every((s) => s.isCompleted);
+
+            const now = new Date().toISOString();
+
+            return {
+              ...t,
+              subtasks: updatedSubtasks,
+              updatedAt: now,
+              // Auto-complete parent when all subtasks done; revert if undoing
+              ...(allCompleted && !wasAllCompleted
+                ? { status: 'completed' as const, completedAt: now }
+                : !allCompleted && wasAllCompleted && t.status === 'completed'
+                  ? { status: 'in_progress' as const, completedAt: null }
+                  : {}),
+            };
+          }),
         }));
 
         // Award XP when subtask is toggled to completed
         if (!wasCompleted) {
           useGamificationStore.getState().addXp(3); // SUBTASK_COMPLETE XP
+
+          // Check if this completion triggered parent todo completion
+          const updatedTodo = get().todos.find((t) => t.id === todoId);
+          if (
+            updatedTodo?.status === 'completed' &&
+            todo?.status !== 'completed'
+          ) {
+            useGamificationStore.getState().incrementTaskCompleted();
+          }
         }
       },
 

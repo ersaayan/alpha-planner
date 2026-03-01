@@ -1,20 +1,20 @@
-import { useState } from 'react';
-import { StyleSheet, View, ScrollView, Pressable, Dimensions } from 'react-native';
-import { Text, Card, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
+import { Dimensions, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
-import type { Todo, TodoStatus } from '@/types';
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
+import type { Todo, TodoStatus } from '@/types';
 import { formatDate } from '@/utils/date';
 
 const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
   { status: 'pending', title: 'To Do', color: '#90AB8B' },
   { status: 'in_progress', title: 'In Progress', color: '#B5A45E' },
   { status: 'completed', title: 'Done', color: '#5A7868' },
+  { status: 'archived', title: 'Archived', color: '#9E9E9E' },
 ];
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

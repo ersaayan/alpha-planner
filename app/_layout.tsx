@@ -252,7 +252,7 @@ export default function RootLayout() {
               title: 'New Todo',
             }}
           />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+
           <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
           <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
           <Stack.Screen name="views/timeline" options={{ headerShown: false }} />

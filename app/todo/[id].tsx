@@ -58,6 +58,7 @@ export default function TodoDetailScreen() {
   const [selectedPriorityIndex, setSelectedPriorityIndex] = useState<IndexPath>(new IndexPath(1));
   const [selectedStatusIndex, setSelectedStatusIndex] = useState<IndexPath>(new IndexPath(0));
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [estimatedPomodoros, setEstimatedPomodoros] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -66,6 +67,7 @@ export default function TodoDetailScreen() {
       setTitle(todo.title);
       setDescription(todo.description || '');
       setDueDate(todo.dueDate ? new Date(todo.dueDate) : null);
+      setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
 
       const categoryIndex = categories.findIndex((c) => c.id === todo.categoryId);
       if (categoryIndex >= 0) {
@@ -97,6 +99,10 @@ export default function TodoDetailScreen() {
   const handleSave = () => {
     if (!title.trim()) return;
 
+    const parsedPomodoros = parseInt(estimatedPomodoros, 10);
+    const estimatedPomodorosValue =
+      Number.isFinite(parsedPomodoros) && parsedPomodoros > 0 ? parsedPomodoros : null;
+
     updateTodo(id, {
       title: title.trim(),
       description: description.trim() || null,
@@ -104,6 +110,7 @@ export default function TodoDetailScreen() {
       categoryId: selectedCategory?.id || null,
       priority: selectedPriority.value,
       status: selectedStatus.value,
+      estimatedPomodoros: estimatedPomodorosValue,
     });
     setIsEditing(false);
   };
@@ -243,6 +250,16 @@ export default function TodoDetailScreen() {
               onSelect={(date) => setDueDate(date)}
               style={styles.input}
               min={new Date()}
+            />
+
+            <Input
+              label="Estimated Pomodoros"
+              placeholder="e.g., 4"
+              value={estimatedPomodoros}
+              onChangeText={setEstimatedPomodoros}
+              style={styles.input}
+              keyboardType="number-pad"
+              accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
             />
           </>
         )}

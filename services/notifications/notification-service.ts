@@ -40,6 +40,7 @@ class NotificationService {
   private hasPermission = false;
   private actionCallbacks: NotificationActionCallback = {};
   private responseSubscription: Notifications.EventSubscription | null = null;
+  private lastCategoryIsPaused: boolean | null = null;
 
   async initialize(): Promise<boolean> {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -178,24 +179,27 @@ class NotificationService {
     // Calculate when the timer will end (for Android chronometer)
     const endTime = Date.now() + remainingSeconds * 1000;
 
-    // Update category based on paused state
-    await Notifications.setNotificationCategoryAsync(TIMER_CATEGORY_ID, [
-      {
-        identifier: isPaused ? 'resume' : 'pause',
-        buttonTitle: isPaused ? '▶️ Resume' : '⏸ Pause',
-        options: {
-          opensAppToForeground: false,
+    // Only update category when paused state changes
+    if (this.lastCategoryIsPaused !== isPaused) {
+      this.lastCategoryIsPaused = isPaused;
+      await Notifications.setNotificationCategoryAsync(TIMER_CATEGORY_ID, [
+        {
+          identifier: isPaused ? 'resume' : 'pause',
+          buttonTitle: isPaused ? '▶️ Resume' : '⏸ Pause',
+          options: {
+            opensAppToForeground: false,
+          },
         },
-      },
-      {
-        identifier: 'stop',
-        buttonTitle: '⏹ Stop',
-        options: {
-          opensAppToForeground: false,
-          isDestructive: true,
+        {
+          identifier: 'stop',
+          buttonTitle: '⏹ Stop',
+          options: {
+            opensAppToForeground: false,
+            isDestructive: true,
+          },
         },
-      },
-    ]);
+      ]);
+    }
 
     const statusText = isPaused ? '⏸ PAUSED' : `${this.formatTime(remainingSeconds)} remaining`;
 
@@ -241,6 +245,7 @@ class NotificationService {
 
   // Dismiss ongoing timer notification
   async dismissTimerNotification(): Promise<void> {
+    this.lastCategoryIsPaused = null;
     await Notifications.dismissNotificationAsync(TIMER_NOTIFICATION_ID);
   }
 

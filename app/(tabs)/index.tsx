@@ -224,11 +224,11 @@ export default function HomeScreen() {
         </Animated.View>
       )}
 
-      {/* Upcoming Tasks Section */}
+      {/* Active Tasks Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Upcoming Tasks
+            Active Tasks
           </Text>
           <Pressable
             onPress={() => router.push('/(tabs)/todos')}
