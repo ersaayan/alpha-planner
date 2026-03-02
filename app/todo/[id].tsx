@@ -63,24 +63,26 @@ export default function TodoDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (todo) {
-      setTitle(todo.title);
-      setDescription(todo.description || '');
-      setDueDate(todo.dueDate ? new Date(todo.dueDate) : null);
-      setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
+    if (!todo) return;
+    // Don't reset form if user is currently editing
+    if (isEditing) return;
 
-      const categoryIndex = categories.findIndex((c) => c.id === todo.categoryId);
-      if (categoryIndex >= 0) {
-        setSelectedCategoryIndex(new IndexPath(categoryIndex));
-      }
+    setTitle(todo.title);
+    setDescription(todo.description || '');
+    setDueDate(todo.dueDate ? new Date(todo.dueDate) : null);
+    setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
 
-      const priorityIndex = PRIORITIES.findIndex((p) => p.value === todo.priority);
-      setSelectedPriorityIndex(new IndexPath(priorityIndex >= 0 ? priorityIndex : 1));
-
-      const statusIndex = STATUSES.findIndex((s) => s.value === todo.status);
-      setSelectedStatusIndex(new IndexPath(statusIndex >= 0 ? statusIndex : 0));
+    const categoryIndex = categories.findIndex((c) => c.id === todo.categoryId);
+    if (categoryIndex >= 0) {
+      setSelectedCategoryIndex(new IndexPath(categoryIndex));
     }
-  }, [todo, categories]);
+
+    const priorityIndex = PRIORITIES.findIndex((p) => p.value === todo.priority);
+    setSelectedPriorityIndex(new IndexPath(priorityIndex >= 0 ? priorityIndex : 1));
+
+    const statusIndex = STATUSES.findIndex((s) => s.value === todo.status);
+    setSelectedStatusIndex(new IndexPath(statusIndex >= 0 ? statusIndex : 0));
+  }, [todo?.id, todo?.updatedAt, isEditing, categories]);
 
   if (!todo) {
     return (
@@ -257,7 +259,7 @@ export default function TodoDetailScreen() {
               date={dueDate}
               onSelect={(date) => setDueDate(date)}
               style={styles.input}
-              min={new Date()}
+              min={dueDate && dueDate < new Date() ? dueDate : new Date()}
             />
 
             <Input

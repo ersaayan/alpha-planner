@@ -53,6 +53,17 @@ export const useSettingsStore = create<SettingsState>()(
         }),
 
       resetAllData: async () => {
+        // Stop any running timer first to prevent ghost interval
+        try {
+          const { usePomodoroStore } = require('./pomodoro-store');
+          const pomodoroState = usePomodoroStore.getState();
+          if (pomodoroState.timer.state === 'running' || pomodoroState.timer.state === 'paused') {
+            pomodoroState.stopTimer();
+          }
+        } catch {
+          // Timer stop is best-effort
+        }
+
         // Clear all persisted stores
         await AsyncStorage.multiRemove([
           'settings-storage',
@@ -100,8 +111,13 @@ export const useSettingsStore = create<SettingsState>()(
         const { _hasHydrated, ...rest } = state;
         return rest;
       },
-      migrate: (persistedState: unknown, version: number) => {
-        return persistedState as SettingsState;
+      migrate: (persistedState: unknown, _version: number) => {
+        const state = persistedState as any;
+        return {
+          settings: { ...DEFAULT_APP_SETTINGS, ...(state?.settings || {}) },
+          pomodoroSettings: { ...DEFAULT_POMODORO_SETTINGS, ...(state?.pomodoroSettings || {}) },
+          _hasHydrated: false,
+        } as SettingsState;
       },
     }
   )

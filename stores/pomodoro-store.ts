@@ -29,7 +29,9 @@ const getNextPhase = (
   settings: PomodoroSettings
 ): PomodoroPhase => {
   if (phase === 'focus') {
-    return sessionsCompleted % settings.sessionsUntilLongBreak === 0 ? 'long_break' : 'short_break';
+    return (sessionsCompleted > 0 && sessionsCompleted % settings.sessionsUntilLongBreak === 0)
+      ? 'long_break'
+      : 'short_break';
   }
   return 'focus';
 };
@@ -106,6 +108,10 @@ export const usePomodoroStore = create<PomodoroState>()(
       },
 
       startTimer: (linkedTodoId) => {
+        const { timer } = get();
+        // Prevent double-start
+        if (timer.state === 'running') return;
+
         if (autoStartTimeout) {
           clearTimeout(autoStartTimeout);
           autoStartTimeout = null;
@@ -114,7 +120,7 @@ export const usePomodoroStore = create<PomodoroState>()(
         if (settings.notificationsEnabled) {
           notificationService.dismissTimerNotification();
         }
-        const { timer, _startTicking } = get();
+        const { _startTicking } = get();
 
         const phase = timer.phase === 'idle' ? 'focus' : timer.phase;
         const totalTime = getPhaseDuration(phase, pomodoroSettings);
@@ -273,15 +279,19 @@ export const usePomodoroStore = create<PomodoroState>()(
           set({
             sessions: [...sessions, endedSession],
             currentSession: null,
+            timer: {
+              ...INITIAL_TIMER_STATE,
+              sessionsCompleted: timer.sessionsCompleted,
+            },
+          });
+        } else {
+          set({
+            timer: {
+              ...INITIAL_TIMER_STATE,
+              sessionsCompleted: timer.sessionsCompleted,
+            },
           });
         }
-
-        set({
-          timer: {
-            ...INITIAL_TIMER_STATE,
-            sessionsCompleted: timer.sessionsCompleted,
-          },
-        });
       },
 
       resetTimer: () => {
@@ -338,9 +348,13 @@ export const usePomodoroStore = create<PomodoroState>()(
         let currentTimer = { ...timer };
         let elapsedSeconds = calculateElapsedSeconds(currentTimer, nowMs);
 
-        // Process completed phases during the background period
+        // Process completed phases during the background period (cap at 50 to prevent freeze)
+        const MAX_SYNC_ITERATIONS = 50;
+        let syncIterations = 0;
         while (elapsedSeconds >= currentTimer.remainingTime) {
           if (currentTimer.remainingTime <= 0) break;
+          if (syncIterations >= MAX_SYNC_ITERATIONS) break;
+          syncIterations++;
           elapsedSeconds -= currentTimer.remainingTime;
 
           const isFocus = currentTimer.phase === 'focus';
@@ -429,11 +443,15 @@ export const usePomodoroStore = create<PomodoroState>()(
           if (currentTimer.phase !== timer.phase) {
             // Need to reschedule notification for the newly entered phase
             const { settings } = useSettingsStore.getState();
-            scheduleTimerNotification(
-              currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-              newRemaining,
-              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
-            );
+            try {
+              scheduleTimerNotification(
+                currentTimer.phase as 'focus' | 'short_break' | 'long_break',
+                newRemaining,
+                { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+              );
+            } catch {
+              // Notification scheduling is non-critical during sync
+            }
           }
         }
 
@@ -613,6 +631,14 @@ export const usePomodoroStore = create<PomodoroState>()(
       completeSession: () => {
         const { timer, currentSession, sessions, _stopTicking } = get();
         if (!currentSession) return;
+
+        // Award gamification if it was a focus session
+        if (timer.phase === 'focus') {
+          useGamificationStore.getState().incrementPomodoro(timer.totalTime);
+          if (currentSession.todoId) {
+            useTodoStore.getState().incrementPomodoroCount(currentSession.todoId);
+          }
+        }
 
         _stopTicking();
         cancelScheduledTimerNotifications();

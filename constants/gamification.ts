@@ -219,7 +219,8 @@ export function getLevelTitle(level: number): string {
 
 export function getXpForNextLevel(level: number): number {
   const nextLevel = LEVELS.find((l) => l.level === level + 1);
-  return nextLevel?.xpRequired ?? LEVELS[LEVELS.length - 1].xpRequired;
+  if (!nextLevel) return Infinity; // Max level reached
+  return nextLevel.xpRequired;
 }
 
 export function getCurrentLevelXp(level: number): number {

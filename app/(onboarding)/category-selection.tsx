@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, View, ScrollView, Pressable } from 'react-native';
+import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
 import { Text, Button, Card, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,10 @@ export default function CategorySelectionScreen() {
   };
 
   const handleFinish = () => {
+    if (selectedCategories.length === 0) {
+      Alert.alert('Select Categories', 'Please select at least one category to continue.');
+      return;
+    }
     keepOnlyCategories(selectedCategories);
     completeOnboarding();
     router.replace('/(tabs)');

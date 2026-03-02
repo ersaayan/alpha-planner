@@ -1,6 +1,7 @@
 import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpForNextLevel } from '@/constants/gamification';
 import type { Achievement, DailyStats, UserAchievement, UserStats } from '@/types';
 import { INITIAL_USER_STATS } from '@/types';
+import { getDateKey } from '@/utils/date';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -99,7 +100,7 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       updateStreak: () => {
-        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
+        const today = getDateKey();
         const { stats } = get();
         const lastActive = stats.lastActiveDate;
 
@@ -107,7 +108,7 @@ export const useGamificationStore = create<GamificationState>()(
 
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+        const yesterdayStr = getDateKey(yesterday);
 
         const isConsecutive = lastActive === yesterdayStr;
         const shouldAwardStreakXp = isConsecutive;
@@ -223,7 +224,7 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       updateDailyStats: (updates) => {
-        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
+        const today = getDateKey();
         const { dailyStats } = get();
 
         const existingIndex = dailyStats.findIndex((ds) => ds.date === today);
@@ -280,8 +281,14 @@ export const useGamificationStore = create<GamificationState>()(
       name: 'gamification-storage',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persistedState: unknown, version: number) => {
-        return persistedState as GamificationState;
+      migrate: (persistedState: unknown, _version: number) => {
+        const state = persistedState as any;
+        return {
+          stats: { ...INITIAL_USER_STATS, ...(state?.stats || {}) },
+          unlockedAchievements: state?.unlockedAchievements || [],
+          dailyStats: state?.dailyStats || [],
+          pendingNotifications: state?.pendingNotifications || [],
+        } as GamificationState;
       },
     }
   )

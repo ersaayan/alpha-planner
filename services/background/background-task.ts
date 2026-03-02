@@ -39,7 +39,7 @@ function getNextPhase(
   settings: PomodoroSettings,
 ): PomodoroPhase {
   if (phase === 'focus') {
-    return sessionsCompleted % settings.sessionsUntilLongBreak === 0
+    return (sessionsCompleted > 0 && sessionsCompleted % settings.sessionsUntilLongBreak === 0)
       ? 'long_break'
       : 'short_break';
   }
@@ -128,9 +128,13 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
     let currentTimer = { ...timer };
     let currentElapsed = elapsedSeconds;
 
-    // Walk through completed phases
+    // Walk through completed phases (cap at 50 to prevent excessive CPU usage)
+    const MAX_ITERATIONS = 50;
+    let iterations = 0;
     while (currentElapsed >= currentTimer.totalTime) {
       if (currentTimer.totalTime <= 0) break;
+      if (iterations >= MAX_ITERATIONS) break;
+      iterations++;
       currentElapsed -= currentTimer.totalTime;
 
       const isFocus = currentTimer.phase === 'focus';

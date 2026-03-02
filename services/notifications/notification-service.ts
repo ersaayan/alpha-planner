@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -47,11 +48,15 @@ type NotificationActionCallback = {
 
 class NotificationService {
   private hasPermission = false;
+  private permissionCacheTime = 0;
+  private static PERMISSION_CACHE_TTL = 60000; // 1 minute
   private actionCallbacks: NotificationActionCallback = {};
   private responseSubscription: Notifications.EventSubscription | null = null;
   private lastCategoryIsPaused: boolean | null = null;
   // Track scheduled task-due notifications by todoId to prevent duplicates
   private scheduledTaskDueNotifications = new Map<string, string>();
+  private static TASK_NOTIFICATION_KEY = 'task-due-notifications';
+  private taskNotificationsLoaded = false;
 
   async initialize(): Promise<boolean> {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -118,6 +123,9 @@ class NotificationService {
       });
     }
 
+    // Load persisted task-due notification IDs
+    await this.loadTaskNotifications();
+
     // Set up notification category with actions
     await this.setupNotificationCategory();
 
@@ -127,10 +135,41 @@ class NotificationService {
     return this.hasPermission;
   }
 
-  // Re-check notification permissions (e.g. user may revoke after initial grant)
+  // Load persisted task-due notification map from storage
+  private async loadTaskNotifications(): Promise<void> {
+    if (this.taskNotificationsLoaded) return;
+    try {
+      const raw = await AsyncStorage.getItem(NotificationService.TASK_NOTIFICATION_KEY);
+      if (raw) {
+        this.scheduledTaskDueNotifications = new Map(JSON.parse(raw));
+      }
+    } catch {
+      // best-effort
+    }
+    this.taskNotificationsLoaded = true;
+  }
+
+  // Save task-due notification map to storage
+  private async saveTaskNotifications(): Promise<void> {
+    try {
+      await AsyncStorage.setItem(
+        NotificationService.TASK_NOTIFICATION_KEY,
+        JSON.stringify([...this.scheduledTaskDueNotifications.entries()])
+      );
+    } catch {
+      // best-effort
+    }
+  }
+
+  // Re-check notification permissions with TTL cache to avoid excessive native bridge calls
   async checkPermission(): Promise<boolean> {
+    const now = Date.now();
+    if (this.hasPermission && now - this.permissionCacheTime < NotificationService.PERMISSION_CACHE_TTL) {
+      return this.hasPermission;
+    }
     const { status } = await Notifications.getPermissionsAsync();
     this.hasPermission = status === 'granted';
+    this.permissionCacheTime = now;
     return this.hasPermission;
   }
 
@@ -275,18 +314,24 @@ class NotificationService {
   // Dismiss and cancel ongoing timer notification
   async dismissTimerNotification(): Promise<void> {
     this.lastCategoryIsPaused = null;
-    await Notifications.dismissNotificationAsync(TIMER_NOTIFICATION_ID);
-    await Notifications.cancelScheduledNotificationAsync(TIMER_NOTIFICATION_ID);
+    try {
+      await Notifications.dismissNotificationAsync(TIMER_NOTIFICATION_ID);
+    } catch {
+      // Notification may not exist
+    }
+    try {
+      await Notifications.cancelScheduledNotificationAsync(TIMER_NOTIFICATION_ID);
+    } catch {
+      // Notification may not exist
+    }
   }
 
   async sendTimerCompleteNotification(
     phase: 'focus' | 'short_break' | 'long_break',
     options?: { soundEnabled?: boolean; vibrationEnabled?: boolean }
   ): Promise<void> {
-    if (!this.hasPermission) {
-      console.warn('Notification permission not granted');
-      return;
-    }
+    await this.checkPermission();
+    if (!this.hasPermission) return;
 
     const messages = {
       focus: {
@@ -336,10 +381,8 @@ class NotificationService {
     phase: 'focus' | 'short_break' | 'long_break',
     options?: { soundEnabled?: boolean; vibrationEnabled?: boolean }
   ): Promise<void> {
-    if (!this.hasPermission) {
-      console.warn('Notification permission not granted');
-      return;
-    }
+    await this.checkPermission();
+    if (!this.hasPermission) return;
 
     const messages = {
       focus: {
@@ -385,6 +428,7 @@ class NotificationService {
   }
 
   async sendReminderNotification(todoTitle: string): Promise<void> {
+    await this.checkPermission();
     if (!this.hasPermission) return;
 
     await Notifications.scheduleNotificationAsync({
@@ -399,6 +443,7 @@ class NotificationService {
   }
 
   async sendAchievementNotification(achievementTitle: string): Promise<void> {
+    await this.checkPermission();
     if (!this.hasPermission) return;
 
     await Notifications.scheduleNotificationAsync({
@@ -422,6 +467,7 @@ class NotificationService {
     todoTitle: string,
     dueDate: Date
   ): Promise<string | null> {
+    await this.checkPermission();
     if (!this.hasPermission) return null;
 
     // Cancel any existing notification for this todo to prevent duplicates
@@ -433,6 +479,7 @@ class NotificationService {
         // Notification may have already fired or been dismissed
       }
       this.scheduledTaskDueNotifications.delete(todoId);
+      await this.saveTaskNotifications();
     }
 
     // Schedule 1 hour before due
@@ -457,6 +504,7 @@ class NotificationService {
     });
 
     this.scheduledTaskDueNotifications.set(todoId, identifier);
+    await this.saveTaskNotifications();
 
     return identifier;
   }

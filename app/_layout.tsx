@@ -13,7 +13,7 @@ import { ApplicationProvider } from '@ui-kitten/components';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, AppState } from 'react-native';
 import 'react-native-reanimated';
 
@@ -201,23 +201,31 @@ export default function RootLayout() {
         onResume: () => usePomodoroStore.getState().resumeTimer(),
         onStop: () => usePomodoroStore.getState().stopTimer(),
       });
+    }).catch((error) => {
+      console.warn('Notification initialization failed:', error);
     });
   }, []);
 
   // Achievement celebration — show a brief alert when achievements are unlocked
   const pendingNotifications = useGamificationStore((state) => state.pendingNotifications);
   const dismissNotification = useGamificationStore((state) => state.dismissNotification);
+  const [currentAchievementId, setCurrentAchievementId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (pendingNotifications.length > 0) {
+    if (pendingNotifications.length > 0 && !currentAchievementId) {
       const achievement = pendingNotifications[0];
+      setCurrentAchievementId(achievement.id);
       Alert.alert(
         `🏆 Achievement Unlocked!`,
         `${achievement.name}\n${achievement.description}\n+${achievement.xpReward} XP`,
-        [{ text: 'Awesome!', onPress: () => dismissNotification(achievement.id) }],
+        [{ text: 'Awesome!', onPress: () => {
+          dismissNotification(achievement.id);
+          setCurrentAchievementId(null);
+        }}],
+        { cancelable: false }
       );
     }
-  }, [pendingNotifications, dismissNotification]);
+  }, [pendingNotifications, currentAchievementId, dismissNotification]);
 
   useEffect(() => {
     usePomodoroStore.getState().applySettingsToTimer(pomodoroSettings);

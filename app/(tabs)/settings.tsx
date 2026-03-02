@@ -51,6 +51,8 @@ export default function SettingsScreen() {
     );
   };
 
+  const resetAllData = useSettingsStore((state) => state.resetAllData);
+
   const handleResetAllData = () => {
     Alert.alert(
       'Reset All Data',
@@ -61,9 +63,12 @@ export default function SettingsScreen() {
           text: 'Delete Everything',
           style: 'destructive',
           onPress: async () => {
-            const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-            await AsyncStorage.clear();
-            Alert.alert('Done', 'All data has been reset. Please restart the app.');
+            try {
+              await resetAllData();
+              Alert.alert('Done', 'All data has been reset. Please restart the app.');
+            } catch {
+              Alert.alert('Error', 'Failed to reset data. Please try again.');
+            }
           },
         },
       ]

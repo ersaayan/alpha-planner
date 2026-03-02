@@ -89,18 +89,19 @@ export default function PomodoroScreen() {
     };
   }, [pomodoroSettings.keepScreenAwake, timerState]);
 
-  // Track previous remaining time to detect completion
-  const prevRemainingTimeRef = useRef(remainingTime);
+  // Track phase transitions to detect completion (more reliable than remainingTime === 0)
+  const prevPhaseRef = useRef(timerPhase);
+  const prevTimerStateRef = useRef(timerState);
   useEffect(() => {
-    if (
-      prevRemainingTimeRef.current > 0 &&
-      remainingTime === 0 &&
-      timerState === "running"
-    ) {
+    const phaseChanged = prevPhaseRef.current !== timerPhase;
+    const wasRunning = prevTimerStateRef.current === "running";
+
+    if (phaseChanged && wasRunning) {
+      const completedPhase = prevPhaseRef.current;
       const phaseLabel =
-        timerPhase === "focus"
+        completedPhase === "focus"
           ? "Focus session"
-          : timerPhase === "short_break"
+          : completedPhase === "short_break"
             ? "Short break"
             : "Long break";
       AccessibilityInfo.announceForAccessibility(
@@ -113,8 +114,10 @@ export default function PomodoroScreen() {
         withSpring(1, SpringConfig.default),
       );
     }
-    prevRemainingTimeRef.current = remainingTime;
-  }, [remainingTime, timerState, timerPhase]);
+
+    prevPhaseRef.current = timerPhase;
+    prevTimerStateRef.current = timerState;
+  }, [timerPhase, timerState]);
 
   const getPhaseColor = () => {
     switch (timerPhase) {

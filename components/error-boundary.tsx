@@ -1,5 +1,5 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import { Alert, StyleSheet, Text, View, Pressable } from 'react-native';
 
 interface Props {
   children: ReactNode;
@@ -7,15 +7,16 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  retryCount: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, retryCount: 0 };
   }
 
-  static getDerivedStateFromError(): State {
+  static getDerivedStateFromError(): Partial<State> {
     return { hasError: true };
   }
 
@@ -24,8 +25,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReload = () => {
-    // Reset error state to attempt re-render
-    this.setState({ hasError: false });
+    if (this.state.retryCount >= 2) {
+      Alert.alert('Unable to Recover', 'Please close and reopen the app.');
+      return;
+    }
+    this.setState((prev) => ({ hasError: false, retryCount: prev.retryCount + 1 }));
   };
 
   render() {

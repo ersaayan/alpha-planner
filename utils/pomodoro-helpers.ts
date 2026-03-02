@@ -16,7 +16,7 @@ export function getPhaseDuration(
   if (phase === 'focus') return settings.focusDuration;
   if (phase === 'short_break') return settings.shortBreakDuration;
   if (phase === 'long_break') return settings.longBreakDuration;
-  return settings.focusDuration;
+  return 0; // idle phase has no duration
 }
 
 /** Determine which phase comes after the current one. */
@@ -26,7 +26,7 @@ export function getNextPhase(
   settings: PomodoroSettings,
 ): PomodoroPhase {
   if (phase === 'focus') {
-    return sessionsCompleted % settings.sessionsUntilLongBreak === 0
+    return (sessionsCompleted > 0 && sessionsCompleted % settings.sessionsUntilLongBreak === 0)
       ? 'long_break'
       : 'short_break';
   }

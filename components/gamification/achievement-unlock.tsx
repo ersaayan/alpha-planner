@@ -211,10 +211,13 @@ export function AchievementUnlock({
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute',
-    bottom: 100,
+    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     zIndex: 1000,
   },
   container: {

@@ -8,7 +8,7 @@ export interface Achievement {
   icon: string;
   xpReward: number;
   requirement: {
-    type: string;
+    type: 'pomodoro_count' | 'task_count' | 'streak_days' | 'focus_time' | 'early_pomodoro' | 'late_pomodoro';
     value: number;
   };
   isSecret: boolean;

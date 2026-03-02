@@ -91,6 +91,14 @@ export const useCategoryStore = create<CategoryState>()(
             ),
           }));
         }
+
+        // Clear todo filter if filtering by deleted category
+        const todoState = useTodoStore.getState();
+        if (todoState.filter?.categoryId === id) {
+          useTodoStore.setState({
+            filter: { ...todoState.filter, categoryId: undefined },
+          });
+        }
       },
 
       reorderCategories: (categoryIds) => {
@@ -126,8 +134,12 @@ export const useCategoryStore = create<CategoryState>()(
       name: 'category-storage',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persistedState: unknown, version: number) => {
-        return persistedState as CategoryState;
+      migrate: (persistedState: unknown, _version: number) => {
+        const state = persistedState as any;
+        return {
+          categories: state?.categories || [],
+          isInitialized: state?.isInitialized ?? false,
+        } as CategoryState;
       },
     }
   )

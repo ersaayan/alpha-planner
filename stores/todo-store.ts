@@ -212,6 +212,8 @@ export const useTodoStore = create<TodoState>()(
       },
 
       deleteSubtask: (todoId, subtaskId) => {
+        const todoBefore = get().todos.find((t) => t.id === todoId);
+
         set((state) => ({
           todos: state.todos.map((todo) => {
             if (todo.id !== todoId) return todo;
@@ -229,6 +231,12 @@ export const useTodoStore = create<TodoState>()(
             };
           }),
         }));
+
+        // Award gamification credit for auto-completion via subtask deletion
+        const todoAfter = get().todos.find((t) => t.id === todoId);
+        if (todoAfter?.status === 'completed' && todoBefore?.status !== 'completed') {
+          useGamificationStore.getState().incrementTaskCompleted();
+        }
       },
 
       setFilter: (filter) => {

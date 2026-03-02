@@ -50,7 +50,11 @@ export async function scheduleTimerNotification(
 
   const existingId = await loadScheduledNotificationId();
   if (existingId) {
-    await Notifications.cancelScheduledNotificationAsync(existingId);
+    try {
+      await Notifications.cancelScheduledNotificationAsync(existingId);
+    } catch {
+      // Notification may have already fired or expired
+    }
     await storeScheduledNotificationId(null);
   }
 
