@@ -76,6 +76,7 @@ export function AnimatedCounter({
     }
 
     previousValue.value = value;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [value, duration]);
 
   // Transfer animated value to JS thread for display

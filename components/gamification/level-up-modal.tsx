@@ -82,6 +82,7 @@ export function LevelUpModal({
     return () => {
       cancelAnimation(confettiRotation);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible]);
 
   const backdropStyle = useAnimatedStyle(() => ({

@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SectionHeader } from '@/components/common';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
@@ -82,6 +83,7 @@ export default function TodoDetailScreen() {
 
     const statusIndex = STATUSES.findIndex((s) => s.value === todo.status);
     setSelectedStatusIndex(new IndexPath(statusIndex >= 0 ? statusIndex : 0));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally syncing form on specific field changes only
   }, [todo?.id, todo?.updatedAt, isEditing, categories]);
 
   if (!todo) {
@@ -306,14 +308,16 @@ export default function TodoDetailScreen() {
 
         {/* Subtasks */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text category="s1">Subtasks</Text>
-            {todo.subtasks.length > 0 && (
-              <Text category="c1" style={{ color: colors.textMuted }}>
-                {completedSubtasks}/{todo.subtasks.length}
-              </Text>
-            )}
-          </View>
+          <SectionHeader
+            title="Subtasks"
+            action={
+              todo.subtasks.length > 0 ? (
+                <Text category="c1" style={{ color: colors.textMuted }}>
+                  {completedSubtasks}/{todo.subtasks.length}
+                </Text>
+              ) : undefined
+            }
+          />
 
           {todo.subtasks.length > 0 && (
             <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
@@ -496,12 +500,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: Spacing.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
   },
   progressBar: {
     height: 4,

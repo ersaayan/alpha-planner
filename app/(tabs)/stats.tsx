@@ -12,6 +12,7 @@ import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
 
+import { SectionHeader } from '@/components/common';
 import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
@@ -315,16 +316,16 @@ export default function StatsScreen() {
 
       {/* Achievements Section */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Achievements
-          </Text>
-          <View style={[styles.achievementCount, { backgroundColor: colors.primary + '20' }]}>
-            <Text style={[styles.achievementCountText, { color: colors.primary }]}>
-              {unlockedAchievements.length} / {ACHIEVEMENTS.filter((a) => !a.isSecret).length}
-            </Text>
-          </View>
-        </View>
+        <SectionHeader
+          title="Achievements"
+          action={
+            <View style={[styles.achievementCount, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={[styles.achievementCountText, { color: colors.primary }]}>
+                {unlockedAchievements.length} / {ACHIEVEMENTS.filter((a) => !a.isSecret).length}
+              </Text>
+            </View>
+          }
+        />
 
         <View style={styles.achievementsGrid}>
           {ACHIEVEMENTS.filter((a) => !a.isSecret || isAchievementUnlocked(a.id)).map((achievement) => {
@@ -606,12 +607,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: Spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
   },
   sectionTitle: {
     fontFamily: InterFonts.semibold,

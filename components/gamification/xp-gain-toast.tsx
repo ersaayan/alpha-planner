@@ -68,6 +68,7 @@ export function XPGainToast({
         withSpring(1, SpringConfig.default)
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, duration]);
 
   const animatedStyle = useAnimatedStyle(() => ({

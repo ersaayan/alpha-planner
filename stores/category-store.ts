@@ -1,6 +1,7 @@
 import type { Category } from '@/types';
 import { DEFAULT_CATEGORIES } from '@/types';
 import { DEFAULT_CATEGORY_IDS } from '@/constants/defaults';
+import { Palette } from '@/constants/theme';
 import { generateId } from '@/utils/uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
@@ -125,9 +126,9 @@ export const useCategoryStore = create<CategoryState>()(
       },
 
       getCategoryColor: (id) => {
-        if (!id) return '#90AB8B'; // Default sage color
+        if (!id) return Palette.sage;
         const category = get().categories.find((c) => c.id === id);
-        return category?.color ?? '#90AB8B';
+        return category?.color ?? Palette.sage;
       },
     }),
     {

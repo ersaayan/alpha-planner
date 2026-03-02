@@ -117,6 +117,7 @@ export default function PomodoroScreen() {
 
     prevPhaseRef.current = timerPhase;
     prevTimerStateRef.current = timerState;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [timerPhase, timerState]);
 
   const getPhaseColor = () => {

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@ui-kitten/components';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { format, subDays, isSameDay } from 'date-fns';
 
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
@@ -67,7 +68,8 @@ export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: 
         {last7Days.map((day, index) => (
           <View key={index} style={styles.barContainer}>
             <View style={styles.barWrapper}>
-              <View
+              <Animated.View
+                entering={FadeInUp.delay(index * 80).duration(400)}
                 accessible={true}
                 accessibilityLabel={`${format(day.date, 'EEEE')}: ${day.value} ${valueLabel}`}
                 style={[

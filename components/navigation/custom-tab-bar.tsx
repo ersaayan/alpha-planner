@@ -67,6 +67,7 @@ function TabItem({
     indicatorWidth.value = withTiming(isFocused ? 48 : 0, { duration: AnimationDuration.normal });
     indicatorOpacity.value = withTiming(isFocused ? 1 : 0, { duration: AnimationDuration.normal });
     iconScaleValue.value = withSpring(isFocused ? 1.1 : 1, SpringConfig.default);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [isFocused]);
 
   const handlePressIn = () => {

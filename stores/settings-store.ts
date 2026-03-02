@@ -3,6 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppSettings, PomodoroSettings } from '@/types';
 import { DEFAULT_APP_SETTINGS, DEFAULT_POMODORO_SETTINGS, INITIAL_TIMER_STATE, INITIAL_USER_STATS } from '@/types';
+import { usePomodoroStore } from './pomodoro-store';
+import { useTodoStore } from './todo-store';
+import { useCategoryStore } from './category-store';
+import { useGamificationStore } from './gamification-store';
 
 interface SettingsState {
   settings: AppSettings;
@@ -55,7 +59,6 @@ export const useSettingsStore = create<SettingsState>()(
       resetAllData: async () => {
         // Stop any running timer first to prevent ghost interval
         try {
-          const { usePomodoroStore } = require('./pomodoro-store');
           const pomodoroState = usePomodoroStore.getState();
           if (pomodoroState.timer.state === 'running' || pomodoroState.timer.state === 'paused') {
             pomodoroState.stopTimer();
@@ -80,11 +83,6 @@ export const useSettingsStore = create<SettingsState>()(
         });
 
         // Reset other stores via their zustand APIs
-        const { usePomodoroStore } = require('./pomodoro-store');
-        const { useTodoStore } = require('./todo-store');
-        const { useCategoryStore } = require('./category-store');
-        const { useGamificationStore } = require('./gamification-store');
-
         usePomodoroStore.setState({
           timer: INITIAL_TIMER_STATE,
           sessions: [],

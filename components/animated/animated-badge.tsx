@@ -79,6 +79,7 @@ export function LevelBadge({
         withTiming(0.3, { duration: 600 })
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [isLevelingUp]);
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export function LevelBadge({
     return () => {
       cancelAnimation(glowOpacity);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [showGlow]);
 
   const badgeStyle = useAnimatedStyle(() => ({
@@ -259,6 +261,7 @@ export function AchievementBadge({
         withDelay(400, withTiming(0, { duration: 300 }))
       );
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [isUnlocking]);
 
   const badgeStyle = useAnimatedStyle(() => ({

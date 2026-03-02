@@ -19,6 +19,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useGamificationStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDate } from '@/utils/date';
 
+import { SectionHeader } from '@/components/common';
 import { LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
@@ -56,6 +57,7 @@ export default function HomeScreen() {
     } else {
       timerPulse.value = withTiming(1, { duration: 200 });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [timerState]);
 
   const timerAnimatedStyle = useAnimatedStyle(() => ({
@@ -226,24 +228,24 @@ export default function HomeScreen() {
 
       {/* Active Tasks Section */}
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Active Tasks
-          </Text>
-          <Pressable
-            onPress={() => router.push('/(tabs)/todos')}
-            style={styles.seeAllButton}
-          >
-            <Text style={[styles.seeAllText, { color: colors.primary }]}>
-              See All
-            </Text>
-            <Icon
-              name="arrow-forward"
-              fill={colors.primary}
-              style={styles.seeAllIcon}
-            />
-          </Pressable>
-        </View>
+        <SectionHeader
+          title="Active Tasks"
+          action={
+            <Pressable
+              onPress={() => router.push('/(tabs)/todos')}
+              style={styles.seeAllButton}
+            >
+              <Text style={[styles.seeAllText, { color: colors.primary }]}>
+                See All
+              </Text>
+              <Icon
+                name="arrow-forward"
+                fill={colors.primary}
+                style={styles.seeAllIcon}
+              />
+            </Pressable>
+          }
+        />
 
         {pendingTodos.length === 0 ? (
           <AnimatedCard
@@ -551,12 +553,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: Spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
   },
   sectionTitle: {
     fontFamily: InterFonts.semibold,

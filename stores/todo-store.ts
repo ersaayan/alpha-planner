@@ -270,6 +270,18 @@ export const useTodoStore = create<TodoState>()(
       getFilteredTodos: () => {
         const { todos, filter } = get();
 
+        if (todos.length === 0) return [];
+
+        const hasFilter = filter.status?.length ||
+          filter.categoryId ||
+          filter.priority?.length ||
+          filter.search ||
+          filter.dueDateRange;
+
+        if (!hasFilter) {
+          return [...todos].sort((a, b) => a.order - b.order);
+        }
+
         return todos
           .filter((todo) => {
             if (filter.status?.length && !filter.status.includes(todo.status)) {

@@ -11,9 +11,9 @@ import { useGamificationStore } from './gamification-store';
 import { useSettingsStore } from './settings-store';
 import { useTodoStore } from './todo-store';
 
-// Global interval reference - outside of React lifecycle
+// Global interval reference - outside React lifecycle.
+// Managed exclusively by _startTicking/_stopTicking. Always idempotent.
 let timerInterval: ReturnType<typeof setInterval> | null = null;
-// Timeout for auto-starting next phase
 let autoStartTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const getPhaseDuration = (phase: PomodoroPhase, settings: PomodoroSettings) => {
@@ -455,8 +455,9 @@ export const usePomodoroStore = create<PomodoroState>()(
           }
         }
 
-        // Restart ticking if timer is still running
+        // Restart ticking if timer is still running (idempotent: stop first)
         if (get().timer.state === 'running') {
+          get()._stopTicking();
           get()._startTicking();
         }
       },

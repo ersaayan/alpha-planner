@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Card, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
+import { EmptyState } from '@/components/common';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -241,15 +242,11 @@ export default function TimelineScreen() {
       >
         {/* Empty State */}
         {timelineDays.length === 0 && unscheduledTodos.length === 0 && (
-          <View style={styles.emptyState}>
-            <Icon name="calendar-outline" fill={colors.textMuted} size={48} />
-            <Text category="s1" style={{ color: colors.textMuted, marginTop: Spacing.md }}>
-              No upcoming tasks
-            </Text>
-            <Text category="c1" style={{ color: colors.textMuted, marginTop: Spacing.xs }}>
-              Create a task with a due date to see it here
-            </Text>
-          </View>
+          <EmptyState
+            icon="calendar-outline"
+            title="No upcoming tasks"
+            subtitle="Create a task with a due date to see it here"
+          />
         )}
 
         {/* Timeline Days */}
@@ -338,11 +335,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xl,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xl * 2,
   },
   timelineDay: {
     flexDirection: 'row',

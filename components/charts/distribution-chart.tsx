@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@ui-kitten/components';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -67,8 +68,9 @@ export function DistributionChart({ data, title, formatValue }: DistributionChar
             const isFirst = visibleIndex === 0;
             const isLast = visibleIndex === visibleSegments.length - 1;
             return (
-              <View
+              <Animated.View
                 key={item.originalIndex}
+                entering={FadeIn.delay(visibleIndex * 100).duration(300)}
                 accessible={true}
                 accessibilityLabel={`${item.label}: ${format(item.value)}, ${Math.round(percentage)}%`}
                 style={[

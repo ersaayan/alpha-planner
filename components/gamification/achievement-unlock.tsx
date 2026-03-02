@@ -104,6 +104,7 @@ export function AchievementUnlock({
         opacity.value = withTiming(1, { duration: AnimationDuration.fast });
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, autoDismiss, autoDismissDelay]);
 
   const containerStyle = useAnimatedStyle(() => ({

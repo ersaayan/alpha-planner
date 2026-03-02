@@ -1,4 +1,5 @@
 import { Icon } from '@/components/icon';
+import { EmptyState } from '@/components/common';
 import { Button, Card, Text } from '@ui-kitten/components';
 import {
   addDays,
@@ -226,12 +227,10 @@ export default function CalendarScreen() {
 
           <ScrollView style={styles.tasksList} showsVerticalScrollIndicator={false}>
             {selectedDateTodos.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Icon name="calendar-outline" fill={colors.textMuted} size={32} />
-                <Text category="c1" style={{ color: colors.textMuted, marginTop: Spacing.sm }}>
-                  No tasks due on this day
-                </Text>
-              </View>
+              <EmptyState
+                icon="calendar-outline"
+                title="No tasks due on this day"
+              />
             ) : (
               selectedDateTodos.map((todo) => (
                 <Card
@@ -332,11 +331,6 @@ const styles = StyleSheet.create({
   },
   tasksList: {
     flex: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xl,
   },
   taskCard: {
     marginBottom: Spacing.sm,

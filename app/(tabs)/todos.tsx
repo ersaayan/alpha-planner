@@ -19,6 +19,7 @@ import { formatDate } from '@/utils/date';
 import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCheckbox } from '@/components/animated/animated-checkbox';
+import { EmptyState } from '@/components/common';
 
 const STATUS_TABS: { label: string; value: TodoStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -252,32 +253,28 @@ export default function TodosScreen() {
 
       {/* Todo List */}
       {filteredTodos.length === 0 ? (
-        <View style={styles.emptyState}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: colors.primary + '20' }]}>
-            <Icon name="clipboard" fill={colors.primary} style={styles.emptyIcon} />
-          </View>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            No tasks found
-          </Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-            {searchQuery
+        <EmptyState
+          icon="clipboard"
+          title="No tasks found"
+          subtitle={
+            searchQuery
               ? 'Try a different search term'
               : activeTab !== 'all'
                 ? `No ${activeTab.replace('_', ' ')} tasks`
                 : 'Create your first task to get started'
-            }
-          </Text>
-          {!searchQuery && activeTab === 'all' && (
-            <AnimatedButton
-              title="Create Task"
-              icon="plus"
-              variant="outline"
-              size="sm"
-              onPress={() => router.push('/todo/create')}
-              style={styles.emptyButton}
-            />
-          )}
-        </View>
+          }
+          action={
+            !searchQuery && activeTab === 'all' ? (
+              <AnimatedButton
+                title="Create Task"
+                icon="plus"
+                variant="outline"
+                size="sm"
+                onPress={() => router.push('/todo/create')}
+              />
+            ) : undefined
+          }
+        />
       ) : (
         <FlatList
           data={filteredTodos}
@@ -447,37 +444,5 @@ const styles = StyleSheet.create({
   chevron: {
     width: 20,
     height: 20,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: TAB_BAR_BOTTOM_PADDING,
-  },
-  emptyIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyIcon: {
-    width: 40,
-    height: 40,
-  },
-  emptyTitle: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.lg,
-    marginBottom: Spacing.xs,
-  },
-  emptySubtitle: {
-    fontFamily: InterFonts.regular,
-    fontSize: FontSize.sm,
-    textAlign: 'center',
-  },
-  emptyButton: {
-    marginTop: Spacing.lg,
   },
 });

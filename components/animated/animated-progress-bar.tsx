@@ -49,6 +49,7 @@ export function AnimatedProgressBar({
         runOnJS(onFillComplete)();
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [progress]);
 
   // Continuous shimmer animation
@@ -66,6 +67,7 @@ export function AnimatedProgressBar({
     return () => {
       cancelAnimation(shimmerPosition);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [showShimmer, progress]);
 
   const progressStyle = useAnimatedStyle(() => {

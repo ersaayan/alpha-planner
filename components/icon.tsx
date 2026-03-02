@@ -2,8 +2,10 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { StyleProp, ViewStyle } from 'react-native';
 
 // Map Eva icon names to Feather/MaterialCommunity icons
-const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> = {
-  // Navigation & UI (with and without -outline suffix)
+type IconEntry = { pack: 'feather' | 'material'; name: string };
+
+// Navigation & UI
+const NAVIGATION_ICONS: Record<string, IconEntry> = {
   'home': { pack: 'feather', name: 'home' },
   'home-outline': { pack: 'feather', name: 'home' },
   'list': { pack: 'feather', name: 'list' },
@@ -58,8 +60,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'layers-outline': { pack: 'feather', name: 'layers' },
   'activity': { pack: 'feather', name: 'activity' },
   'activity-outline': { pack: 'feather', name: 'activity' },
+};
 
-  // Actions
+// Actions
+const ACTION_ICONS: Record<string, IconEntry> = {
   'edit': { pack: 'feather', name: 'edit-2' },
   'edit-outline': { pack: 'feather', name: 'edit-2' },
   'edit-2': { pack: 'feather', name: 'edit-2' },
@@ -84,8 +88,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'repeat-outline': { pack: 'feather', name: 'repeat' },
   'sync': { pack: 'feather', name: 'refresh-cw' },
   'sync-outline': { pack: 'feather', name: 'refresh-cw' },
+};
 
-  // Media controls
+// Media controls
+const MEDIA_ICONS: Record<string, IconEntry> = {
   'play': { pack: 'feather', name: 'play' },
   'play-outline': { pack: 'feather', name: 'play' },
   'play-circle': { pack: 'feather', name: 'play-circle' },
@@ -104,8 +110,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'volume-up-outline': { pack: 'feather', name: 'volume-2' },
   'volume-off': { pack: 'feather', name: 'volume-x' },
   'volume-off-outline': { pack: 'feather', name: 'volume-x' },
+};
 
-  // Categories & folders
+// Categories & folders
+const CATEGORY_ICONS: Record<string, IconEntry> = {
   'folder-outline': { pack: 'feather', name: 'folder' },
   'file-outline': { pack: 'feather', name: 'file' },
   'file-text-outline': { pack: 'feather', name: 'file-text' },
@@ -114,8 +122,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'briefcase-outline': { pack: 'feather', name: 'briefcase' },
   'shopping-bag-outline': { pack: 'feather', name: 'shopping-bag' },
   'shopping-cart-outline': { pack: 'feather', name: 'shopping-cart' },
+};
 
-  // Time & calendar
+// Time & calendar
+const TIME_ICONS: Record<string, IconEntry> = {
   'calendar': { pack: 'feather', name: 'calendar' },
   'calendar-outline': { pack: 'feather', name: 'calendar' },
   'bell': { pack: 'feather', name: 'bell' },
@@ -128,8 +138,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'moon-outline': { pack: 'feather', name: 'moon' },
   'coffee': { pack: 'feather', name: 'coffee' },
   'coffee-outline': { pack: 'feather', name: 'coffee' },
+};
 
-  // Status & info
+// Status & info
+const STATUS_ICONS: Record<string, IconEntry> = {
   'info': { pack: 'feather', name: 'info' },
   'info-outline': { pack: 'feather', name: 'info' },
   'alert-circle': { pack: 'feather', name: 'alert-circle' },
@@ -140,8 +152,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'help-circle-outline': { pack: 'feather', name: 'help-circle' },
   'question-mark-circle': { pack: 'feather', name: 'help-circle' },
   'question-mark-circle-outline': { pack: 'feather', name: 'help-circle' },
+};
 
-  // People & social
+// People & social
+const PEOPLE_ICONS: Record<string, IconEntry> = {
   'person': { pack: 'feather', name: 'user' },
   'person-outline': { pack: 'feather', name: 'user' },
   'people': { pack: 'feather', name: 'users' },
@@ -154,8 +168,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'award-outline': { pack: 'feather', name: 'award' },
   'gift': { pack: 'feather', name: 'gift' },
   'gift-outline': { pack: 'feather', name: 'gift' },
+};
 
-  // Misc
+// Misc
+const MISC_ICONS: Record<string, IconEntry> = {
   'flash': { pack: 'feather', name: 'zap' },
   'flash-outline': { pack: 'feather', name: 'zap' },
   'bulb': { pack: 'feather', name: 'sun' },
@@ -184,8 +200,10 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'eye-off-outline': { pack: 'feather', name: 'eye-off' },
   'external-link': { pack: 'feather', name: 'external-link' },
   'external-link-outline': { pack: 'feather', name: 'external-link' },
+};
 
-  // Material icons for ones not in Feather
+// Material icons for ones not in Feather
+const MATERIAL_ICONS: Record<string, IconEntry> = {
   'timer-outline': { pack: 'material', name: 'timer-outline' },
   'target': { pack: 'material', name: 'target' },
   'trophy-outline': { pack: 'material', name: 'trophy-outline' },
@@ -195,6 +213,18 @@ const ICON_MAP: Record<string, { pack: 'feather' | 'material'; name: string }> =
   'leaf': { pack: 'material', name: 'leaf' },
   'hourglass-outline': { pack: 'material', name: 'timer-sand' },
   'hourglass': { pack: 'material', name: 'timer-sand' },
+};
+
+const ICON_MAP: Record<string, IconEntry> = {
+  ...NAVIGATION_ICONS,
+  ...ACTION_ICONS,
+  ...MEDIA_ICONS,
+  ...CATEGORY_ICONS,
+  ...TIME_ICONS,
+  ...STATUS_ICONS,
+  ...PEOPLE_ICONS,
+  ...MISC_ICONS,
+  ...MATERIAL_ICONS,
 };
 
 interface IconProps {
