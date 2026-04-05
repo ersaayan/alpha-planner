@@ -5,3 +5,5 @@ export { usePomodoroStore } from './pomodoro-store';
 export { useCategoryStore } from './category-store';
 export { useGamificationStore } from './gamification-store';
 export { useSyncStore } from './sync-store';
+export { useDailyQuestsStore } from './daily-quests-store';
+export { useWeeklyGoalsStore } from './weekly-goals-store';
