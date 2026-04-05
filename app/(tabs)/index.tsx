@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getLevelTitle } from '@/constants/gamification';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useGamificationStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
+import { useAuthStore, useGamificationStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDate } from '@/utils/date';
 
 import { SectionHeader } from '@/components/common';
@@ -39,6 +39,7 @@ export default function HomeScreen() {
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const profile = useAuthStore((state) => state.profile);
 
   // Timer pulse animation
   const timerPulse = useSharedValue(1);
@@ -97,7 +98,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={[styles.appTitle, { color: colors.text }]}>
-            Alpha Planner
+            {profile?.displayName ? `Hoşgeldin, ${profile.displayName}` : 'Alpha Planner'}
           </Text>
           <Text style={[styles.levelSubtitle, { color: colors.textSecondary }]}>
             {getLevelTitle(stats.level)}
