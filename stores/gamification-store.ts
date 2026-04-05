@@ -6,6 +6,7 @@ import { getDateKey } from '@/utils/date';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { useSyncStore } from './sync-store';
 
 interface GamificationState {
   stats: UserStats;
@@ -362,6 +363,15 @@ export const useGamificationStore = create<GamificationState>()(
               },
             };
           });
+
+          // Sync achievements to Supabase
+          for (const ua of newAchievements) {
+            useSyncStore.getState().enqueue('achievements', 'insert', {
+              achievement_id: ua.achievementId,
+              unlocked_at: ua.unlockedAt,
+              notified: ua.notified,
+            });
+          }
         }
       },
 
@@ -400,6 +410,13 @@ export const useGamificationStore = create<GamificationState>()(
               level: newLevel,
             },
           };
+        });
+
+        // Sync to Supabase
+        useSyncStore.getState().enqueue('achievements', 'insert', {
+          achievement_id: newAchievement.achievementId,
+          unlocked_at: newAchievement.unlockedAt,
+          notified: newAchievement.notified,
         });
       },
 
@@ -509,6 +526,17 @@ export const useGamificationStore = create<GamificationState>()(
               ...dailyStats.slice(existingIndex + 1),
             ].slice(-90),
           });
+
+          // Sync daily stats (upsert)
+          useSyncStore.getState().enqueue('daily_stats', 'insert', {
+            date: today,
+            pomodoros_completed: updated.pomodorosCompleted,
+            focus_time: updated.focusTime,
+            tasks_completed: updated.tasksCompleted,
+            xp_earned: updated.xpEarned,
+            daily_quests_completed: updated.dailyQuestsCompleted,
+            summary_shown_at: updated.summaryShownAt,
+          });
         } else {
           const newDailyStat: DailyStats = {
             date: today,
@@ -521,7 +549,18 @@ export const useGamificationStore = create<GamificationState>()(
           };
 
           set({
-            dailyStats: [...dailyStats, newDailyStat].slice(-90), // Keep last 90 days
+            dailyStats: [...dailyStats, newDailyStat].slice(-90),
+          });
+
+          // Sync new daily stats (insert)
+          useSyncStore.getState().enqueue('daily_stats', 'insert', {
+            date: today,
+            pomodoros_completed: newDailyStat.pomodorosCompleted,
+            focus_time: newDailyStat.focusTime,
+            tasks_completed: newDailyStat.tasksCompleted,
+            xp_earned: newDailyStat.xpEarned,
+            daily_quests_completed: newDailyStat.dailyQuestsCompleted,
+            summary_shown_at: newDailyStat.summaryShownAt,
           });
         }
       },
