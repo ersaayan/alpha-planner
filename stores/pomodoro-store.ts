@@ -572,6 +572,24 @@ export const usePomodoroStore = create<PomodoroState>()(
             wasCompleted: true,
           };
           updatedSessions = [...sessions, completedSession];
+
+          // Sync session to Supabase
+          try {
+            const { useSyncStore } = require('./sync-store');
+            useSyncStore.getState().enqueue('pomodoro_sessions', 'insert', {
+              id: completedSession.id,
+              todo_id: completedSession.todoId ?? null,
+              phase: completedSession.phase,
+              duration: completedSession.duration,
+              target_duration: completedSession.targetDuration,
+              was_completed: completedSession.wasCompleted,
+              started_at: completedSession.startedAt,
+              ended_at: completedSession.endedAt,
+              paused_duration: completedSession.pausedDuration,
+            });
+          } catch {
+            // Sync enqueue failure is non-fatal
+          }
         }
 
         set({
