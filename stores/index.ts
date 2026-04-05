@@ -4,3 +4,4 @@ export { useTodoStore } from './todo-store';
 export { usePomodoroStore } from './pomodoro-store';
 export { useCategoryStore } from './category-store';
 export { useGamificationStore } from './gamification-store';
+export { useSyncStore } from './sync-store';
