@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useCategoryStore, useSettingsStore } from '@/stores';
+import { changeLanguage } from '@/services/i18n/i18n-config';
+import { updateProfile } from '@/services/supabase/auth-service';
 import { useRouter } from 'expo-router';
 
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
@@ -580,6 +582,37 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+      </Card>
+
+      {/* Language */}
+      <Text category="s1" style={styles.sectionTitle}>
+        Language
+      </Text>
+      <Card style={[styles.card, { backgroundColor: colors.card }]}>
+        {(['system', 'tr', 'en'] as const).map((lang) => {
+          const labels = { system: 'System', tr: 'Türkçe', en: 'English' };
+          const isSelected = settings.language === lang;
+          return (
+            <Pressable
+              key={lang}
+              style={[styles.settingItem, { opacity: isSelected ? 1 : 0.6 }]}
+              onPress={() => {
+                updateSettings({ language: lang });
+                changeLanguage(lang);
+                // Sync language preference to profile
+                const locale = lang === 'system' ? 'system' : lang;
+                updateProfile({ locale }).catch(() => {});
+              }}
+            >
+              <Text category="s2" style={{ color: colors.text, flex: 1 }}>
+                {labels[lang]}
+              </Text>
+              {isSelected && (
+                <Icon name="checkmark-outline" fill={colors.primary} size={20} />
+              )}
+            </Pressable>
+          );
+        })}
       </Card>
 
       {/* Account */}
