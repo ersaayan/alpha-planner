@@ -279,6 +279,14 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Unregister background task since timer is stopped
         unregisterPomodoroBackgroundTask();
 
+        // Reset session combo — stop breaks the combo (pause does not)
+        try {
+          const { useGamificationStore: gamStore } = require('./gamification-store');
+          gamStore.getState().resetSessionCombo();
+        } catch {
+          // Non-fatal
+        }
+
         if (currentSession) {
           const endedSession: PomodoroSession = {
             ...currentSession,
