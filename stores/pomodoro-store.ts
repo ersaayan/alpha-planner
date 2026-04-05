@@ -174,9 +174,11 @@ export const usePomodoroStore = create<PomodoroState>()(
           const { soundEnabled } = settings;
           const { vibrationEnabled } = pomodoroSettings;
           try {
-            scheduleTimerNotification(phase, remainingTime, {
+            const completionMs = now + (remainingTime * 1000);
+            scheduleTimerNotification(phase, completionMs, {
               soundEnabled,
               vibrationEnabled,
+              isAbsoluteMs: true,
             });
           } catch (e) {
             console.warn('[Pomodoro] Failed to schedule notification:', e);
@@ -242,10 +244,12 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Reschedule notification with updated completion time
         if (settings.notificationsEnabled) {
           try {
+            const updatedTimer = get().timer;
+            const resumeCompletionMs = calculateCompletionTimeMs(updatedTimer);
             scheduleTimerNotification(
               timer.phase as 'focus' | 'short_break' | 'long_break',
-              newRemaining,
-              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+              resumeCompletionMs,
+              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled, isAbsoluteMs: true }
             );
           } catch (e) {
             console.warn('[Pomodoro] Failed to schedule notification:', e);
@@ -451,10 +455,11 @@ export const usePomodoroStore = create<PomodoroState>()(
             // Need to reschedule notification for the newly entered phase
             const { settings } = useSettingsStore.getState();
             try {
+              const syncCompletionMs = calculateCompletionTimeMs(get().timer);
               scheduleTimerNotification(
                 currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-                newRemaining,
-                { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+                syncCompletionMs,
+                { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled, isAbsoluteMs: true }
               );
             } catch {
               // Notification scheduling is non-critical during sync

@@ -40,13 +40,23 @@ async function storeScheduledNotificationId(id: string | null): Promise<void> {
 }
 
 
-// Schedule a notification for when the timer should complete
+/**
+ * Schedule a notification for when the timer should complete.
+ * Accepts either an absolute completionTimeMs timestamp or remainingSeconds (legacy).
+ */
 export async function scheduleTimerNotification(
   phase: 'focus' | 'short_break' | 'long_break',
-  remainingSeconds: number,
-  options?: { soundEnabled?: boolean; vibrationEnabled?: boolean }
+  timeValue: number,
+  options?: { soundEnabled?: boolean; vibrationEnabled?: boolean; isAbsoluteMs?: boolean }
 ): Promise<void> {
-  if (remainingSeconds <= 0) return;
+  // Determine trigger date from absolute timestamp or remaining seconds
+  const isAbsolute = options?.isAbsoluteMs ?? false;
+  const triggerDate = isAbsolute
+    ? new Date(timeValue)
+    : new Date(Date.now() + timeValue * 1000);
+
+  // Don't schedule if already in the past
+  if (triggerDate.getTime() <= Date.now()) return;
 
   const existingId = await loadScheduledNotificationId();
   if (existingId) {
@@ -74,7 +84,6 @@ export async function scheduleTimerNotification(
   };
 
   const message = messages[phase];
-  const triggerDate = new Date(Date.now() + remainingSeconds * 1000);
 
   const soundEnabled = options?.soundEnabled ?? true;
   const vibrationEnabled = options?.vibrationEnabled ?? true;
