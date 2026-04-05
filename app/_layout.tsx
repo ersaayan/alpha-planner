@@ -107,13 +107,17 @@ function usePomodoroBackgroundSync() {
             );
           }
 
-          // Schedule exact completion notification
+          // Schedule exact completion notification using absolute timestamp
+          const completionMs = currentTimer.startedAt
+            + (currentTimer.totalTime * 1000)
+            + ((currentTimer.totalPausedDuration ?? 0) * 1000);
           scheduleTimerNotification(
             currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-            currentTimer.remainingTime,
+            completionMs,
             {
               soundEnabled: settings.soundEnabled,
               vibrationEnabled: pomodoroSettings.vibrationEnabled,
+              isAbsoluteMs: true,
             },
           );
         } else if (currentTimer.state === 'paused' && settings.notificationsEnabled) {
