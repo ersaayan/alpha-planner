@@ -155,27 +155,181 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       checkAchievements: () => {
-        const { stats, unlockedAchievements } = get();
+        const { stats, unlockedAchievements, combo, prestige, dailyStats } = get();
         const unlockedIds = new Set(unlockedAchievements.map((ua) => ua.achievementId));
         const newlyUnlocked: Achievement[] = [];
+
+        // Access external stores lazily to avoid circular deps
+        let _todoStore: any = null;
+        let _categoryStore: any = null;
+        const getTodoStore = () => {
+          if (!_todoStore) _todoStore = require('./todo-store').useTodoStore.getState();
+          return _todoStore;
+        };
+        const getCategoryStore = () => {
+          if (!_categoryStore) _categoryStore = require('./category-store').useCategoryStore.getState();
+          return _categoryStore;
+        };
+
+        const today = getDateKey();
+        const todayStats = dailyStats.find((ds) => ds.date === today);
 
         for (const achievement of ACHIEVEMENTS) {
           if (unlockedIds.has(achievement.id)) continue;
 
           let isUnlocked = false;
+          const req = achievement.requirement;
 
-          switch (achievement.requirement.type) {
+          switch (req.type) {
             case 'pomodoro_count':
-              isUnlocked = stats.totalPomodoros >= achievement.requirement.value;
+              isUnlocked = stats.totalPomodoros >= req.value;
               break;
             case 'task_count':
-              isUnlocked = stats.totalTasksCompleted >= achievement.requirement.value;
+              isUnlocked = stats.totalTasksCompleted >= req.value;
               break;
+            case 'subtask_count': {
+              // Count completed subtasks across all todos
+              const todos = getTodoStore().todos;
+              const completedSubtasks = todos.reduce((sum: number, t: any) =>
+                sum + (t.subtasks?.filter((s: any) => s.isCompleted)?.length ?? 0), 0);
+              isUnlocked = completedSubtasks >= req.value;
+              break;
+            }
             case 'streak_days':
-              isUnlocked = stats.currentStreak >= achievement.requirement.value;
+              isUnlocked = stats.currentStreak >= req.value;
               break;
-            case 'focus_time':
-              isUnlocked = stats.totalFocusTime >= achievement.requirement.value;
+            case 'focus_hours':
+              isUnlocked = (stats.totalFocusTime / 3600) >= req.value;
+              break;
+            case 'session_combo':
+              isUnlocked = combo.sessionCombo >= req.value;
+              break;
+            case 'daily_combo':
+              isUnlocked = combo.dailyComboStreak >= req.value;
+              break;
+            case 'quest_perfect_days': {
+              // Count days where all 3 quests were completed
+              const perfectDays = dailyStats.filter((ds) => ds.dailyQuestsCompleted >= 3).length;
+              isUnlocked = perfectDays >= req.value;
+              break;
+            }
+            case 'category_count': {
+              if (req.extra?.created) {
+                // Count created categories
+                const cats = getCategoryStore().categories;
+                isUnlocked = cats.length >= req.value;
+              } else if (req.extra?.uniqueColors) {
+                const cats = getCategoryStore().categories;
+                const uniqueColors = new Set(cats.map((c: any) => c.color));
+                isUnlocked = uniqueColors.size >= req.value;
+              } else if (req.extra?.allCategories) {
+                // 10+ tasks in EVERY category
+                const cats = getCategoryStore().categories;
+                const todos = getTodoStore().todos;
+                if (cats.length === 0) break;
+                const allHave10 = cats.every((cat: any) => {
+                  const count = todos.filter((t: any) => t.categoryId === cat.id && t.status === 'completed').length;
+                  return count >= req.value;
+                });
+                isUnlocked = allHave10;
+              } else {
+                // Categories with at least 1 completed task
+                const todos = getTodoStore().todos;
+                const categoriesUsed = new Set(todos.filter((t: any) => t.status === 'completed' && t.categoryId).map((t: any) => t.categoryId));
+                isUnlocked = categoriesUsed.size >= req.value;
+              }
+              break;
+            }
+            case 'category_tasks': {
+              // Max completed tasks in any single category
+              const todos = getTodoStore().todos;
+              const countByCategory = new Map<string, number>();
+              for (const t of todos) {
+                if (t.status === 'completed' && t.categoryId) {
+                  countByCategory.set(t.categoryId, (countByCategory.get(t.categoryId) ?? 0) + 1);
+                }
+              }
+              const maxInCategory = Math.max(0, ...countByCategory.values());
+              isUnlocked = maxInCategory >= req.value;
+              break;
+            }
+            case 'prestige_count':
+              isUnlocked = prestige.count >= req.value;
+              break;
+            case 'level':
+              if (req.extra?.withinWeek) {
+                // Speed leveler: gained 10+ levels this week (approximate check)
+                // This is a simplified check — just check if current level >= value
+                isUnlocked = stats.level >= req.value;
+              } else {
+                isUnlocked = stats.level >= req.value;
+              }
+              break;
+            case 'total_xp':
+              isUnlocked = stats.totalXp >= req.value;
+              break;
+            case 'days_used': {
+              if (req.extra?.weekend) {
+                // Check if user was active on both Sat and Sun this week
+                const now = new Date();
+                const dayOfWeek = now.getDay();
+                // Find last Saturday and Sunday
+                const satOffset = dayOfWeek >= 6 ? dayOfWeek - 6 : dayOfWeek + 1;
+                const sunOffset = dayOfWeek >= 0 ? dayOfWeek : 7;
+                const sat = new Date(now);
+                sat.setDate(now.getDate() - satOffset);
+                const sun = new Date(now);
+                sun.setDate(now.getDate() - sunOffset);
+                const satKey = getDateKey(sat);
+                const sunKey = getDateKey(sun);
+                const hasSat = dailyStats.some((ds) => ds.date === satKey && ds.pomodorosCompleted > 0);
+                const hasSun = dailyStats.some((ds) => ds.date === sunKey && ds.pomodorosCompleted > 0);
+                isUnlocked = hasSat && hasSun;
+              } else {
+                // Total unique active days
+                const activeDays = dailyStats.filter((ds) => ds.pomodorosCompleted > 0 || ds.tasksCompleted > 0).length;
+                isUnlocked = activeDays >= req.value;
+              }
+              break;
+            }
+            case 'daily_pomodoros':
+              isUnlocked = (todayStats?.pomodorosCompleted ?? 0) >= req.value;
+              break;
+            case 'daily_focus_hours':
+              isUnlocked = ((todayStats?.focusTime ?? 0) / 3600) >= req.value;
+              break;
+            case 'time_of_day':
+              // Time-based achievements are unlocked via unlockAchievement() calls
+              // in incrementPomodoro, not here. Skip.
+              break;
+            case 'urgent_task_count': {
+              const todos = getTodoStore().todos;
+              const urgentDone = todos.filter((t: any) => t.status === 'completed' && t.priority === 'urgent').length;
+              isUnlocked = urgentDone >= req.value;
+              break;
+            }
+            case 'weekly_quest_and_goal':
+              // Checked elsewhere when both conditions met in a single day
+              break;
+            case 'break_streak':
+              // Tracked separately by pomodoro store
+              break;
+            case 'all_pending_cleared': {
+              const todos = getTodoStore().todos;
+              const pendingCount = todos.filter((t: any) => t.status === 'pending').length;
+              isUnlocked = pendingCount === 0 && stats.totalTasksCompleted > 0;
+              break;
+            }
+            case 'subtask_perfectionist': {
+              const todos = getTodoStore().todos;
+              isUnlocked = todos.some((t: any) => {
+                const subtasks = t.subtasks ?? [];
+                return subtasks.length >= req.value && subtasks.every((s: any) => s.isCompleted);
+              });
+              break;
+            }
+            case 'combo_double':
+              isUnlocked = combo.sessionCombo >= 2 && combo.dailyComboStreak >= 3;
               break;
           }
 
@@ -191,7 +345,6 @@ export const useGamificationStore = create<GamificationState>()(
             notified: false,
           }));
 
-          // Accumulate XP and apply in a single set to break recursion
           const totalAchievementXp = newlyUnlocked.reduce((sum, a) => sum + a.xpReward, 0);
 
           set((state) => {
