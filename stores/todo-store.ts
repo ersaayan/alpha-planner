@@ -8,7 +8,6 @@ import { useGamificationStore } from './gamification-store';
 interface TodoState {
   todos: Todo[];
   filter: TodoFilter;
-  isLoading: boolean;
 
   // Todo actions
   addTodo: (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt' | 'subtasks' | 'pomodoroSessions'>) => Todo;
@@ -40,7 +39,6 @@ export const useTodoStore = create<TodoState>()(
     (set, get) => ({
       todos: [],
       filter: {},
-      isLoading: false,
 
       addTodo: (todoData) => {
         const now = new Date().toISOString();
