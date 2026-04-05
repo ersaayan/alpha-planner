@@ -45,3 +45,6 @@ app-example
 
 # superpowers brainstorming
 .superpowers/
+
+# test coverage
+coverage/
