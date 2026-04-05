@@ -134,6 +134,18 @@ export const useTodoStore = create<TodoState>()(
           deleted_at: new Date().toISOString(),
         });
 
+        // B7 fix: Cancel scheduled task-due notification to prevent memory leak
+        try {
+          const { notificationService } = require('@/services/notifications');
+          const notifMap = notificationService.scheduledTaskDueNotifications;
+          if (notifMap?.has(id)) {
+            notificationService.cancelNotification(notifMap.get(id));
+            notifMap.delete(id);
+          }
+        } catch {
+          // Non-fatal
+        }
+
         set((state) => ({
           todos: state.todos.filter((todo) => todo.id !== id),
         }));
@@ -355,7 +367,7 @@ export const useTodoStore = create<TodoState>()(
       name: 'todo-storage',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ todos: state.todos }),
+      partialize: (state) => ({ todos: state.todos, filter: state.filter }),
       migrate: (persistedState: unknown, version: number) => {
         return persistedState as TodoState;
       },
