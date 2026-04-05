@@ -36,6 +36,8 @@ export interface PomodoroTimerState {
   linkedTodoId: string | null;
   startedAt: number | null;
   pausedAt: number | null;
+  totalPausedDuration: number;
+  notificationId: string | null;
 }
 
 export const DEFAULT_POMODORO_SETTINGS: PomodoroSettings = {
@@ -61,4 +63,6 @@ export const INITIAL_TIMER_STATE: PomodoroTimerState = {
   linkedTodoId: null,
   startedAt: null,
   pausedAt: null,
+  totalPausedDuration: 0,
+  notificationId: null,
 };
