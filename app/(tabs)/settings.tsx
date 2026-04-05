@@ -7,14 +7,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useCategoryStore, useSettingsStore } from '@/stores';
+import { useAuthStore, useCategoryStore, useSettingsStore } from '@/stores';
+import { useRouter } from 'expo-router';
 
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+
+  const profile = useAuthStore((state) => state.profile);
+  const signOut = useAuthStore((state) => state.signOut);
 
   const settings = useSettingsStore((state) => state.settings);
   const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
@@ -575,6 +580,53 @@ export default function SettingsScreen() {
             </View>
           </View>
         )}
+      </Card>
+
+      {/* Account */}
+      <Text category="s1" style={styles.sectionTitle}>
+        Account
+      </Text>
+      <Card style={[styles.card, { backgroundColor: colors.card }]}>
+        <View style={styles.settingItem}>
+          <View style={{ flex: 1 }}>
+            <Text category="s2" style={{ color: colors.text }}>
+              {profile?.displayName ?? 'User'}
+            </Text>
+            <Text category="c1" style={{ color: colors.textMuted }}>
+              {profile?.locale === 'tr' ? 'Türkçe' : 'English'}
+              {profile?.prestigeCount ? ` · Prestige ${profile.prestigeCount}` : ''}
+            </Text>
+          </View>
+          <Icon name="person-outline" fill={colors.textMuted} size={24} />
+        </View>
+
+        <Divider style={styles.divider} />
+
+        <Button
+          appearance="ghost"
+          status="danger"
+          accessoryLeft={(props) => <Icon {...props} name="log-out-outline" />}
+          onPress={() => {
+            Alert.alert(
+              'Sign Out',
+              'Are you sure you want to sign out?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Sign Out',
+                  style: 'destructive',
+                  onPress: async () => {
+                    await signOut();
+                    router.replace('/(auth)/login');
+                  },
+                },
+              ]
+            );
+          }}
+          style={styles.dangerButton}
+        >
+          Sign Out
+        </Button>
       </Card>
 
       {/* Danger Zone */}
