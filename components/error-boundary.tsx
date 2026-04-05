@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Alert, StyleSheet, Text, View, Pressable } from 'react-native';
+import i18n from '@/services/i18n/i18n-config';
 
 interface Props {
   children: ReactNode;
@@ -26,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   handleReload = () => {
     if (this.state.retryCount >= 2) {
-      Alert.alert('Unable to Recover', 'Please close and reopen the app.');
+      Alert.alert(i18n.t('errors.unableToRecover'), i18n.t('errors.closeAndReopen'));
       return;
     }
     this.setState((prev) => ({ hasError: false, retryCount: prev.retryCount + 1 }));
@@ -36,12 +37,12 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
+          <Text style={styles.title}>{i18n.t('errors.somethingWrong')}</Text>
           <Text style={styles.subtitle}>
-            An unexpected error occurred. Please try again.
+            {i18n.t('errors.unexpectedError')}
           </Text>
           <Pressable style={styles.button} onPress={this.handleReload}>
-            <Text style={styles.buttonText}>Try Again</Text>
+            <Text style={styles.buttonText}>{i18n.t('common.retry')}</Text>
           </Pressable>
         </View>
       );

@@ -306,7 +306,8 @@
   "settings.resetAllDataMsg": "Bu işlem tüm görevlerinizi, ilerlemenizi, başarımlarınızı ve ayarlarınızı kalıcı olarak silecek. Bu geri alınamaz.",
   "settings.resetAllConfirm": "Tüm veriler silinecek. Bu işlem geri alınamaz!",
   "settings.deleteEverything": "Her Şeyi Sil",
-  "settings.resetDone": "Tüm veriler sıfırlandı. Lütfen uygulamayı yeniden başlatın.",
+  "settings.resetDone": "Tamam",
+  "settings.resetDoneMsg": "Tüm veriler sıfırlandı. Lütfen uygulamayı yeniden başlatın.",
   "settings.resetFailed": "Veriler sıfırlanamadı. Lütfen tekrar deneyin.",
   "settings.minutes": "{{value}} dk",
 
@@ -374,6 +375,10 @@
   "errors.durationTooLong": "Süre 2 saati aşamaz",
   "errors.generic": "Bir hata oluştu. Lütfen tekrar deneyin.",
   "errors.networkError": "Bağlantı hatası. İnternet bağlantınızı kontrol edin.",
+  "errors.somethingWrong": "Bir şeyler yanlış gitti",
+  "errors.unexpectedError": "Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.",
+  "errors.unableToRecover": "Kurtarılamıyor",
+  "errors.closeAndReopen": "Lütfen uygulamayı kapatıp yeniden açın.",
   "errors.unknownError": "Bilinmeyen bir hata oluştu.",
 
   "summary.title": "Günün Özeti",

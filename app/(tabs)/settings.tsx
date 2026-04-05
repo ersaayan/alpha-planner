@@ -38,7 +38,7 @@ export default function SettingsScreen() {
   const [categoryColor, setCategoryColor] = useState(EXTRA_COLORS[0]);
 
   const formatDuration = (seconds: number) => {
-    return `${Math.floor(seconds / 60)} min`;
+    return t('settings.minutes', { value: Math.floor(seconds / 60) });
   };
 
   const focusMinutes = Math.round(pomodoroSettings.focusDuration / 60);
@@ -151,10 +151,10 @@ export default function SettingsScreen() {
         />
         <View style={styles.sliderRange}>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            15 min
+            {t('settings.minutes', { value: 15 })}
           </Text>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            60 min
+            {t('settings.minutes', { value: 60 })}
           </Text>
         </View>
 
@@ -184,10 +184,10 @@ export default function SettingsScreen() {
         />
         <View style={styles.sliderRange}>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            3 min
+            {t('settings.minutes', { value: 3 })}
           </Text>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            15 min
+            {t('settings.minutes', { value: 15 })}
           </Text>
         </View>
 
@@ -217,10 +217,10 @@ export default function SettingsScreen() {
         />
         <View style={styles.sliderRange}>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            10 min
+            {t('settings.minutes', { value: 10 })}
           </Text>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            30 min
+            {t('settings.minutes', { value: 30 })}
           </Text>
         </View>
 
@@ -552,14 +552,14 @@ export default function SettingsScreen() {
         ) : (
           <View style={styles.categoryForm}>
             <Input
-              label="Category Name"
-              placeholder="e.g., Side Projects"
+              label={t('settings.categoryName')}
+              placeholder={t('settings.categoryPlaceholder')}
               value={categoryName}
               onChangeText={setCategoryName}
               style={{ marginBottom: Spacing.md }}
             />
             <Text category="c1" style={{ marginBottom: Spacing.sm }}>
-              Choose Color
+              {t('settings.chooseColor')}
             </Text>
             <View style={styles.colorPicker}>
               {EXTRA_COLORS.map((color) => (
@@ -576,10 +576,10 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.formButtons}>
               <Button appearance="ghost" size="small" onPress={() => setShowCategoryForm(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button size="small" onPress={handleAddCategory} disabled={!categoryName.trim()}>
-                Add Category
+                {t('settings.addCategory')}
               </Button>
             </View>
           </View>
@@ -588,11 +588,11 @@ export default function SettingsScreen() {
 
       {/* Language */}
       <Text category="s1" style={styles.sectionTitle}>
-        Language
+        {t('settings.language')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         {(['system', 'tr', 'en'] as const).map((lang) => {
-          const labels = { system: 'System', tr: 'Türkçe', en: 'English' };
+          const labels = { system: t('settings.system'), tr: t('settings.languageTr'), en: t('settings.languageEn') };
           const isSelected = settings.language === lang;
           return (
             <Pressable
@@ -619,17 +619,17 @@ export default function SettingsScreen() {
 
       {/* Account */}
       <Text category="s1" style={styles.sectionTitle}>
-        Account
+        {t('settings.account')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.settingItem}>
           <View style={{ flex: 1 }}>
             <Text category="s2" style={{ color: colors.text }}>
-              {profile?.displayName ?? 'User'}
+              {profile?.displayName ?? t('settings.user')}
             </Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              {profile?.locale === 'tr' ? 'Türkçe' : 'English'}
-              {profile?.prestigeCount ? ` · Prestige ${profile.prestigeCount}` : ''}
+              {profile?.locale === 'tr' ? t('settings.languageTr') : t('settings.languageEn')}
+              {profile?.prestigeCount ? ` · ${t('settings.prestige', { count: profile.prestigeCount })}` : ''}
             </Text>
           </View>
           <Icon name="person-outline" fill={colors.textMuted} size={24} />
@@ -643,12 +643,12 @@ export default function SettingsScreen() {
           accessoryLeft={(props) => <Icon {...props} name="log-out-outline" />}
           onPress={() => {
             Alert.alert(
-              'Sign Out',
-              'Are you sure you want to sign out?',
+              t('auth.signOutTitle'),
+              t('auth.signOutConfirm'),
               [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                  text: 'Sign Out',
+                  text: t('auth.signOut'),
                   style: 'destructive',
                   onPress: async () => {
                     await signOut();
@@ -660,13 +660,13 @@ export default function SettingsScreen() {
           }}
           style={styles.dangerButton}
         >
-          Sign Out
+          {t('auth.signOut')}
         </Button>
       </Card>
 
       {/* Danger Zone */}
       <Text category="s1" style={styles.sectionTitle}>
-        Advanced
+        {t('settings.advanced')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <Button
@@ -676,7 +676,7 @@ export default function SettingsScreen() {
           onPress={handleResetOnboarding}
           style={styles.dangerButton}
         >
-          Reset Onboarding
+          {t('settings.resetOnboarding')}
         </Button>
 
         <Divider style={styles.divider} />
@@ -688,14 +688,14 @@ export default function SettingsScreen() {
           onPress={handleResetAllData}
           style={styles.dangerButton}
         >
-          Reset All Data
+          {t('settings.resetAllData')}
         </Button>
       </Card>
 
       {/* Version */}
       <View style={styles.versionContainer}>
         <Text category="c1" style={{ color: colors.textMuted }}>
-          Alpha Planner v1.0.0
+          {t('common.version')}
         </Text>
       </View>
     </ScrollView>
