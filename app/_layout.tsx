@@ -23,6 +23,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, scheduleTimerNotification } from '@/services/background';
 import { notificationService } from '@/services/notifications';
+import { useSync } from '@/hooks/use-sync';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
 
 // Prevent splash screen from auto-hiding
@@ -159,6 +160,7 @@ function usePomodoroRehydrationSync() {
 export default function RootLayout() {
   usePomodoroBackgroundSync();
   usePomodoroRehydrationSync();
+  useSync();
 
   const colorScheme = useColorScheme();
   const initializeCategories = useCategoryStore((state) => state.initializeCategories);
