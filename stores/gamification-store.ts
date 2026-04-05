@@ -100,6 +100,29 @@ export const useGamificationStore = create<GamificationState>()(
         if (hour >= 0 && hour < 5) get().unlockAchievement('night_shift');
         if (hour === 0) get().unlockAchievement('midnight_oil');
 
+        // Update daily quest progress
+        try {
+          const { useDailyQuestsStore } = require('./daily-quests-store');
+          useDailyQuestsStore.getState().updateQuestProgress('complete_pomodoros', 1);
+          useDailyQuestsStore.getState().updateQuestProgress('focus_time', Math.floor(focusTime / 60));
+          if (hour < 12) {
+            useDailyQuestsStore.getState().updateQuestProgress('complete_before_noon', 1);
+          }
+          if (hour >= 18) {
+            useDailyQuestsStore.getState().updateQuestProgress('evening_session', 1);
+          }
+          if (focusTime >= 2700) { // 45+ minutes
+            useDailyQuestsStore.getState().updateQuestProgress('long_focus', 1);
+          }
+        } catch { /* store not yet initialized */ }
+
+        // Update weekly goal progress
+        try {
+          const { useWeeklyGoalsStore } = require('./weekly-goals-store');
+          useWeeklyGoalsStore.getState().updateGoalProgress('pomodoros', 1);
+          useWeeklyGoalsStore.getState().updateGoalProgress('focus_hours', focusTime / 3600);
+        } catch { /* store not yet initialized */ }
+
         get().checkAchievements();
       },
 
@@ -117,6 +140,19 @@ export const useGamificationStore = create<GamificationState>()(
         get().updateDailyStats({ tasksCompleted: 1 });
         get().updateStreak();
         get().checkDailyCombo();
+
+        // Update daily quest progress
+        try {
+          const { useDailyQuestsStore } = require('./daily-quests-store');
+          useDailyQuestsStore.getState().updateQuestProgress('complete_tasks', 1);
+        } catch { /* store not yet initialized */ }
+
+        // Update weekly goal progress
+        try {
+          const { useWeeklyGoalsStore } = require('./weekly-goals-store');
+          useWeeklyGoalsStore.getState().updateGoalProgress('tasks', 1);
+        } catch { /* store not yet initialized */ }
+
         get().checkAchievements();
       },
 
