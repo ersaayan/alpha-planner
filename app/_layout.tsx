@@ -221,6 +221,9 @@ export default function RootLayout() {
         onResume: () => usePomodoroStore.getState().resumeTimer(),
         onStop: () => usePomodoroStore.getState().stopTimer(),
       });
+
+      // Schedule daily summary notification at 23:00
+      notificationService.scheduleDailySummaryNotification();
     }).catch((error) => {
       console.warn('Notification initialization failed:', error);
     });

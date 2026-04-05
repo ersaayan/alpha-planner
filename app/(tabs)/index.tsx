@@ -1,7 +1,7 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -25,6 +25,9 @@ import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
+import { DailySummaryModal } from '@/components/dashboard';
+import { shouldShowSummary, getDailySummaryData, getMotivationalMessage, markSummaryShown } from '@/services/gamification/daily-summary';
+import type { DailySummaryData } from '@/services/gamification/daily-summary';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -40,6 +43,25 @@ export default function HomeScreen() {
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
   const profile = useAuthStore((state) => state.profile);
+
+  // Daily summary modal
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaryData, setSummaryData] = useState<DailySummaryData | null>(null);
+  const [summaryMessage, setSummaryMessage] = useState('');
+
+  useEffect(() => {
+    if (shouldShowSummary()) {
+      const data = getDailySummaryData();
+      setSummaryData(data);
+      setSummaryMessage(getMotivationalMessage(data.motivationLevel));
+      setShowSummary(true);
+    }
+  }, []);
+
+  const handleCloseSummary = useCallback(() => {
+    setShowSummary(false);
+    markSummaryShown();
+  }, []);
 
   // Timer pulse animation
   const timerPulse = useSharedValue(1);
@@ -89,6 +111,7 @@ export default function HomeScreen() {
   const xpProgress = getXpProgress();
 
   return (
+    <>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 100 }}
@@ -344,6 +367,16 @@ export default function HomeScreen() {
         </View>
       </View>
     </ScrollView>
+
+    {summaryData && (
+      <DailySummaryModal
+        visible={showSummary}
+        onClose={handleCloseSummary}
+        data={summaryData}
+        motivationalMessage={summaryMessage}
+      />
+    )}
+    </>
   );
 }
 

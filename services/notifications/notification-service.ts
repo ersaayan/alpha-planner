@@ -512,6 +512,50 @@ class NotificationService {
   async cancelNotification(identifier: string): Promise<void> {
     await Notifications.cancelScheduledNotificationAsync(identifier);
   }
+
+  /**
+   * Schedule daily summary notification at 23:00 every day.
+   * Idempotent — cancels existing before rescheduling.
+   */
+  async scheduleDailySummaryNotification(): Promise<void> {
+    const DAILY_SUMMARY_ID = 'daily-summary-notification';
+
+    // Cancel existing
+    try {
+      await Notifications.cancelScheduledNotificationAsync(DAILY_SUMMARY_ID);
+    } catch {
+      // May not exist
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: DAILY_SUMMARY_ID,
+      content: {
+        title: 'Günün Özeti Hazır! 📊',
+        body: 'Bugünkü performansını gözden geçir.',
+        sound: true,
+        priority: Notifications.AndroidNotificationPriority.DEFAULT,
+        ...(Platform.OS === 'android' && {
+          channelId: 'general',
+        }),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: 23,
+        minute: 0,
+      },
+    });
+  }
+
+  /**
+   * Cancel the daily summary notification.
+   */
+  async cancelDailySummaryNotification(): Promise<void> {
+    try {
+      await Notifications.cancelScheduledNotificationAsync('daily-summary-notification');
+    } catch {
+      // May not exist
+    }
+  }
 }
 
 export const notificationService = new NotificationService();
