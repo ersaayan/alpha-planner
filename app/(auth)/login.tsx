@@ -109,7 +109,7 @@ export default function LoginScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.replace('/(auth)/register')}
+            onPress={() => router.replace('/(auth)/register' as any)}
             style={styles.linkButton}
           >
             <Text category="c1" style={{ color: colors.primary }}>

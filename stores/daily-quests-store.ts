@@ -109,13 +109,14 @@ export const useDailyQuestsStore = create<DailyQuestsStore>()(
         set({ quests: updated });
 
         // Award XP for completion
-        if (justCompleted) {
+        const completed = justCompleted as DailyQuest | null;
+        if (completed) {
           useGamificationStore.getState().addXp(XP_VALUES.DAILY_QUEST_COMPLETE);
 
           // Sync quest update
           useSyncStore.getState().enqueue('daily_quests', 'update', {
-            id: justCompleted.id,
-            current_value: justCompleted.currentValue,
+            id: completed.id,
+            current_value: completed.currentValue,
             is_completed: true,
           });
 

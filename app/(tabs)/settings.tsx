@@ -650,7 +650,7 @@ export default function SettingsScreen() {
                   style: 'destructive',
                   onPress: async () => {
                     await signOut();
-                    router.replace('/(auth)/login');
+                    router.replace('/(auth)/login' as any);
                   },
                 },
               ]

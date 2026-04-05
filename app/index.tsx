@@ -19,7 +19,7 @@ export default function Index() {
 
   // No auth session → login
   if (!session) {
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href={"/(auth)/login" as any} />;
   }
 
   // Auth OK but onboarding not done → onboarding

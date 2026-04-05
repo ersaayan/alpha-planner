@@ -156,13 +156,14 @@ export const useWeeklyGoalsStore = create<WeeklyGoalsStore>()(
 
         set({ goals: updated });
 
-        if (justCompleted) {
-          const xp = justCompleted.goalType === 'personal' ? PERSONAL_GOAL_XP : XP_VALUES.WEEKLY_GOAL_COMPLETE;
+        const completed = justCompleted as WeeklyGoal | null;
+        if (completed) {
+          const xp = completed.goalType === 'personal' ? PERSONAL_GOAL_XP : XP_VALUES.WEEKLY_GOAL_COMPLETE;
           useGamificationStore.getState().addXp(xp);
 
           useSyncStore.getState().enqueue('weekly_goals', 'update', {
-            id: justCompleted.id,
-            current_value: justCompleted.currentValue,
+            id: completed.id,
+            current_value: completed.currentValue,
             is_completed: true,
           });
 

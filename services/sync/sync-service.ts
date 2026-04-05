@@ -38,7 +38,7 @@ async function executeOperation(op: SyncOperation, userId: string): Promise<void
       break;
     }
     case 'update': {
-      const { id, ...rest } = dataWithUser;
+      const { id, ...rest } = dataWithUser as Record<string, unknown> & { id: string; user_id: string };
       const { error } = await supabase
         .from(op.table)
         .update(rest)

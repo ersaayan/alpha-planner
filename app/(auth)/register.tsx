@@ -41,7 +41,7 @@ export default function RegisterScreen() {
     try {
       await signUp(email.trim(), password, displayName.trim());
       Alert.alert('Account Created', 'You can now sign in.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login') },
+        { text: 'OK', onPress: () => router.replace('/(auth)/login' as any) },
       ]);
     } catch (e: unknown) {
       Alert.alert('Sign Up Failed', (e as Error).message);
@@ -125,7 +125,7 @@ export default function RegisterScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.replace('/(auth)/login')}
+            onPress={() => router.replace('/(auth)/login' as any)}
             style={styles.linkButton}
           >
             <Text category="c1" style={{ color: colors.primary }}>
