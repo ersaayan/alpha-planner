@@ -172,8 +172,8 @@ CREATE TABLE weekly_goals (
 -- Soft delete olan tablolarda partial index kullanılır.
 -- ============================================================
 
--- profiles: PK zaten indexed, JSONB kolonlarına GIN index
-CREATE INDEX idx_profiles_gamification_state ON profiles USING GIN (gamification_state);
+-- profiles: PK zaten indexed. gamification_state JSONB'ye GIN index GEREKMEZ
+-- çünkü profil her zaman PK (id) ile okunur, JSONB key bazlı sorgulanmaz.
 
 -- categories: FK + soft delete partial index
 CREATE INDEX idx_categories_user_id ON categories (user_id) WHERE deleted_at IS NULL;
@@ -315,7 +315,7 @@ CREATE POLICY "users_own_data" ON weekly_goals
 | **FK index'leri** | Tüm `user_id`, `todo_id`, `category_id` FK'lerine explicit index — Postgres bunları otomatik indexlemez |
 | **Partial index (soft delete)** | `WHERE deleted_at IS NULL` — Sadece aktif kayıtlar indexlenir, index boyutu küçülür (5-20x) |
 | **Composite index** | `(user_id, status)`, `(user_id, date DESC)` — Çoklu kolon sorgularında tek index yeterli |
-| **GIN index (JSONB)** | `gamification_state` JSONB'ye GIN index — JSONB sorgularında 10-100x hız |
+| **GIN index (JSONB)** | `gamification_state`'e GIN index GEREKMEZ — PK ile okunur, JSONB key bazlı sorgulanmaz. Gereksiz index yazma yükü önlendi |
 | **moddatetime trigger** | `updated_at` otomatik güncelleme — Uygulama seviyesinde unutulma riski yok |
 | **Profile auto-create** | `auth.users` INSERT trigger — Kayıt sonrası profil garantili |
 | **SECURITY DEFINER + search_path** | Trigger fonksiyonu izole — Schema injection koruması |
@@ -340,11 +340,12 @@ CREATE POLICY "users_own_data" ON weekly_goals
 - `updated_at` karşılaştırması, son yazan kazanır (last-write-wins)
 - 2 kullanıcı birbirinin verisine erişemediği için cross-user conflict yok
 
-**Soft Delete:**
-- Tüm tablolarda `deleted_at` alanı
+**Soft Delete (sadece `categories`, `todos`, `subtasks`):**
+- Bu 3 tabloda `deleted_at` TIMESTAMPTZ alanı var
+- Diğer tablolarda (profiles, pomodoro_sessions, achievements, daily_stats, daily_quests, weekly_goals) soft delete yok — bunlar ya immutable kayıt ya da doğrudan silinir
 - Silme işlemi `deleted_at = now()` set eder
 - Query'ler `WHERE deleted_at IS NULL` filtresi kullanır
-- 30 gün sonra hard delete (cron veya Supabase Edge Function)
+- 30 gün sonra hard delete (pg_cron)
 
 **Sync State:**
 ```typescript
@@ -473,7 +474,7 @@ Seviyeler doğa temalı devam eder, 5 tier'a bölünür:
 
 XP formülü: `xpRequired(level) = Math.floor(50 * (level ^ 1.8))`
 
-### 4.2 Başarımlar (82 adet, 9 kategori)
+### 4.2 Başarımlar (81 adet, 9 kategori)
 
 **Pomodoro Başarımları (12):**
 - First Focus: 1 pomodoro tamamla
@@ -489,7 +490,7 @@ XP formülü: `xpRequired(level) = Math.floor(50 * (level ^ 1.8))`
 - Session Combo x5: 5 üst üste pomodoro (stop etmeden)
 - Session Combo x10: 10 üst üste pomodoro
 
-**Görev Başarımları (10):**
+**Görev Başarımları (9):**
 - Task Starter: 1 görev tamamla
 - Task Doer: 10 görev
 - Task Achiever: 50 görev
@@ -499,7 +500,6 @@ XP formülü: `xpRequired(level) = Math.floor(50 * (level ^ 1.8))`
 - Subtask Slayer: 100 subtask tamamla
 - Urgent Handler: 10 urgent görev tamamla
 - Clean Slate: Bir günde tüm pending görevleri tamamla
-- Category Specialist: Bir kategoride 50 görev tamamla
 
 **Streak Başarımları (10):**
 - 3 Day Streak
@@ -583,8 +583,8 @@ XP formülü: `xpRequired(level) = Math.floor(50 * (level ^ 1.8))`
 
 ### 4.3 Seasonal Prestige (Aylık)
 
-**Reset Mekanizması:**
-- Her ayın 1'i saat 00:00'da tetiklenir
+**Reset Mekanizması (client-side, lazy check):**
+- Uygulama açılışında `currentSeasonStart` kontrol edilir, yeni ay başladıysa reset uygulanır
 - Sıfırlananlar: Seviye → 1, currentXp → 0
 - Korunanlar: Başarımlar, streak, toplam istatistikler (totalPomodoros, totalFocusTime, vb.), prestige sayısı, tüm geçmiş veriler
 
@@ -606,11 +606,11 @@ XP formülü: `xpRequired(level) = Math.floor(50 * (level ^ 1.8))`
 
 ### 4.4 Daily Quests (Günlük Görevler)
 
-**Mekanizma:**
-- Her gün 00:00'da havuzdan rastgele 3 görev seçilir
-- Aynı gün içinde aynı tip tekrar seçilmez
-- Zorluk: Kullanıcının son 7 günlük ortalamasına göre dinamik
-- Gece yarısı tamamlanmayanlar kaybolur
+**Mekanizma (client-side — offline-first uyumlu):**
+- Uygulama açılışında bugünün quest'leri yoksa oluşturulur (00:00 tetiklemesi değil, lazy generation)
+- Havuzdan rastgele 3 görev seçilir, aynı gün aynı tip tekrar seçilmez
+- Zorluk: Kullanıcının son 7 günlük ortalamasına göre dinamik (lokal daily_stats'tan hesaplanır)
+- Ertesi gün uygulaması açılınca eski quest'ler artık gösterilmez (date bazlı filtreleme)
 
 **Quest Havuzu (~25 tip):**
 
@@ -638,7 +638,8 @@ XP formülü: `xpRequired(level) = Math.floor(50 * (level ^ 1.8))`
 
 ### 4.5 Weekly Goals (Haftalık Hedefler)
 
-**Sistem Hedefleri (her pazartesi 00:00):**
+**Sistem Hedefleri (client-side, lazy generation):**
+- Uygulama açılışında bu haftanın hedefleri yoksa oluşturulur (pazartesi tetiklemesi değil)
 - Havuzdan 2-3 haftalık hedef atanır
 - Örnekler: "Bu hafta 15 pomodoro", "5 gün streak koru", "8 görev tamamla"
 - Zorluk kullanıcının son 4 hafta ortalamasına göre
