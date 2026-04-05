@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import i18n from '@/services/i18n/i18n-config';
 
 // Timer notification ID for updating
 const TIMER_NOTIFICATION_ID = 'pomodoro-timer-ongoing';
@@ -178,14 +179,14 @@ class NotificationService {
     await Notifications.setNotificationCategoryAsync(TIMER_CATEGORY_ID, [
       {
         identifier: 'pause',
-        buttonTitle: '⏸ Pause',
+        buttonTitle: i18n.t('notifications.actionPause'),
         options: {
           opensAppToForeground: false,
         },
       },
       {
         identifier: 'stop',
-        buttonTitle: '⏹ Stop',
+        buttonTitle: i18n.t('notifications.actionStop'),
         options: {
           opensAppToForeground: false,
           isDestructive: true,
@@ -237,9 +238,9 @@ class NotificationService {
     if (!this.hasPermission) return;
 
     const phaseLabels = {
-      focus: '🎯 Focus Time',
-      short_break: '☕ Short Break',
-      long_break: '🌟 Long Break',
+      focus: i18n.t('notifications.focusTime'),
+      short_break: i18n.t('notifications.shortBreak'),
+      long_break: i18n.t('notifications.longBreak'),
     };
 
     const progress = Math.round(((totalSeconds - remainingSeconds) / totalSeconds) * 100);
@@ -253,14 +254,14 @@ class NotificationService {
       await Notifications.setNotificationCategoryAsync(TIMER_CATEGORY_ID, [
         {
           identifier: isPaused ? 'resume' : 'pause',
-          buttonTitle: isPaused ? '▶️ Resume' : '⏸ Pause',
+          buttonTitle: isPaused ? i18n.t('notifications.actionResume') : i18n.t('notifications.actionPause'),
           options: {
             opensAppToForeground: false,
           },
         },
         {
           identifier: 'stop',
-          buttonTitle: '⏹ Stop',
+          buttonTitle: i18n.t('notifications.actionStop'),
           options: {
             opensAppToForeground: false,
             isDestructive: true,
@@ -269,7 +270,7 @@ class NotificationService {
       ]);
     }
 
-    const statusText = isPaused ? '⏸ PAUSED' : `${this.formatTime(remainingSeconds)} remaining`;
+    const statusText = isPaused ? i18n.t('notifications.paused') : i18n.t('notifications.remaining', { time: this.formatTime(remainingSeconds) });
 
     await Notifications.scheduleNotificationAsync({
       identifier: TIMER_NOTIFICATION_ID,
@@ -335,16 +336,16 @@ class NotificationService {
 
     const messages = {
       focus: {
-        title: 'Focus Complete! 🎯',
-        body: 'Great work! Time for a break.',
+        title: i18n.t('notifications.focusComplete'),
+        body: i18n.t('notifications.focusCompleteBody'),
       },
       short_break: {
-        title: 'Break Over! ☕',
-        body: 'Ready to focus again?',
+        title: i18n.t('notifications.shortBreakOver'),
+        body: i18n.t('notifications.shortBreakOverBody'),
       },
       long_break: {
-        title: 'Long Break Over! 🌟',
-        body: 'Feeling refreshed? Let\'s get back to work!',
+        title: i18n.t('notifications.longBreakOver'),
+        body: i18n.t('notifications.longBreakOverBody'),
       },
     };
 
@@ -386,16 +387,16 @@ class NotificationService {
 
     const messages = {
       focus: {
-        title: 'Focus Started 🎯',
-        body: 'Time to focus. You got this!',
+        title: i18n.t('notifications.focusStarted'),
+        body: i18n.t('notifications.focusStartedBody'),
       },
       short_break: {
-        title: 'Break Started ☕',
-        body: 'Take a short breather.',
+        title: i18n.t('notifications.breakStarted'),
+        body: i18n.t('notifications.breakStartedBody'),
       },
       long_break: {
-        title: 'Long Break Started 🌟',
-        body: 'Enjoy a longer rest.',
+        title: i18n.t('notifications.longBreakStarted'),
+        body: i18n.t('notifications.longBreakStartedBody'),
       },
     };
 
@@ -433,8 +434,8 @@ class NotificationService {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Task Reminder 📋',
-        body: `Don't forget: ${todoTitle}`,
+        title: i18n.t('notifications.taskReminder'),
+        body: i18n.t('notifications.taskReminderBody', { title: todoTitle }),
         sound: true,
         ...(Platform.OS === 'android' && { channelId: 'general' }),
       },
@@ -448,7 +449,7 @@ class NotificationService {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Achievement Unlocked! 🏆',
+        title: i18n.t('notifications.achievementUnlocked'),
         body: achievementTitle,
         sound: true,
         ...(Platform.OS === 'android' && { channelId: 'general' }),
@@ -491,8 +492,8 @@ class NotificationService {
 
     const identifier = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Task Due Soon! ⏰',
-        body: `"${todoTitle}" is due in 1 hour`,
+        title: i18n.t('notifications.taskDueSoon'),
+        body: i18n.t('notifications.taskDueSoonBody', { title: todoTitle }),
         data: { todoId },
         sound: true,
         ...(Platform.OS === 'android' && { channelId: 'general' }),
@@ -530,8 +531,8 @@ class NotificationService {
     await Notifications.scheduleNotificationAsync({
       identifier: DAILY_SUMMARY_ID,
       content: {
-        title: 'Günün Özeti Hazır! 📊',
-        body: 'Bugünkü performansını gözden geçir.',
+        title: i18n.t('notifications.dailySummaryTitle'),
+        body: i18n.t('notifications.dailySummaryBody'),
         sound: true,
         priority: Notifications.AndroidNotificationPriority.DEFAULT,
         ...(Platform.OS === 'android' && {

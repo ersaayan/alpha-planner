@@ -105,7 +105,7 @@ describe('LoginScreen', () => {
     render(<LoginScreen />);
 
     const emailInput = screen.getByPlaceholderText('your@email.com');
-    const passwordInput = screen.getByPlaceholderText('••••••••');
+    const passwordInput = screen.getByPlaceholderText('Min 6 characters');
 
     fireEvent.changeText(emailInput, 'test@example.com');
     fireEvent.changeText(passwordInput, 'password123');
@@ -136,7 +136,7 @@ describe('LoginScreen', () => {
     render(<LoginScreen />);
 
     const emailInput = screen.getByPlaceholderText('your@email.com');
-    const passwordInput = screen.getByPlaceholderText('••••••••');
+    const passwordInput = screen.getByPlaceholderText('Min 6 characters');
 
     fireEvent.changeText(emailInput, 'test@example.com');
     fireEvent.changeText(passwordInput, '12');

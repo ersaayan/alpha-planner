@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import i18n from '@/services/i18n/i18n-config';
 
 const COMPLETION_CHANNELS = {
   soundVibrate: 'pomodoro',
@@ -70,16 +71,16 @@ export async function scheduleTimerNotification(
 
   const messages = {
     focus: {
-      title: 'Focus Complete! 🎯',
-      body: 'Great work! Time for a break.',
+      title: i18n.t('notifications.focusComplete'),
+      body: i18n.t('notifications.focusCompleteBody'),
     },
     short_break: {
-      title: 'Break Over! ☕',
-      body: 'Ready to focus again?',
+      title: i18n.t('notifications.shortBreakOver'),
+      body: i18n.t('notifications.shortBreakOverBody'),
     },
     long_break: {
-      title: 'Long Break Over! 🌟',
-      body: 'Feeling refreshed? Let\'s get back to work!',
+      title: i18n.t('notifications.longBreakOver'),
+      body: i18n.t('notifications.longBreakOverBody'),
     },
   };
 

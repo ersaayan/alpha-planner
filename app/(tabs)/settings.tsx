@@ -2,6 +2,7 @@ import { Icon } from '@/components/icon';
 import Slider from '@react-native-community/slider';
 import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,6 +16,7 @@ import { useRouter } from 'expo-router';
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -45,12 +47,12 @@ export default function SettingsScreen() {
 
   const handleResetOnboarding = () => {
     Alert.alert(
-      'Reset Onboarding',
-      'This will show the onboarding screens again on next app launch.',
+      t('settings.resetOnboardingTitle'),
+      t('settings.resetOnboardingMsg'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Reset',
+          text: t('common.reset'),
           style: 'destructive',
           onPress: () => updateSettings({ hasCompletedOnboarding: false }),
         },
@@ -62,19 +64,19 @@ export default function SettingsScreen() {
 
   const handleResetAllData = () => {
     Alert.alert(
-      'Reset All Data',
-      'This will permanently delete all your tasks, progress, achievements, and settings. This cannot be undone.',
+      t('settings.resetAllDataTitle'),
+      t('settings.resetAllDataMsg'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete Everything',
+          text: t('settings.deleteEverything'),
           style: 'destructive',
           onPress: async () => {
             try {
               await resetAllData();
-              Alert.alert('Done', 'All data has been reset. Please restart the app.');
+              Alert.alert(t('settings.resetDone'), t('settings.resetDoneMsg'));
             } catch {
-              Alert.alert('Error', 'Failed to reset data. Please try again.');
+              Alert.alert(t('common.error'), t('settings.resetFailed'));
             }
           },
         },
@@ -97,10 +99,10 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteCategory = (categoryId: string) => {
-    Alert.alert('Delete Category', 'Are you sure you want to delete this category?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('settings.deleteCategory'), t('settings.deleteCategoryConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => deleteCategory(categoryId),
       },
@@ -117,19 +119,19 @@ export default function SettingsScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text category="h5">Settings</Text>
+        <Text category="h5">{t('settings.title')}</Text>
       </View>
 
       {/* Pomodoro Settings */}
       <Text category="s1" style={styles.sectionTitle}>
-        Pomodoro Timer
+        {t('settings.pomodoroTimer')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Focus Duration</Text>
+            <Text category="s1">{t('settings.focusDuration')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              How long each focus session lasts
+              {t('settings.focusDurationDesc')}
             </Text>
           </View>
           <Text category="s1" style={{ color: colors.primary }}>
@@ -160,9 +162,9 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Short Break</Text>
+            <Text category="s1">{t('settings.shortBreak')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Break after each focus session
+              {t('settings.shortBreakDesc')}
             </Text>
           </View>
           <Text category="s1" style={{ color: colors.primary }}>
@@ -193,9 +195,9 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Long Break</Text>
+            <Text category="s1">{t('settings.longBreak')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Break after {pomodoroSettings.sessionsUntilLongBreak} sessions
+              {t('settings.longBreakDesc', { count: pomodoroSettings.sessionsUntilLongBreak })}
             </Text>
           </View>
           <Text category="s1" style={{ color: colors.primary }}>
@@ -226,7 +228,7 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Sessions Until Long Break</Text>
+            <Text category="s1">{t('settings.sessionsUntilLongBreak')}</Text>
           </View>
           <Text category="s1" style={{ color: colors.primary }}>
             {pomodoroSettings.sessionsUntilLongBreak}
@@ -255,14 +257,14 @@ export default function SettingsScreen() {
 
       {/* Timer Behavior */}
       <Text category="s1" style={styles.sectionTitle}>
-        Timer Behavior
+        {t('settings.timerBehavior')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Auto-start Breaks</Text>
+            <Text category="s1">{t('settings.autoStartBreaks')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Automatically start break after focus
+              {t('settings.autoStartBreaksDesc')}
             </Text>
           </View>
           <Toggle
@@ -275,9 +277,9 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Auto-start Focus</Text>
+            <Text category="s1">{t('settings.autoStartFocus')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Automatically start focus after break
+              {t('settings.autoStartFocusDesc')}
             </Text>
           </View>
           <Toggle
@@ -290,9 +292,9 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Keep Screen Awake</Text>
+            <Text category="s1">{t('settings.keepScreenAwake')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Prevent screen from sleeping during timer
+              {t('settings.keepScreenAwakeDesc')}
             </Text>
           </View>
           <Toggle
@@ -304,14 +306,14 @@ export default function SettingsScreen() {
 
       {/* Notifications */}
       <Text category="s1" style={styles.sectionTitle}>
-        Notifications
+        {t('settings.notifications')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Enable Notifications</Text>
+            <Text category="s1">{t('settings.enableNotifications')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Get notified when timer completes
+              {t('settings.enableNotificationsDesc')}
             </Text>
           </View>
           <Toggle
@@ -324,9 +326,9 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Sound</Text>
+            <Text category="s1">{t('settings.sound')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Play sound on completion
+              {t('settings.soundDesc')}
             </Text>
           </View>
           <Toggle
@@ -339,9 +341,9 @@ export default function SettingsScreen() {
 
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Vibration</Text>
+            <Text category="s1">{t('settings.vibration')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Vibrate on completion
+              {t('settings.vibrationDesc')}
             </Text>
           </View>
           <Toggle
@@ -353,14 +355,14 @@ export default function SettingsScreen() {
 
       {/* App Settings */}
       <Text category="s1" style={styles.sectionTitle}>
-        App
+        {t('settings.app')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Haptic Feedback</Text>
+            <Text category="s1">{t('settings.hapticFeedback')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Tactile feedback on interactions
+              {t('settings.hapticFeedbackDesc')}
             </Text>
           </View>
           <Toggle
@@ -372,12 +374,12 @@ export default function SettingsScreen() {
 
       {/* Appearance */}
       <Text category="s1" style={styles.sectionTitle}>
-        Appearance
+        {t('settings.appearance')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Theme</Text>
+            <Text category="s1">{t('settings.theme')}</Text>
           </View>
         </View>
         <View style={styles.pillGroup}>
@@ -394,7 +396,7 @@ export default function SettingsScreen() {
               onPress={() => updateSettings({ theme: option })}
             >
               <Text category="c1" style={{ color: settings.theme === option ? colors.primary : colors.text }}>
-                {option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}
+                {option === 'system' ? t('settings.system') : option === 'light' ? t('settings.light') : t('settings.dark')}
               </Text>
             </Pressable>
           ))}
@@ -403,13 +405,13 @@ export default function SettingsScreen() {
 
       {/* Preferences */}
       <Text category="s1" style={styles.sectionTitle}>
-        Preferences
+        {t('settings.preferences')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         {/* Date Format */}
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Date Format</Text>
+            <Text category="s1">{t('settings.dateFormat')}</Text>
           </View>
         </View>
         <View style={styles.pillGroup}>
@@ -437,7 +439,7 @@ export default function SettingsScreen() {
         {/* Time Format */}
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Time Format</Text>
+            <Text category="s1">{t('settings.timeFormat')}</Text>
           </View>
         </View>
         <View style={styles.pillGroup}>
@@ -454,7 +456,7 @@ export default function SettingsScreen() {
               onPress={() => updateSettings({ timeFormat: fmt })}
             >
               <Text category="c1" style={{ color: settings.timeFormat === fmt ? colors.primary : colors.text }}>
-                {fmt === '12h' ? '12 Hour' : '24 Hour'}
+                {fmt === '12h' ? t('settings.timeFormat12') : t('settings.timeFormat24')}
               </Text>
             </Pressable>
           ))}
@@ -465,7 +467,7 @@ export default function SettingsScreen() {
         {/* Week Starts On */}
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Week Starts On</Text>
+            <Text category="s1">{t('settings.weekStartsOn')}</Text>
           </View>
         </View>
         <View style={styles.pillGroup}>
@@ -482,7 +484,7 @@ export default function SettingsScreen() {
               onPress={() => updateSettings({ weekStartsOn: day })}
             >
               <Text category="c1" style={{ color: settings.weekStartsOn === day ? colors.primary : colors.text }}>
-                {day === 0 ? 'Sunday' : 'Monday'}
+                {day === 0 ? t('settings.sunday') : t('settings.monday')}
               </Text>
             </Pressable>
           ))}
@@ -493,7 +495,7 @@ export default function SettingsScreen() {
         {/* Default View */}
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
-            <Text category="s1">Default Task View</Text>
+            <Text category="s1">{t('settings.defaultTaskView')}</Text>
           </View>
         </View>
         <View style={styles.pillGroup}>
@@ -510,7 +512,7 @@ export default function SettingsScreen() {
               onPress={() => updateSettings({ defaultView: view })}
             >
               <Text category="c1" style={{ color: settings.defaultView === view ? colors.primary : colors.text }}>
-                {view.charAt(0).toUpperCase() + view.slice(1)}
+                {t(`settings.view${view.charAt(0).toUpperCase() + view.slice(1)}` as any)}
               </Text>
             </Pressable>
           ))}
@@ -519,7 +521,7 @@ export default function SettingsScreen() {
 
       {/* Categories */}
       <Text category="s1" style={styles.sectionTitle}>
-        Categories
+        {t('settings.categories')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
         {categories.map((category) => (
@@ -545,7 +547,7 @@ export default function SettingsScreen() {
             accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
             onPress={() => setShowCategoryForm(true)}
           >
-            Add Category
+            {t('settings.addCategory')}
           </Button>
         ) : (
           <View style={styles.categoryForm}>

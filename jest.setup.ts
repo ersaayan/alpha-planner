@@ -84,6 +84,47 @@ jest.mock('@/services/background', () => ({
   unregisterPomodoroBackgroundTask: jest.fn().mockResolvedValue(undefined),
 }));
 
+// Mock i18n — t() returns the English translation value from en.json
+jest.mock('react-i18next', () => ({
+  useTranslation: () => {
+    const en = require('./locales/en.json');
+    return {
+      t: (key: string, params?: Record<string, unknown>) => {
+        let value = (en as Record<string, string>)[key] ?? key;
+        if (params) {
+          Object.entries(params).forEach(([k, v]) => {
+            value = value.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
+          });
+        }
+        return value;
+      },
+      i18n: { changeLanguage: jest.fn(), language: 'en' },
+    };
+  },
+  initReactI18next: { type: '3rdParty', init: jest.fn() },
+}));
+
+jest.mock('@/services/i18n/i18n-config', () => {
+  const en = require('./locales/en.json');
+  return {
+    __esModule: true,
+    default: {
+      t: (key: string, params?: Record<string, unknown>) => {
+        let value = (en as Record<string, string>)[key] ?? key;
+        if (params) {
+          Object.entries(params).forEach(([k, v]) => {
+            value = value.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
+          });
+        }
+        return value;
+      },
+      changeLanguage: jest.fn(),
+      language: 'en',
+    },
+    changeLanguage: jest.fn(),
+  };
+});
+
 // Silence console.warn in tests
 const originalWarn = console.warn;
 console.warn = (...args: unknown[]) => {

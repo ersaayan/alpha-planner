@@ -20,27 +20,26 @@ describe('Translation Completeness', () => {
     expect(enKeys.size).toBeGreaterThan(100);
   });
 
-  it('all TR keys exist in EN (no orphan TR keys)', () => {
+  it('TR and EN have exactly the same keys (100% match required)', () => {
     const missingInEn: string[] = [];
+    const missingInTr: string[] = [];
+
     for (const key of trKeys) {
       if (!enKeys.has(key)) missingInEn.push(key);
     }
-    if (missingInEn.length > 0) {
-      console.warn(`Keys in TR but missing in EN (${missingInEn.length}):\n${missingInEn.join('\n')}`);
-    }
-    // Warn but don't fail — EN is fallback language, having extra TR keys is fine
-    // The important direction is the next test
-  });
-
-  it('all EN keys exist in TR (no untranslated strings)', () => {
-    const missingInTr: string[] = [];
     for (const key of enKeys) {
       if (!trKeys.has(key)) missingInTr.push(key);
     }
-    if (missingInTr.length > 0) {
-      console.warn(`Keys in EN but missing in TR (${missingInTr.length}):\n${missingInTr.slice(0, 20).join('\n')}${missingInTr.length > 20 ? `\n... and ${missingInTr.length - 20} more` : ''}`);
+
+    if (missingInEn.length > 0) {
+      console.error(`Keys in TR but MISSING in EN (${missingInEn.length}):\n${missingInEn.slice(0, 10).join('\n')}`);
     }
-    // EN is fallback, so missing TR keys will show English text — acceptable but logged
+    if (missingInTr.length > 0) {
+      console.error(`Keys in EN but MISSING in TR (${missingInTr.length}):\n${missingInTr.slice(0, 10).join('\n')}`);
+    }
+
+    expect(missingInEn).toEqual([]);
+    expect(missingInTr).toEqual([]);
   });
 
   it('no empty values in TR', () => {

@@ -6,6 +6,7 @@ import { validateEmail, validatePassword } from '@/utils/validators';
 import { Input, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +21,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -31,14 +33,14 @@ export default function LoginScreen() {
 
   const handleSignIn = async () => {
     const emailError = validateEmail(email);
-    if (emailError) { Alert.alert('Error', emailError); return; }
+    if (emailError) { Alert.alert(t('common.error'), emailError); return; }
     const passwordError = validatePassword(password);
-    if (passwordError) { Alert.alert('Error', passwordError); return; }
+    if (passwordError) { Alert.alert(t('common.error'), passwordError); return; }
 
     try {
       await signIn(email.trim(), password);
     } catch (e: unknown) {
-      Alert.alert('Sign In Failed', (e as Error).message);
+      Alert.alert(t('auth.signInFailed'), (e as Error).message);
     }
   };
 
@@ -63,17 +65,17 @@ export default function LoginScreen() {
             <Icon name="leaf-outline" fill="#fff" size={32} />
           </View>
           <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
-            Alpha Planner
+            {t('auth.signInTitle')}
           </Text>
           <Text category="s1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-            Sign in to continue
+            {t('auth.signInSubtitle')}
           </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.form}>
           <Input
-            label="Email"
-            placeholder="your@email.com"
+            label={t('auth.email')}
+            placeholder={t('auth.emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -83,8 +85,8 @@ export default function LoginScreen() {
             textStyle={{ color: colors.text }}
           />
           <Input
-            label="Password"
-            placeholder="••••••••"
+            label={t('auth.password')}
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -104,7 +106,7 @@ export default function LoginScreen() {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text category="s1" style={{ color: '#fff' }}>Sign In</Text>
+              <Text category="s1" style={{ color: '#fff' }}>{t('auth.signIn')}</Text>
             )}
           </Pressable>
 
@@ -113,7 +115,7 @@ export default function LoginScreen() {
             style={styles.linkButton}
           >
             <Text category="c1" style={{ color: colors.primary }}>
-              Don't have an account? Create one
+              {t('auth.noAccount')}
             </Text>
           </Pressable>
         </Animated.View>

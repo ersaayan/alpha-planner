@@ -4,6 +4,7 @@ import { useTodoStore } from '@/stores/todo-store';
 import { useDailyQuestsStore } from '@/stores/daily-quests-store';
 import { useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
 import { getDateKey } from '@/utils/date';
+import i18n from '@/services/i18n/i18n-config';
 
 export interface DailySummaryData {
   totalFocusTime: number; // seconds
@@ -140,19 +141,19 @@ export function getDailySummaryData(): DailySummaryData {
 export function getMotivationalMessage(level: 'great' | 'normal' | 'low'): string {
   const messages = {
     great: [
-      'Bugün harika bir iş çıkardın!',
-      'Müthiş bir gün oldu, tebrikler!',
-      'Odak seviyesi maksimum, bravo!',
+      i18n.t('summary.motivation.great.0'),
+      i18n.t('summary.motivation.great.1'),
+      i18n.t('summary.motivation.great.2'),
     ],
     normal: [
-      'İyi bir gün oldu, devam et!',
-      'Güzel ilerleme, yarın daha da iyi!',
-      'Kararlılığını koru, iyi gidiyorsun!',
+      i18n.t('summary.motivation.normal.0'),
+      i18n.t('summary.motivation.normal.1'),
+      i18n.t('summary.motivation.normal.2'),
     ],
     low: [
-      'Her gün aynı olmaz, yarın daha güçlü!',
-      'Küçük adımlar da ilerlemedir.',
-      'Dinlenmek de verimlilik için önemli.',
+      i18n.t('summary.motivation.low.0'),
+      i18n.t('summary.motivation.low.1'),
+      i18n.t('summary.motivation.low.2'),
     ],
   };
   const pool = messages[level];

@@ -6,6 +6,7 @@ import { validateDisplayName, validateEmail, validatePassword } from '@/utils/va
 import { Input, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +21,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -32,19 +34,19 @@ export default function RegisterScreen() {
 
   const handleSignUp = async () => {
     const nameError = validateDisplayName(displayName);
-    if (nameError) { Alert.alert('Error', nameError); return; }
+    if (nameError) { Alert.alert(t('common.error'), nameError); return; }
     const emailError = validateEmail(email);
-    if (emailError) { Alert.alert('Error', emailError); return; }
+    if (emailError) { Alert.alert(t('common.error'), emailError); return; }
     const passwordError = validatePassword(password);
-    if (passwordError) { Alert.alert('Error', passwordError); return; }
+    if (passwordError) { Alert.alert(t('common.error'), passwordError); return; }
 
     try {
       await signUp(email.trim(), password, displayName.trim());
-      Alert.alert('Account Created', 'You can now sign in.', [
-        { text: 'OK', onPress: () => router.replace('/(auth)/login' as any) },
+      Alert.alert(t('auth.accountCreated'), t('auth.accountCreatedMsg'), [
+        { text: t('common.ok'), onPress: () => router.replace('/(auth)/login' as any) },
       ]);
     } catch (e: unknown) {
-      Alert.alert('Sign Up Failed', (e as Error).message);
+      Alert.alert(t('auth.signUpFailed'), (e as Error).message);
     }
   };
 
@@ -69,17 +71,17 @@ export default function RegisterScreen() {
             <Icon name="leaf-outline" fill="#fff" size={32} />
           </View>
           <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
-            Create Account
+            {t('auth.joinTitle')}
           </Text>
           <Text category="s1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-            Join Alpha Planner
+            {t('auth.joinSubtitle')}
           </Text>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.form}>
           <Input
-            label="Name"
-            placeholder="Your name"
+            label={t('auth.name')}
+            placeholder={t('auth.namePlaceholder')}
             value={displayName}
             onChangeText={setDisplayName}
             autoCapitalize="words"
@@ -88,8 +90,8 @@ export default function RegisterScreen() {
             textStyle={{ color: colors.text }}
           />
           <Input
-            label="Email"
-            placeholder="your@email.com"
+            label={t('auth.email')}
+            placeholder={t('auth.emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -99,8 +101,8 @@ export default function RegisterScreen() {
             textStyle={{ color: colors.text }}
           />
           <Input
-            label="Password"
-            placeholder="Min 6 characters"
+            label={t('auth.password')}
+            placeholder={t('auth.passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -120,7 +122,7 @@ export default function RegisterScreen() {
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text category="s1" style={{ color: '#fff' }}>Create Account</Text>
+              <Text category="s1" style={{ color: '#fff' }}>{t('auth.createAccount')}</Text>
             )}
           </Pressable>
 
@@ -129,7 +131,7 @@ export default function RegisterScreen() {
             style={styles.linkButton}
           >
             <Text category="c1" style={{ color: colors.primary }}>
-              Already have an account? Sign in
+              {t('auth.hasAccount')}
             </Text>
           </Pressable>
         </Animated.View>
