@@ -141,10 +141,10 @@ describe('useGamificationStore', () => {
   });
 
   it('updateStreak: increments streak on consecutive days', () => {
-    // Simulate yesterday as lastActiveDate
+    const { getDateKey } = require('@/utils/date');
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yyyymmdd = yesterday.toISOString().slice(0, 10);
+    const yyyymmdd = getDateKey(yesterday);
 
     useGamificationStore.setState((state) => ({
       stats: {
@@ -163,10 +163,10 @@ describe('useGamificationStore', () => {
   });
 
   it('updateStreak: resets streak to 1 on non-consecutive days', () => {
-    // Simulate two days ago as lastActiveDate (not consecutive)
+    const { getDateKey } = require('@/utils/date');
     const twoDaysAgo = new Date();
     twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-    const yyyymmdd = twoDaysAgo.toISOString().slice(0, 10);
+    const yyyymmdd = getDateKey(twoDaysAgo);
 
     useGamificationStore.setState((state) => ({
       stats: {
@@ -315,7 +315,8 @@ describe('useGamificationStore', () => {
   // ── checkDailyCombo ────────────────────────────────────────────────
 
   it('checkDailyCombo: sets dailyComboStreak to 1 when today has pomodoro and task', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const { getDateKey } = require('@/utils/date');
+    const today = getDateKey();
 
     useGamificationStore.setState((state) => ({
       dailyStats: [
@@ -338,10 +339,11 @@ describe('useGamificationStore', () => {
   });
 
   it('checkDailyCombo: increments streak on consecutive days', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const { getDateKey } = require('@/utils/date');
+    const today = getDateKey();
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    const yesterdayStr = getDateKey(yesterday);
 
     useGamificationStore.setState((state) => ({
       combo: {
@@ -368,7 +370,8 @@ describe('useGamificationStore', () => {
   });
 
   it('checkDailyCombo: does nothing when today has no pomodoros', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const { getDateKey } = require('@/utils/date');
+    const today = getDateKey();
 
     useGamificationStore.setState((state) => ({
       dailyStats: [

@@ -53,7 +53,12 @@ jest.mock('react-native', () => ({
   AppState: { currentState: 'active' },
 }));
 
+import { scheduleTimerNotification, cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, unregisterPomodoroBackgroundTask } from '@/services/background';
+import { notificationService } from '@/services/notifications';
 import { usePomodoroStore } from '@/stores/pomodoro-store';
+import { useGamificationStore } from '@/stores/gamification-store';
+import { useTodoStore } from '@/stores/todo-store';
+import { useSettingsStore } from '@/stores/settings-store';
 import { INITIAL_TIMER_STATE } from '@/types';
 
 const INITIAL_STATE = {
