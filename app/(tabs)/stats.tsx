@@ -7,10 +7,10 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DistributionChart, WeeklyChart } from '@/components/charts';
-import { ACHIEVEMENTS, getLevelTitle } from '@/constants/gamification';
+import { ACHIEVEMENTS, getLevelTitle, getLevelTier } from '@/constants/gamification';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+import { useAuthStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
 
 import { SectionHeader } from '@/components/common';
 import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
@@ -27,6 +27,8 @@ export default function StatsScreen() {
 
   const stats = useGamificationStore((state) => state.stats);
   const unlockedAchievements = useGamificationStore((state) => state.unlockedAchievements);
+  const combo = useGamificationStore((state) => state.combo);
+  const prestige = useGamificationStore((state) => state.prestige);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const isAchievementUnlocked = useGamificationStore((state) => state.isAchievementUnlocked);
 
@@ -168,10 +170,10 @@ export default function StatsScreen() {
           />
           <View style={styles.levelInfo}>
             <Text style={[styles.levelTitle, { color: colors.text }]}>
-              {getLevelTitle(stats.level)}
+              {getLevelTier(stats.level)} · {getLevelTitle(stats.level)}
             </Text>
             <Text style={[styles.levelSubtitle, { color: colors.textMuted }]}>
-              Level {stats.level}
+              Level {stats.level} / 50
             </Text>
           </View>
           <View style={styles.xpInfo}>

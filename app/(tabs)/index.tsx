@@ -13,7 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getLevelTitle } from '@/constants/gamification';
+import { getLevelTitle, getLevelTier } from '@/constants/gamification';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
@@ -101,7 +101,7 @@ export default function HomeScreen() {
             {profile?.displayName ? `Hoşgeldin, ${profile.displayName}` : 'Alpha Planner'}
           </Text>
           <Text style={[styles.levelSubtitle, { color: colors.textSecondary }]}>
-            {getLevelTitle(stats.level)}
+            {getLevelTier(stats.level)} · {getLevelTitle(stats.level)}
           </Text>
         </View>
         <LevelBadge
