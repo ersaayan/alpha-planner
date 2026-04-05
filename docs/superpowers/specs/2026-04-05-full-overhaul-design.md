@@ -20,6 +20,15 @@
 ### 1.2 Veritabanı Şeması
 
 ```sql
+-- ============================================================
+-- EXTENSIONS
+-- ============================================================
+CREATE EXTENSION IF NOT EXISTS moddatetime SCHEMA extensions;
+
+-- ============================================================
+-- TABLES
+-- ============================================================
+
 -- Kullanıcı profili (auth.users ile 1:1)
 CREATE TABLE profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -32,8 +41,7 @@ CREATE TABLE profiles (
   prestige_history JSONB NOT NULL DEFAULT '[]',
   locale TEXT NOT NULL DEFAULT 'tr',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at TIMESTAMPTZ
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Kategoriler
@@ -95,8 +103,7 @@ CREATE TABLE pomodoro_sessions (
   started_at TIMESTAMPTZ NOT NULL,
   ended_at TIMESTAMPTZ,
   paused_duration INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  deleted_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Açılmış başarımlar
@@ -158,7 +165,97 @@ CREATE TABLE weekly_goals (
   UNIQUE(user_id, week_start, goal_type, (goal_params->>'metric'))
 );
 
--- RLS: Her kullanıcı sadece kendi verisini görsün
+-- ============================================================
+-- INDEXES
+-- Best practice: Postgres FK'leri otomatik indexlemez.
+-- Tüm user_id FK'leri + sık sorgulanan kolonlar indexlenmeli.
+-- Soft delete olan tablolarda partial index kullanılır.
+-- ============================================================
+
+-- profiles: PK zaten indexed, JSONB kolonlarına GIN index
+CREATE INDEX idx_profiles_gamification_state ON profiles USING GIN (gamification_state);
+
+-- categories: FK + soft delete partial index
+CREATE INDEX idx_categories_user_id ON categories (user_id) WHERE deleted_at IS NULL;
+
+-- todos: FK'ler + status/priority/due_date sorgu indexleri (soft delete partial)
+CREATE INDEX idx_todos_user_id_status ON todos (user_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_todos_user_id_due_date ON todos (user_id, due_date) WHERE deleted_at IS NULL AND due_date IS NOT NULL;
+CREATE INDEX idx_todos_category_id ON todos (category_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_todos_user_id_priority ON todos (user_id, priority) WHERE deleted_at IS NULL;
+
+-- subtasks: FK'ler (soft delete partial)
+CREATE INDEX idx_subtasks_todo_id ON subtasks (todo_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_subtasks_user_id ON subtasks (user_id) WHERE deleted_at IS NULL;
+
+-- pomodoro_sessions: FK'ler + zaman bazlı sorgular
+CREATE INDEX idx_pomodoro_sessions_user_id ON pomodoro_sessions (user_id);
+CREATE INDEX idx_pomodoro_sessions_user_started ON pomodoro_sessions (user_id, started_at DESC);
+CREATE INDEX idx_pomodoro_sessions_todo_id ON pomodoro_sessions (todo_id) WHERE todo_id IS NOT NULL;
+
+-- achievements: FK + achievement_id lookup
+CREATE INDEX idx_achievements_user_id ON achievements (user_id);
+
+-- daily_stats: composite (user_id, date) — UNIQUE constraint zaten index oluşturur ama
+-- sıralı sorgular için DESC index ekliyoruz
+CREATE INDEX idx_daily_stats_user_date_desc ON daily_stats (user_id, date DESC);
+
+-- daily_quests: composite index
+CREATE INDEX idx_daily_quests_user_date ON daily_quests (user_id, date DESC);
+
+-- weekly_goals: composite index
+CREATE INDEX idx_weekly_goals_user_week ON weekly_goals (user_id, week_start DESC);
+
+-- ============================================================
+-- UPDATED_AT TRIGGERS (moddatetime extension)
+-- Otomatik olarak updated_at kolonunu günceller
+-- ============================================================
+
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON categories
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON todos
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON subtasks
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON daily_stats
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON daily_quests
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+CREATE TRIGGER set_updated_at BEFORE UPDATE ON weekly_goals
+  FOR EACH ROW EXECUTE FUNCTION extensions.moddatetime(updated_at);
+
+-- ============================================================
+-- AUTO-CREATE PROFILE ON SIGNUP
+-- auth.users'a kayıt olunca otomatik profil oluşturur
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, display_name)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'display_name', 'User')
+  );
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================================
+-- ROW LEVEL SECURITY
+-- Best practice: (SELECT auth.uid()) ile cache'lenir (5-10x hız)
+-- ============================================================
+
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
@@ -169,26 +266,62 @@ ALTER TABLE daily_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_quests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE weekly_goals ENABLE ROW LEVEL SECURITY;
 
--- RLS policy örneği (her tabloya uygulanacak)
 CREATE POLICY "users_own_data" ON profiles
-  FOR ALL USING (auth.uid() = id);
+  FOR ALL USING ((SELECT auth.uid()) = id)
+  WITH CHECK ((SELECT auth.uid()) = id);
 CREATE POLICY "users_own_data" ON categories
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON todos
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON subtasks
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON pomodoro_sessions
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON achievements
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON daily_stats
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON daily_quests
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
 CREATE POLICY "users_own_data" ON weekly_goals
-  FOR ALL USING (auth.uid() = user_id);
+  FOR ALL USING ((SELECT auth.uid()) = user_id)
+  WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- ============================================================
+-- SOFT DELETE CLEANUP (30 gün sonra hard delete)
+-- pg_cron extension ile çalışır
+-- ============================================================
+-- Not: pg_cron migration'da enable edilecek, ardından:
+-- SELECT cron.schedule('cleanup-soft-deletes', '0 3 * * *', $$
+--   DELETE FROM categories WHERE deleted_at < now() - interval '30 days';
+--   DELETE FROM subtasks WHERE deleted_at < now() - interval '30 days';
+--   DELETE FROM todos WHERE deleted_at < now() - interval '30 days';
+-- $$);
 ```
+
+**Supabase Postgres Best Practices Uygulamaları:**
+
+| Best Practice | Uygulama |
+|---------------|----------|
+| **RLS policy caching** | `(SELECT auth.uid())` ile subselect cache — her satır için fonksiyon çağrısı yerine tek çağrı (5-10x hız) |
+| **WITH CHECK clause** | INSERT/UPDATE için ayrı WITH CHECK — sadece USING yetersiz, veri yazma güvenliği |
+| **FK index'leri** | Tüm `user_id`, `todo_id`, `category_id` FK'lerine explicit index — Postgres bunları otomatik indexlemez |
+| **Partial index (soft delete)** | `WHERE deleted_at IS NULL` — Sadece aktif kayıtlar indexlenir, index boyutu küçülür (5-20x) |
+| **Composite index** | `(user_id, status)`, `(user_id, date DESC)` — Çoklu kolon sorgularında tek index yeterli |
+| **GIN index (JSONB)** | `gamification_state` JSONB'ye GIN index — JSONB sorgularında 10-100x hız |
+| **moddatetime trigger** | `updated_at` otomatik güncelleme — Uygulama seviyesinde unutulma riski yok |
+| **Profile auto-create** | `auth.users` INSERT trigger — Kayıt sonrası profil garantili |
+| **SECURITY DEFINER + search_path** | Trigger fonksiyonu izole — Schema injection koruması |
+| **text over varchar(n)** | Tüm string kolonlar `TEXT` — Aynı performans, yapay limit yok |
+| **timestamptz over timestamp** | Tüm zaman kolonları `TIMESTAMPTZ` — Timezone-aware |
+| **Soft delete cron cleanup** | pg_cron ile 30 günlük hard delete — Disk alanı yönetimi |
 
 ### 1.3 Sync Mimarisi (Offline-First)
 
