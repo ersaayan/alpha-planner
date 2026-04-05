@@ -6,6 +6,7 @@ import { generateId } from '@/utils/uuid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { useSyncStore } from './sync-store';
 import { useTodoStore } from './todo-store';
 
 interface CategoryState {
@@ -62,6 +63,17 @@ export const useCategoryStore = create<CategoryState>()(
           categories: [...state.categories, newCategory],
         }));
 
+        useSyncStore.getState().enqueue('categories', 'insert', {
+          id: newCategory.id,
+          name: newCategory.name,
+          color: newCategory.color,
+          icon: newCategory.icon ?? null,
+          is_default: newCategory.isDefault,
+          order: newCategory.order,
+          created_at: newCategory.createdAt,
+          updated_at: newCategory.createdAt,
+        });
+
         return newCategory;
       },
 
@@ -71,12 +83,30 @@ export const useCategoryStore = create<CategoryState>()(
             category.id === id ? { ...category, ...updates } : category
           ),
         }));
+
+        const updated = get().categories.find((c) => c.id === id);
+        if (updated) {
+          useSyncStore.getState().enqueue('categories', 'update', {
+            id: updated.id,
+            name: updated.name,
+            color: updated.color,
+            icon: updated.icon ?? null,
+            order: updated.order,
+            updated_at: new Date().toISOString(),
+          });
+        }
       },
 
       deleteCategory: (id) => {
         const category = get().categories.find((c) => c.id === id);
         // Don't delete default categories
         if (category?.isDefault) return;
+
+        // Soft delete sync
+        useSyncStore.getState().enqueue('categories', 'update', {
+          id,
+          deleted_at: new Date().toISOString(),
+        });
 
         set((state) => ({
           categories: state.categories.filter((c) => c.id !== id),

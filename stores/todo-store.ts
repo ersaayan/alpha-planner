@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { useGamificationStore } from './gamification-store';
+import { useSyncStore } from './sync-store';
 
 interface TodoState {
   todos: Todo[];
@@ -56,6 +57,21 @@ export const useTodoStore = create<TodoState>()(
           todos: [...state.todos, newTodo],
         }));
 
+        useSyncStore.getState().enqueue('todos', 'insert', {
+          id: newTodo.id,
+          title: newTodo.title,
+          description: newTodo.description ?? null,
+          status: newTodo.status,
+          priority: newTodo.priority,
+          category_id: newTodo.categoryId ?? null,
+          due_date: newTodo.dueDate ?? null,
+          estimated_pomodoros: newTodo.estimatedPomodoros ?? null,
+          pomodoro_sessions: 0,
+          order: newTodo.order,
+          created_at: newTodo.createdAt,
+          updated_at: newTodo.updatedAt,
+        });
+
         return newTodo;
       },
 
@@ -92,9 +108,32 @@ export const useTodoStore = create<TodoState>()(
         if (didComplete) {
           useGamificationStore.getState().incrementTaskCompleted();
         }
+
+        const updated = get().todos.find((t) => t.id === id);
+        if (updated) {
+          useSyncStore.getState().enqueue('todos', 'update', {
+            id: updated.id,
+            title: updated.title,
+            description: updated.description ?? null,
+            status: updated.status,
+            priority: updated.priority,
+            category_id: updated.categoryId ?? null,
+            due_date: updated.dueDate ?? null,
+            estimated_pomodoros: updated.estimatedPomodoros ?? null,
+            pomodoro_sessions: updated.pomodoroSessions,
+            order: updated.order,
+            updated_at: updated.updatedAt,
+          });
+        }
       },
 
       deleteTodo: (id) => {
+        // Soft delete: enqueue before removing locally
+        useSyncStore.getState().enqueue('todos', 'update', {
+          id,
+          deleted_at: new Date().toISOString(),
+        });
+
         set((state) => ({
           todos: state.todos.filter((todo) => todo.id !== id),
         }));
