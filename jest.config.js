@@ -1,6 +1,6 @@
 module.exports = {
   preset: 'jest-expo',
-  setupFilesAfterSetup: ['./jest.setup.ts'],
+  setupFilesAfterEnv: ['./jest.setup.ts'],
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@ui-kitten/.*|@eva-design/.*|@supabase/.*|date-fns|i18next|react-i18next)',
   ],
