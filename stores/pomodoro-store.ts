@@ -36,9 +36,15 @@ const getNextPhase = (
   return 'focus';
 };
 
-const calculateElapsedSeconds = (timer: PomodoroTimerState, nowMs: number) => {
-  if (!timer.startedAt) return 0;
-  return Math.max(0, Math.floor((nowMs - timer.startedAt) / 1000));
+const calculateRemainingTime = (timer: PomodoroTimerState, nowMs: number): number => {
+  if (!timer.startedAt) return timer.remainingTime;
+  const completionTimeMs = timer.startedAt + (timer.totalTime * 1000) + (timer.totalPausedDuration * 1000);
+  return Math.max(0, Math.floor((completionTimeMs - nowMs) / 1000));
+};
+
+const calculateCompletionTimeMs = (timer: PomodoroTimerState): number => {
+  if (!timer.startedAt) return Date.now() + timer.remainingTime * 1000;
+  return timer.startedAt + (timer.totalTime * 1000) + (timer.totalPausedDuration * 1000);
 };
 
 interface PomodoroState {
@@ -141,8 +147,6 @@ export const usePomodoroStore = create<PomodoroState>()(
         };
 
         const remainingTime = timer.state === 'paused' ? timer.remainingTime : totalTime;
-        const elapsedSeconds = Math.max(0, totalTime - remainingTime);
-        const startedAt = now - elapsedSeconds * 1000;
 
         // Update state FIRST before starting interval
         set({
@@ -153,9 +157,11 @@ export const usePomodoroStore = create<PomodoroState>()(
             remainingTime,
             totalTime,
             linkedTodoId: linkedTodoId ?? timer.linkedTodoId,
-            startedAt,
+            startedAt: now,
             pausedAt: null,
             currentSessionId: sessionId,
+            totalPausedDuration: 0,
+            notificationId: null,
           },
           currentSession: newSession,
         });
@@ -207,9 +213,13 @@ export const usePomodoroStore = create<PomodoroState>()(
         const { timer, currentSession, _startTicking } = get();
         if (!timer.pausedAt || !currentSession) return;
 
-        const pausedDuration = Date.now() - timer.pausedAt;
-        const elapsedSeconds = Math.max(0, timer.totalTime - timer.remainingTime);
-        const startedAt = Date.now() - elapsedSeconds * 1000;
+        const pauseDeltaMs = Date.now() - timer.pausedAt;
+        const pauseDeltaSec = Math.floor(pauseDeltaMs / 1000);
+        const newTotalPaused = timer.totalPausedDuration + pauseDeltaSec;
+        const newRemaining = calculateRemainingTime(
+          { ...timer, totalPausedDuration: newTotalPaused, pausedAt: null },
+          Date.now()
+        );
 
         const { pomodoroSettings, settings } = useSettingsStore.getState();
 
@@ -217,32 +227,29 @@ export const usePomodoroStore = create<PomodoroState>()(
           timer: {
             ...timer,
             state: 'running',
-            startedAt,
+            totalPausedDuration: newTotalPaused,
             pausedAt: null,
+            remainingTime: newRemaining,
           },
           currentSession: {
             ...currentSession,
-            pausedDuration: currentSession.pausedDuration + pausedDuration,
+            pausedDuration: currentSession.pausedDuration + pauseDeltaMs,
           },
         });
 
-        // Start the interval after state is set
         _startTicking();
 
-        // Reschedule notification
-        if (useSettingsStore.getState().settings.notificationsEnabled) {
-          const { soundEnabled } = settings;
-          const { vibrationEnabled } = pomodoroSettings;
-          const newRemaining = Math.max(0, timer.totalTime - elapsedSeconds);
+        // Reschedule notification with updated completion time
+        if (settings.notificationsEnabled) {
           try {
-            scheduleTimerNotification(timer.phase as 'focus' | 'short_break' | 'long_break', newRemaining, {
-              soundEnabled,
-              vibrationEnabled,
-            });
+            scheduleTimerNotification(
+              timer.phase as 'focus' | 'short_break' | 'long_break',
+              newRemaining,
+              { soundEnabled: settings.soundEnabled, vibrationEnabled: pomodoroSettings.vibrationEnabled }
+            );
           } catch (e) {
             console.warn('[Pomodoro] Failed to schedule notification:', e);
           }
-
           try {
             registerPomodoroBackgroundTask();
           } catch (e) {
@@ -316,15 +323,13 @@ export const usePomodoroStore = create<PomodoroState>()(
       },
 
       tick: () => {
-        // This is now only used for manual ticking if needed
-        // The interval handles automatic ticking
         const { timer } = get();
         if (timer.state !== 'running') {
           get()._stopTicking();
           return;
         }
 
-        const newRemainingTime = Math.max(0, timer.remainingTime - 1);
+        const newRemainingTime = calculateRemainingTime(timer, Date.now());
 
         set({
           timer: {
@@ -346,7 +351,8 @@ export const usePomodoroStore = create<PomodoroState>()(
         const { pomodoroSettings } = useSettingsStore.getState();
 
         let currentTimer = { ...timer };
-        let elapsedSeconds = calculateElapsedSeconds(currentTimer, nowMs);
+        // Calculate elapsed seconds accounting for totalPausedDuration
+        let elapsedSeconds = Math.max(0, Math.floor((nowMs - currentTimer.startedAt!) / 1000) - currentTimer.totalPausedDuration);
 
         // Process completed phases during the background period (cap at 50 to prevent freeze)
         const MAX_SYNC_ITERATIONS = 50;
@@ -369,7 +375,7 @@ export const usePomodoroStore = create<PomodoroState>()(
 
           // Force Gamification Updates for missed phases
           if (isFocus) {
-            const completionAtMs = currentTimer.startedAt! + currentTimer.totalTime * 1000;
+            const completionAtMs = calculateCompletionTimeMs(currentTimer);
             const { incrementPomodoro } = useGamificationStore.getState();
             const { incrementPomodoroCount } = useTodoStore.getState();
             incrementPomodoro(pomodoroSettings.focusDuration, new Date(completionAtMs));
@@ -391,8 +397,8 @@ export const usePomodoroStore = create<PomodoroState>()(
           // Advance to next phase — capture completed phase duration BEFORE updating
           const completedPhaseDuration = currentTimer.totalTime;
           const nextDuration = getPhaseDuration(nextPhase, pomodoroSettings);
-          // Recalculate startedAt moving forward in time
-          const nextStartedAt = currentTimer.startedAt! + completedPhaseDuration * 1000;
+          // Recalculate startedAt moving forward in time (include paused duration from completed phase)
+          const nextStartedAt = currentTimer.startedAt! + completedPhaseDuration * 1000 + currentTimer.totalPausedDuration * 1000;
 
           currentTimer = {
             ...currentTimer,
@@ -401,6 +407,7 @@ export const usePomodoroStore = create<PomodoroState>()(
             totalTime: nextDuration,
             sessionsCompleted: newSessionsCompleted,
             startedAt: nextStartedAt,
+            totalPausedDuration: 0,
           };
           let newSessions = get().sessions;
           if (get().currentSession) {
@@ -428,8 +435,8 @@ export const usePomodoroStore = create<PomodoroState>()(
           }
         }
 
-        // Apply remaining time
-        const newRemaining = Math.max(0, currentTimer.totalTime - elapsedSeconds);
+        // Apply remaining time using the single-source-of-truth formula
+        const newRemaining = calculateRemainingTime(currentTimer, nowMs);
         
         // If we skipped phases, update the store fully
         if (currentTimer.phase !== timer.phase || newRemaining !== timer.remainingTime) {
@@ -558,9 +565,7 @@ export const usePomodoroStore = create<PomodoroState>()(
         const nextPhase = getNextPhase(timer.phase, newSessionsCompleted, pomodoroSettings);
         const nextDuration = getPhaseDuration(nextPhase, pomodoroSettings);
 
-        const completionAtMs = timer.startedAt
-          ? timer.startedAt + timer.totalTime * 1000
-          : Date.now();
+        const completionAtMs = calculateCompletionTimeMs(timer);
         const completionIso = new Date(completionAtMs).toISOString();
 
         let updatedSessions = sessions;
@@ -606,6 +611,8 @@ export const usePomodoroStore = create<PomodoroState>()(
             pausedAt: null,
             currentSessionId: null,
             linkedTodoId: timer.linkedTodoId,
+            totalPausedDuration: 0,
+            notificationId: null,
           },
         });
 
