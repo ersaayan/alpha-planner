@@ -194,6 +194,20 @@ export default function RootLayout() {
   useEffect(() => {
     // Initialize default categories on first launch
     initializeCategories();
+
+    // Gamification startup checks (lazy generation)
+    const { applyPrestigeWithRewards } = require('@/services/gamification/prestige-service');
+    const { useDailyQuestsStore } = require('@/stores/daily-quests-store');
+    const { useWeeklyGoalsStore } = require('@/stores/weekly-goals-store');
+
+    // Check prestige reset (new month?)
+    applyPrestigeWithRewards();
+
+    // Generate today's quests if needed
+    useDailyQuestsStore.getState().ensureTodayQuests();
+
+    // Generate this week's goals if needed
+    useWeeklyGoalsStore.getState().ensureThisWeekGoals();
   }, [initializeCategories]);
 
   useEffect(() => {
