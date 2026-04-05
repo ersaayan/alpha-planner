@@ -660,42 +660,12 @@ export const usePomodoroStore = create<PomodoroState>()(
       },
 
       completeSession: () => {
-        const { timer, currentSession, sessions, _stopTicking } = get();
+        // Delegate to _handleCompletion to avoid duplicated logic (B3 fix)
+        const { timer, currentSession } = get();
         if (!currentSession) return;
-
-        // Award gamification if it was a focus session
-        if (timer.phase === 'focus') {
-          useGamificationStore.getState().incrementPomodoro(timer.totalTime);
-          if (currentSession.todoId) {
-            useTodoStore.getState().incrementPomodoroCount(currentSession.todoId);
-          }
+        if (timer.state === 'running') {
+          get()._handleCompletion();
         }
-
-        _stopTicking();
-        cancelScheduledTimerNotifications();
-
-        const completedSession: PomodoroSession = {
-          ...currentSession,
-          endedAt: new Date().toISOString(),
-          duration: timer.totalTime - timer.remainingTime,
-          wasCompleted: true,
-        };
-
-        const newSessionsCompleted =
-          timer.phase === 'focus' ? timer.sessionsCompleted + 1 : timer.sessionsCompleted;
-
-        set({
-          sessions: [...sessions, completedSession],
-          currentSession: null,
-          timer: {
-            ...timer,
-            state: 'stopped',
-            sessionsCompleted: newSessionsCompleted,
-            startedAt: null,
-            pausedAt: null,
-            currentSessionId: null,
-          },
-        });
       },
 
       linkTodo: (todoId) => {

@@ -114,11 +114,12 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
     }
 
     const nowMs = Date.now();
-    const elapsedSeconds = Math.max(0, Math.floor((nowMs - timer.startedAt) / 1000));
-    const remaining = timer.totalTime - elapsedSeconds;
+    const totalPausedDuration = timer.totalPausedDuration ?? 0;
+    const completionTimeMs = timer.startedAt + (timer.totalTime * 1000) + (totalPausedDuration * 1000);
+    const remainingSec = Math.max(0, Math.floor((completionTimeMs - nowMs) / 1000));
 
     // Timer has NOT completed yet — nothing to do (scheduled notification handles completion)
-    if (remaining > 0) {
+    if (remainingSec > 0) {
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
@@ -126,7 +127,8 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
     const { pomodoroSettings, soundEnabled } = await readPersistedSettings();
 
     let currentTimer = { ...timer };
-    let currentElapsed = elapsedSeconds;
+    // Elapsed time in this phase = totalTime since remaining is <= 0
+    let currentElapsed = Math.floor((nowMs - timer.startedAt) / 1000) - totalPausedDuration;
 
     // Walk through completed phases (cap at 50 to prevent excessive CPU usage)
     const MAX_ITERATIONS = 50;
@@ -161,6 +163,8 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
           startedAt: null,
           pausedAt: null,
           currentSessionId: null,
+          totalPausedDuration: 0,
+          notificationId: null,
         };
 
         await writePersistedTimer(rawParsed, stoppedTimer);
@@ -170,7 +174,7 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
       // Auto-start: advance to the next phase
       const nextPhase = getNextPhase(currentTimer.phase, newSessionsCompleted, pomodoroSettings);
       const nextDuration = getPhaseDuration(nextPhase, pomodoroSettings);
-      const nextStartedAt = currentTimer.startedAt! + currentTimer.totalTime * 1000;
+      const nextStartedAt = currentTimer.startedAt! + (currentTimer.totalTime * 1000) + ((currentTimer.totalPausedDuration ?? 0) * 1000);
 
       currentTimer = {
         ...currentTimer,
@@ -179,6 +183,7 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
         totalTime: nextDuration,
         sessionsCompleted: newSessionsCompleted,
         startedAt: nextStartedAt,
+        totalPausedDuration: 0,
         linkedTodoId: currentTimer.linkedTodoId,
       };
     }
@@ -194,14 +199,16 @@ TaskManager.defineTask(POMODORO_BG_TASK, async () => {
 
     await writePersistedTimer(rawParsed, updatedTimer);
 
-    // Schedule notification for the current phase's completion
-    if (newRemaining > 0) {
+    // Schedule notification for the current phase's completion using absolute timestamp
+    if (newRemaining > 0 && updatedTimer.startedAt) {
+      const bgCompletionMs = updatedTimer.startedAt + (updatedTimer.totalTime * 1000) + ((updatedTimer.totalPausedDuration ?? 0) * 1000);
       await scheduleTimerNotification(
         currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-        newRemaining,
+        bgCompletionMs,
         {
           soundEnabled,
           vibrationEnabled: pomodoroSettings.vibrationEnabled,
+          isAbsoluteMs: true,
         },
       );
     }
