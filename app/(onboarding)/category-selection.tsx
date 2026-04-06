@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
 import { Text, Button, Card, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
@@ -12,6 +13,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
 export default function CategorySelectionScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -52,7 +54,7 @@ export default function CategorySelectionScreen() {
 
   const handleFinish = () => {
     if (selectedCategories.length === 0) {
-      Alert.alert('Select Categories', 'Please select at least one category to continue.');
+      Alert.alert(t('onboarding.categorySelection.selectTitle'), t('onboarding.categorySelection.selectMsg'));
       return;
     }
     keepOnlyCategories(selectedCategories);
@@ -74,9 +76,9 @@ export default function CategorySelectionScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text category="h4">Choose Categories</Text>
+          <Text category="h4">{t('onboarding.categorySelection.title')}</Text>
           <Text category="s1" style={{ color: colors.textSecondary }}>
-            Select categories to organize your tasks
+            {t('onboarding.categorySelection.subtitle')}
           </Text>
         </View>
 
@@ -125,7 +127,7 @@ export default function CategorySelectionScreen() {
           >
             <Icon name="plus-outline" fill={colors.primary} style={styles.addIcon} />
             <Text category="s2" style={{ color: colors.primary }}>
-              Add Custom
+              {t('onboarding.categorySelection.addCustom')}
             </Text>
           </Pressable>
         </View>
@@ -134,19 +136,19 @@ export default function CategorySelectionScreen() {
         {showCustomForm && (
           <Card style={[styles.customForm, { backgroundColor: colors.card }]}>
             <Text category="s1" style={{ marginBottom: Spacing.md }}>
-              Create Custom Category
+              {t('onboarding.categorySelection.createCustom')}
             </Text>
 
             <Input
-              label="Category Name"
-              placeholder="e.g., Side Projects"
+              label={t('onboarding.categorySelection.categoryName')}
+              placeholder={t('onboarding.categorySelection.categoryPlaceholder')}
               value={customName}
               onChangeText={setCustomName}
               style={{ marginBottom: Spacing.md }}
             />
 
             <Text category="c1" style={{ marginBottom: Spacing.sm }}>
-              Choose Color
+              {t('onboarding.categorySelection.chooseColor')}
             </Text>
             <View style={styles.colorPicker}>
               {EXTRA_COLORS.map((color) => (
@@ -168,10 +170,10 @@ export default function CategorySelectionScreen() {
 
             <View style={styles.formButtons}>
               <Button appearance="ghost" size="small" onPress={() => setShowCustomForm(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button size="small" onPress={handleAddCustom} disabled={!customName.trim()}>
-                Add Category
+                {t('onboarding.categorySelection.addCategory')}
               </Button>
             </View>
           </Card>
@@ -181,7 +183,7 @@ export default function CategorySelectionScreen() {
         <View style={styles.infoBox}>
           <Icon name="info-outline" fill={colors.textMuted} style={styles.infoIcon} />
           <Text category="c1" style={{ color: colors.textMuted, flex: 1 }}>
-            You can add more categories later in Settings
+            {t('onboarding.categorySelection.info')}
           </Text>
         </View>
       </ScrollView>
@@ -193,10 +195,10 @@ export default function CategorySelectionScreen() {
           onPress={() => router.back()}
           accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
         >
-          Back
+          {t('onboarding.categorySelection.back')}
         </Button>
         <Button style={styles.finishButton} onPress={handleFinish}>
-          Let&apos;s Go!
+          {t('onboarding.categorySelection.letsGo')}
         </Button>
       </View>
     </View>

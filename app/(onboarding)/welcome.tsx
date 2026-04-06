@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icon';
 import { Button, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +10,7 @@ import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function WelcomeScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -31,10 +33,10 @@ export default function WelcomeScreen() {
           <Icon name="leaf-outline" fill="#fff" style={styles.logoIcon} />
         </View>
         <Text category="h3" style={[styles.title, { color: colors.text }]}>
-          Alpha Planner
+          {t('onboarding.welcome.title')}
         </Text>
         <Text category="s1" style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Focus. Plan. Grow.
+          {t('onboarding.welcome.subtitle')}
         </Text>
       </Animated.View>
 
@@ -45,9 +47,9 @@ export default function WelcomeScreen() {
             <Icon name="clock-outline" fill={colors.primary} style={styles.icon} />
           </View>
           <View style={styles.featureText}>
-            <Text category="s1">Pomodoro Timer</Text>
+            <Text category="s1">{t('onboarding.welcome.featureTimer')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Stay focused with timed work sessions
+              {t('onboarding.welcome.featureTimerDesc')}
             </Text>
           </View>
         </View>
@@ -57,9 +59,9 @@ export default function WelcomeScreen() {
             <Icon name="checkmark-square-2-outline" fill={colors.primary} style={styles.icon} />
           </View>
           <View style={styles.featureText}>
-            <Text category="s1">Smart Tasks</Text>
+            <Text category="s1">{t('onboarding.welcome.featureTasks')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Organize with categories and subtasks
+              {t('onboarding.welcome.featureTasksDesc')}
             </Text>
           </View>
         </View>
@@ -69,9 +71,9 @@ export default function WelcomeScreen() {
             <Icon name="award-outline" fill={colors.primary} style={styles.icon} />
           </View>
           <View style={styles.featureText}>
-            <Text category="s1">Achievements</Text>
+            <Text category="s1">{t('onboarding.welcome.featureAchievements')}</Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              Earn XP and unlock badges as you grow
+              {t('onboarding.welcome.featureAchievementsDesc')}
             </Text>
           </View>
         </View>
@@ -84,7 +86,7 @@ export default function WelcomeScreen() {
           style={styles.ctaButton}
           onPress={() => router.replace('/(onboarding)/pomodoro-setup')}
         >
-          Get Started
+          {t('onboarding.welcome.getStarted')}
         </Button>
       </Animated.View>
     </View>

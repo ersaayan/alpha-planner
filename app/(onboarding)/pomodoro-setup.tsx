@@ -3,6 +3,7 @@ import Slider from '@react-native-community/slider';
 import { Button, Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,6 +12,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettingsStore } from '@/stores';
 
 export default function PomodoroSetupScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -54,9 +56,9 @@ export default function PomodoroSetupScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text category="h4">Set Your Timer</Text>
+          <Text category="h4">{t('onboarding.pomodoroSetup.title')}</Text>
           <Text category="s1" style={{ color: colors.textSecondary }}>
-            Customize your Pomodoro intervals
+            {t('onboarding.pomodoroSetup.subtitle')}
           </Text>
         </View>
 
@@ -65,10 +67,10 @@ export default function PomodoroSetupScreen() {
           <View style={styles.sliderHeader}>
             <View style={styles.sliderLabel}>
               <Icon name="clock-outline" fill={colors.primary} style={styles.labelIcon} />
-              <Text category="s1">Focus Duration</Text>
+              <Text category="s1">{t('onboarding.pomodoroSetup.focusDuration')}</Text>
             </View>
             <Text category="h6" style={{ color: colors.primary }}>
-              {focusDuration} min
+              {focusDuration} {t('common.min')}
             </Text>
           </View>
           <Slider
@@ -84,10 +86,10 @@ export default function PomodoroSetupScreen() {
           />
           <View style={styles.sliderRange}>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              15 min
+              15 {t('common.min')}
             </Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              60 min
+              60 {t('common.min')}
             </Text>
           </View>
         </Card>
@@ -97,10 +99,10 @@ export default function PomodoroSetupScreen() {
           <View style={styles.sliderHeader}>
             <View style={styles.sliderLabel}>
               <Icon name="coffee-outline" fill={colors.secondary} style={styles.labelIcon} />
-              <Text category="s1">Short Break</Text>
+              <Text category="s1">{t('onboarding.pomodoroSetup.shortBreak')}</Text>
             </View>
             <Text category="h6" style={{ color: colors.secondary }}>
-              {shortBreak} min
+              {shortBreak} {t('common.min')}
             </Text>
           </View>
           <Slider
@@ -116,10 +118,10 @@ export default function PomodoroSetupScreen() {
           />
           <View style={styles.sliderRange}>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              3 min
+              3 {t('common.min')}
             </Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              15 min
+              15 {t('common.min')}
             </Text>
           </View>
         </Card>
@@ -129,10 +131,10 @@ export default function PomodoroSetupScreen() {
           <View style={styles.sliderHeader}>
             <View style={styles.sliderLabel}>
               <Icon name="sun-outline" fill={colors.accent} style={styles.labelIcon} />
-              <Text category="s1">Long Break</Text>
+              <Text category="s1">{t('onboarding.pomodoroSetup.longBreak')}</Text>
             </View>
             <Text category="h6" style={{ color: colors.accent }}>
-              {longBreak} min
+              {longBreak} {t('common.min')}
             </Text>
           </View>
           <Slider
@@ -148,10 +150,10 @@ export default function PomodoroSetupScreen() {
           />
           <View style={styles.sliderRange}>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              10 min
+              10 {t('common.min')}
             </Text>
             <Text category="c1" style={{ color: colors.textMuted }}>
-              30 min
+              30 {t('common.min')}
             </Text>
           </View>
         </Card>
@@ -161,7 +163,7 @@ export default function PomodoroSetupScreen() {
           <View style={styles.sliderHeader}>
             <View style={styles.sliderLabel}>
               <Icon name="repeat-outline" fill={colors.primary} style={styles.labelIcon} />
-              <Text category="s1">Sessions Until Long Break</Text>
+              <Text category="s1">{t('onboarding.pomodoroSetup.sessionsUntilLongBreak')}</Text>
             </View>
             <Text category="h6" style={{ color: colors.primary }}>
               {sessionsUntilLongBreak}
@@ -191,7 +193,7 @@ export default function PomodoroSetupScreen() {
         {/* Preview */}
         <Card style={[styles.previewCard, { backgroundColor: colors.backgroundSecondary }]}>
           <Text category="s2" style={{ color: colors.textSecondary, marginBottom: Spacing.sm }}>
-            Your Cycle Preview
+            {t('onboarding.pomodoroSetup.cyclePreview')}
           </Text>
           <View style={styles.previewRow}>
             {Array.from({ length: sessionsUntilLongBreak }).map((_, i) => (
@@ -215,7 +217,7 @@ export default function PomodoroSetupScreen() {
 
         {/* Use Defaults */}
         <Button appearance="ghost" size="small" onPress={handleUseDefaults}>
-          Use Classic 25/5/15
+          {t('onboarding.pomodoroSetup.useDefaults')}
         </Button>
       </ScrollView>
 
@@ -226,10 +228,10 @@ export default function PomodoroSetupScreen() {
           onPress={() => router.back()}
           accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
         >
-          Back
+          {t('onboarding.pomodoroSetup.back')}
         </Button>
         <Button style={styles.continueButton} onPress={handleContinue}>
-          Continue
+          {t('onboarding.pomodoroSetup.continue')}
         </Button>
       </View>
     </View>

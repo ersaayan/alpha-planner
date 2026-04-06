@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icon';
 import { Button, Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,10 +19,18 @@ const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
 ];
 
 export default function KanbanScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+
+  const columnTitles: Record<string, string> = {
+    pending: t('todos.statusPending'),
+    in_progress: t('todos.statusInProgress'),
+    completed: t('todos.statusDone'),
+    archived: t('todos.archived'),
+  };
   const { width: screenWidth } = useWindowDimensions();
   const columnWidth = screenWidth * 0.75;
 
@@ -162,7 +171,7 @@ export default function KanbanScreen() {
           accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
           onPress={() => router.back()}
         />
-        <Text category="h5">Kanban Board</Text>
+        <Text category="h5">{t('views.kanbanBoard')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -184,7 +193,7 @@ export default function KanbanScreen() {
               {/* Column Header */}
               <View style={styles.columnHeader}>
                 <View style={[styles.columnDot, { backgroundColor: column.color }]} />
-                <Text category="s1">{column.title}</Text>
+                <Text category="s1">{columnTitles[column.status] ?? column.title}</Text>
                 <View style={[styles.countBadge, { backgroundColor: column.color + '20' }]}>
                   <Text category="c2" style={{ color: column.color }}>
                     {columnTodos.length}
@@ -202,7 +211,7 @@ export default function KanbanScreen() {
                   <View style={styles.emptyColumn}>
                     <Icon name="inbox-outline" fill={colors.textMuted} size={32} />
                     <Text category="c1" style={{ color: colors.textMuted, marginTop: Spacing.sm }}>
-                      No tasks
+                      {t('dashboard.noActiveTasks')}
                     </Text>
                   </View>
                 ) : (

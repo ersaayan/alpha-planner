@@ -11,6 +11,7 @@ import {
 } from '@ui-kitten/components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,11 +37,26 @@ const STATUSES: { value: TodoStatus; label: string }[] = [
 ];
 
 export default function TodoDetailScreen() {
+  const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+
+  const priorityLabels: Record<string, string> = {
+    low: t('todo.create.priorityLow'),
+    medium: t('todo.create.priorityMedium'),
+    high: t('todo.create.priorityHigh'),
+    urgent: t('todo.create.priorityUrgent'),
+  };
+
+  const statusLabels: Record<string, string> = {
+    pending: t('todos.statusPending'),
+    in_progress: t('todos.statusInProgress'),
+    completed: t('todos.statusDone'),
+    archived: t('todos.archived'),
+  };
 
   const todo = useTodoStore((state) => state.getTodoById(id));
   const updateTodo = useTodoStore((state) => state.updateTodo);
@@ -89,14 +105,14 @@ export default function TodoDetailScreen() {
   if (!todo) {
     return (
       <View style={[styles.container, styles.notFoundContainer, { backgroundColor: colors.background }]}>
-        <Text category="h6">Todo not found</Text>
+        <Text category="h6">{t('todo.notFound')}</Text>
         <Button
           appearance="outline"
           style={{ marginTop: Spacing.md }}
           accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
           onPress={() => router.back()}
         >
-          Go Back
+          {t('common.back')}
         </Button>
       </View>
     );
@@ -128,10 +144,10 @@ export default function TodoDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('todo.detail.deleteTitle'), t('todo.detail.deleteConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
           deleteTodo(id);
@@ -174,13 +190,13 @@ export default function TodoDetailScreen() {
         <View style={styles.statusRow}>
           <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
             <Text category="c1" style={{ color: colors.primary }}>
-              {selectedStatus.label}
+              {statusLabels[selectedStatus.value] ?? selectedStatus.label}
             </Text>
           </View>
           <View style={[styles.priorityBadge, { backgroundColor: selectedPriority.color + '20' }]}>
             <View style={[styles.priorityDot, { backgroundColor: selectedPriority.color }]} />
             <Text category="c1" style={{ color: selectedPriority.color }}>
-              {selectedPriority.label}
+              {priorityLabels[selectedPriority.value] ?? selectedPriority.label}
             </Text>
           </View>
         </View>
@@ -189,14 +205,14 @@ export default function TodoDetailScreen() {
         {isEditing ? (
           <>
             <Input
-              label="Title"
+              label={t('todo.create.taskTitle')}
               value={title}
               onChangeText={setTitle}
               style={styles.input}
               size="large"
             />
             <Input
-              label="Description"
+              label={t('todo.create.description')}
               value={description}
               onChangeText={setDescription}
               style={styles.input}
@@ -219,8 +235,8 @@ export default function TodoDetailScreen() {
         {isEditing && (
           <>
             <Select
-              label="Category"
-              placeholder="Select a category"
+              label={t('todo.detail.category')}
+              placeholder={t('todo.create.categoryPlaceholder')}
               value={selectedCategory?.name}
               selectedIndex={selectedCategoryIndex}
               onSelect={(index) => setSelectedCategoryIndex(index as IndexPath)}
@@ -232,32 +248,32 @@ export default function TodoDetailScreen() {
             </Select>
 
             <Select
-              label="Priority"
-              value={selectedPriority.label}
+              label={t('todo.detail.priority')}
+              value={priorityLabels[selectedPriority.value] ?? selectedPriority.label}
               selectedIndex={selectedPriorityIndex}
               onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
               style={styles.input}
             >
               {PRIORITIES.map((priority) => (
-                <SelectItem key={priority.value} title={priority.label} />
+                <SelectItem key={priority.value} title={priorityLabels[priority.value] ?? priority.label} />
               ))}
             </Select>
 
             <Select
-              label="Status"
-              value={selectedStatus.label}
+              label={t('todo.detail.status')}
+              value={statusLabels[selectedStatus.value] ?? selectedStatus.label}
               selectedIndex={selectedStatusIndex}
               onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
               style={styles.input}
             >
               {STATUSES.map((status) => (
-                <SelectItem key={status.value} title={status.label} />
+                <SelectItem key={status.value} title={statusLabels[status.value] ?? status.label} />
               ))}
             </Select>
 
             <Datepicker
-              label="Due Date"
-              placeholder="Pick a date"
+              label={t('todo.detail.dueDate')}
+              placeholder={t('todo.create.dueDatePlaceholder')}
               date={dueDate}
               onSelect={(date) => setDueDate(date)}
               style={styles.input}
@@ -265,8 +281,8 @@ export default function TodoDetailScreen() {
             />
 
             <Input
-              label="Estimated Pomodoros"
-              placeholder="e.g., 4"
+              label={t('todo.detail.estimatedPomodoros')}
+              placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
               value={estimatedPomodoros}
               onChangeText={setEstimatedPomodoros}
               style={styles.input}
@@ -299,7 +315,7 @@ export default function TodoDetailScreen() {
               <View style={styles.infoContent}>
                 <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
                 <Text category="s2">
-                  {todo.pomodoroSessions} {todo.pomodoroSessions === 1 ? 'pomodoro' : 'pomodoros'}
+                  {todo.pomodoroSessions} {t('stats.pomodoros').toLowerCase()}
                 </Text>
               </View>
             </Card>
@@ -309,7 +325,7 @@ export default function TodoDetailScreen() {
         {/* Subtasks */}
         <View style={styles.section}>
           <SectionHeader
-            title="Subtasks"
+            title={t('todo.detail.subtasks')}
             action={
               todo.subtasks.length > 0 ? (
                 <Text category="c1" style={{ color: colors.textMuted }}>
@@ -372,7 +388,7 @@ export default function TodoDetailScreen() {
 
           <View style={styles.addSubtaskRow}>
             <Input
-              placeholder="Add a subtask..."
+              placeholder={t('todo.detail.addSubtask')}
               value={newSubtask}
               onChangeText={setNewSubtask}
               style={styles.subtaskInput}
@@ -393,9 +409,9 @@ export default function TodoDetailScreen() {
           {isEditing ? (
             <>
               <Button appearance="ghost" onPress={() => setIsEditing(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
-              <Button onPress={handleSave} disabled={!title.trim()}>Save Changes</Button>
+              <Button onPress={handleSave} disabled={!title.trim()}>{t('todo.saveChanges')}</Button>
             </>
           ) : (
             <>
@@ -404,7 +420,7 @@ export default function TodoDetailScreen() {
                 accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
                 onPress={() => setIsEditing(true)}
               >
-                Edit
+                {t('todo.detail.edit')}
               </Button>
               {timer.linkedTodoId === id ? (
                 <Button
@@ -413,14 +429,14 @@ export default function TodoDetailScreen() {
                   accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
                   onPress={handleUnlinkFromPomodoro}
                 >
-                  Unlink
+                  {t('pomodoro.unlink')}
                 </Button>
               ) : (
                 <Button
                   accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
                   onPress={handleLinkToPomodoro}
                 >
-                  Start Focus
+                  {t('todo.detail.startFocus')}
                 </Button>
               )}
             </>
@@ -435,7 +451,7 @@ export default function TodoDetailScreen() {
           onPress={handleDelete}
           style={styles.deleteButton}
         >
-          Delete Task
+          {t('todo.detail.deleteTitle')}
         </Button>
       </ScrollView>
     </KeyboardAvoidingView>
