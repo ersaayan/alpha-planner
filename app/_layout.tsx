@@ -22,7 +22,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, scheduleTimerNotification } from '@/services/background';
+import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import { useSync } from '@/hooks/use-sync';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
@@ -149,11 +149,10 @@ function usePomodoroRehydrationSync() {
         // Timer was running when the app was killed — catch up
         usePomodoroStore.getState().syncTimer({ fromBackground: true });
 
-        // If timer is still running after sync, restart ticking & background task
+        // If timer is still running after sync, restart ticking
         const synced = usePomodoroStore.getState();
         if (synced.timer.state === 'running') {
           synced._startTicking();
-          registerPomodoroBackgroundTask();
         }
       }
     });

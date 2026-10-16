@@ -53,7 +53,7 @@ jest.mock('react-native', () => ({
   AppState: { currentState: 'active' },
 }));
 
-import { scheduleTimerNotification, cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, unregisterPomodoroBackgroundTask } from '@/services/background';
+import { scheduleTimerNotification, cancelScheduledTimerNotifications } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import { usePomodoroStore } from '@/stores/pomodoro-store';
 import { useGamificationStore } from '@/stores/gamification-store';
@@ -624,12 +624,6 @@ describe('startTimer (full flow)', () => {
     );
   });
 
-  it('calls registerPomodoroBackgroundTask when notifications enabled', () => {
-    withSettings({ settings: { notificationsEnabled: true, soundEnabled: true } });
-    usePomodoroStore.getState().startTimer();
-    expect(registerPomodoroBackgroundTask).toHaveBeenCalled();
-  });
-
   it('dismisses timer notification when notifications enabled', () => {
     withSettings({ settings: { notificationsEnabled: true, soundEnabled: true } });
     usePomodoroStore.getState().startTimer();
@@ -747,17 +741,6 @@ describe('pauseTimer / resumeTimer', () => {
     usePomodoroStore.getState().resumeTimer();
     expect(usePomodoroStore.getState().timer).toEqual(before);
   });
-
-  it('resumeTimer registers background task when notifications enabled', () => {
-    withSettings({ settings: { notificationsEnabled: true, soundEnabled: true } });
-    usePomodoroStore.getState().startTimer();
-    (Date.now as jest.Mock).mockReturnValue(NOW + 5000);
-    usePomodoroStore.getState().pauseTimer();
-    jest.clearAllMocks();
-    (Date.now as jest.Mock).mockReturnValue(NOW + 15_000);
-    usePomodoroStore.getState().resumeTimer();
-    expect(registerPomodoroBackgroundTask).toHaveBeenCalled();
-  });
 });
 
 // ── stopTimer ───────────────────────────────────────────────────────────
@@ -824,13 +807,6 @@ describe('stopTimer', () => {
     usePomodoroStore.getState().stopTimer();
 
     expect(mockResetCombo).toHaveBeenCalled();
-  });
-
-  it('unregisters background task', () => {
-    usePomodoroStore.getState().startTimer();
-    jest.clearAllMocks();
-    usePomodoroStore.getState().stopTimer();
-    expect(unregisterPomodoroBackgroundTask).toHaveBeenCalled();
   });
 
   it('dismisses notification when notifications enabled', () => {
@@ -1578,7 +1554,7 @@ describe('skipToNextPhase (extended)', () => {
     expect(sessions[0].duration).toBe(500);
   });
 
-  it('unregisters background task and cancels notifications', () => {
+  it('cancels notifications', () => {
     usePomodoroStore.setState({
       timer: makeRunningTimer(),
       sessions: [],
@@ -1589,7 +1565,6 @@ describe('skipToNextPhase (extended)', () => {
     usePomodoroStore.getState().skipToNextPhase();
 
     expect(cancelScheduledTimerNotifications).toHaveBeenCalled();
-    expect(unregisterPomodoroBackgroundTask).toHaveBeenCalled();
   });
 
   it('dismisses notification when notifications enabled', () => {
@@ -1887,17 +1862,6 @@ describe('Error handling in notification scheduling', () => {
     expect(usePomodoroStore.getState().timer.state).toBe('running');
   });
 
-  it('startTimer still works when registerPomodoroBackgroundTask throws', () => {
-    withSettings({ settings: { notificationsEnabled: true, soundEnabled: true } });
-    (registerPomodoroBackgroundTask as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('bg task failed');
-    });
-
-    usePomodoroStore.getState().startTimer();
-
-    expect(usePomodoroStore.getState().timer.state).toBe('running');
-  });
-
   it('resumeTimer still works when scheduleTimerNotification throws', () => {
     withSettings({ settings: { notificationsEnabled: true, soundEnabled: true } });
     usePomodoroStore.getState().startTimer();
@@ -1907,23 +1871,6 @@ describe('Error handling in notification scheduling', () => {
 
     (scheduleTimerNotification as jest.Mock).mockImplementationOnce(() => {
       throw new Error('notification failed');
-    });
-
-    (Date.now as jest.Mock).mockReturnValue(NOW + 10_000);
-    usePomodoroStore.getState().resumeTimer();
-
-    expect(usePomodoroStore.getState().timer.state).toBe('running');
-  });
-
-  it('resumeTimer still works when registerPomodoroBackgroundTask throws', () => {
-    withSettings({ settings: { notificationsEnabled: true, soundEnabled: true } });
-    usePomodoroStore.getState().startTimer();
-
-    (Date.now as jest.Mock).mockReturnValue(NOW + 5000);
-    usePomodoroStore.getState().pauseTimer();
-
-    (registerPomodoroBackgroundTask as jest.Mock).mockImplementationOnce(() => {
-      throw new Error('bg task failed');
     });
 
     (Date.now as jest.Mock).mockReturnValue(NOW + 10_000);

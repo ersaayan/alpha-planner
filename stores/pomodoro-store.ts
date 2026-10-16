@@ -1,4 +1,4 @@
-import { cancelScheduledTimerNotifications, registerPomodoroBackgroundTask, scheduleTimerNotification, unregisterPomodoroBackgroundTask } from '@/services/background';
+import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import type { PomodoroPhase, PomodoroSession, PomodoroSettings, PomodoroTimerState } from '@/types';
 import { INITIAL_TIMER_STATE } from '@/types';
@@ -169,7 +169,7 @@ export const usePomodoroStore = create<PomodoroState>()(
         // Start the interval after state is set
         _startTicking();
 
-        // Schedule notification for completion & register background task
+        // Schedule notification for completion
         if (settings.notificationsEnabled) {
           const { soundEnabled } = settings;
           const { vibrationEnabled } = pomodoroSettings;
@@ -182,12 +182,6 @@ export const usePomodoroStore = create<PomodoroState>()(
             });
           } catch (e) {
             console.warn('[Pomodoro] Failed to schedule notification:', e);
-          }
-
-          try {
-            registerPomodoroBackgroundTask();
-          } catch (e) {
-            console.warn('[Pomodoro] Failed to register background task:', e);
           }
         }
       },
@@ -254,11 +248,6 @@ export const usePomodoroStore = create<PomodoroState>()(
           } catch (e) {
             console.warn('[Pomodoro] Failed to schedule notification:', e);
           }
-          try {
-            registerPomodoroBackgroundTask();
-          } catch (e) {
-            console.warn('[Pomodoro] Failed to register background task:', e);
-          }
         }
       },
 
@@ -275,9 +264,6 @@ export const usePomodoroStore = create<PomodoroState>()(
         if (settings.notificationsEnabled) {
           notificationService.dismissTimerNotification();
         }
-
-        // Unregister background task since timer is stopped
-        unregisterPomodoroBackgroundTask();
 
         // Reset session combo — stop breaks the combo (pause does not)
         try {
@@ -317,9 +303,8 @@ export const usePomodoroStore = create<PomodoroState>()(
         const { _stopTicking } = get();
         _stopTicking();
 
-        // Cancel notifications and background task
+        // Cancel notifications
         cancelScheduledTimerNotifications();
-        unregisterPomodoroBackgroundTask();
 
         const { pomodoroSettings } = useSettingsStore.getState();
         const focusDuration = pomodoroSettings.focusDuration;
@@ -514,9 +499,6 @@ export const usePomodoroStore = create<PomodoroState>()(
 
         // Cancel any scheduled notifications
         cancelScheduledTimerNotifications();
-
-        // Unregister background task since timer is being stopped
-        unregisterPomodoroBackgroundTask();
 
         const { settings } = useSettingsStore.getState();
         if (settings.notificationsEnabled) {

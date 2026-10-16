@@ -1,8 +1,7 @@
 /**
  * Shared Pomodoro helper functions.
  *
- * These are duplicated in stores/pomodoro-store.ts and
- * services/background/background-task.ts. This file provides a single
+ * These are duplicated in stores/pomodoro-store.ts. This file provides a single
  * source of truth for future refactoring — existing call-sites are left
  * unchanged for now to avoid a larger migration.
  */

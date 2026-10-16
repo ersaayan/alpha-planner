@@ -23,19 +23,6 @@ jest.mock('expo-crypto', () => ({
   randomUUID: () => `mock-uuid-${Math.random().toString(36).slice(2, 10)}`,
 }));
 
-// Mock expo-task-manager
-jest.mock('expo-task-manager', () => ({
-  defineTask: jest.fn(),
-  isTaskRegisteredAsync: jest.fn().mockResolvedValue(false),
-}));
-
-// Mock expo-background-fetch
-jest.mock('expo-background-fetch', () => ({
-  registerTaskAsync: jest.fn().mockResolvedValue(undefined),
-  unregisterTaskAsync: jest.fn().mockResolvedValue(undefined),
-  BackgroundFetchResult: { NoData: 1, NewData: 2, Failed: 3 },
-}));
-
 // Mock expo-localization
 jest.mock('expo-localization', () => ({
   getLocales: () => [{ languageCode: 'en', regionCode: 'US' }],
@@ -80,8 +67,6 @@ jest.mock('@/services/notifications', () => ({
 jest.mock('@/services/background', () => ({
   scheduleTimerNotification: jest.fn().mockResolvedValue(undefined),
   cancelScheduledTimerNotifications: jest.fn().mockResolvedValue(undefined),
-  registerPomodoroBackgroundTask: jest.fn().mockResolvedValue(undefined),
-  unregisterPomodoroBackgroundTask: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock i18n — t() returns the English translation value from en.json
@@ -129,6 +114,6 @@ jest.mock('@/services/i18n/i18n-config', () => {
 const originalWarn = console.warn;
 console.warn = (...args: unknown[]) => {
   const msg = typeof args[0] === 'string' ? args[0] : '';
-  if (msg.includes('[Pomodoro]') || msg.includes('[PomoBgTask]')) return;
+  if (msg.includes('[Pomodoro]')) return;
   originalWarn.apply(console, args);
 };
