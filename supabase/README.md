@@ -9,6 +9,7 @@ Sync is **off** unless the app is built with both `EXPO_PUBLIC_SUPABASE_URL` and
 | Path | Purpose |
 |------|---------|
 | `migrations/0001_init.sql` | Tables, indexes, `updated_at` triggers, the profile-on-signup trigger and Row Level Security policies. |
+| `migrations/0002_delete_account.sql` | `delete_account()` RPC: a signed-in user deletes their own account; all their rows cascade. |
 
 Every table has Row Level Security enabled with an owner-only policy (`(select auth.uid()) = user_id`, or `= id` on `profiles`), so a client holding the anon/publishable key can only read and write its own rows.
 
@@ -25,7 +26,7 @@ Every table has Row Level Security enabled with an owner-only policy (`(select a
      supabase db push
      ```
 
-   - or open the dashboard's **SQL Editor**, paste the contents of [`migrations/0001_init.sql`](migrations/0001_init.sql) and run it.
+   - or open the dashboard's **SQL Editor**, paste the contents of [`migrations/0001_init.sql`](migrations/0001_init.sql) and run it, then do the same with [`migrations/0002_delete_account.sql`](migrations/0002_delete_account.sql).
 
    The migration enables the `moddatetime` extension in the `extensions` schema, which Supabase projects support out of the box.
 
@@ -44,6 +45,30 @@ Every table has Row Level Security enabled with an owner-only policy (`(select a
    Fill in `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY`. These variables are inlined at build time, so restart Metro with a cleared cache (`npx expo start -c`) or rebuild the development build after changing them. For EAS builds, define the same variables in your EAS project's environment.
 
 6. **(Optional) Clean up soft-deleted rows.** Categories, tasks and subtasks are soft-deleted (`deleted_at`). The bottom of the migration contains a commented `pg_cron` job that hard-deletes rows older than 30 days. Enable the `pg_cron` extension and uncomment it if you want that.
+
+## How the app behaves with sync on
+
+- Signing in is optional. The app works fully without an account; **Settings → Sync (experimental)** offers "Sign in to sync".
+- Changes are queued only while someone is signed in, and each queued change belongs to that account. Signing out (or signing in with a different account) drops the queue, so one account's changes are never uploaded to another. When a different account signs in, the app asks whether to keep the data on the device.
+- The sync engine is push-only for now: local changes are uploaded, remote changes are not pulled or merged yet.
+
+## Account deletion
+
+App stores require that users who can create an account can also delete it.
+
+**In the app.** Signed-in users can tap **Settings → Sync → Delete account**. After a confirmation, the app calls the `delete_account()` RPC from [`0002_delete_account.sql`](migrations/0002_delete_account.sql), which deletes the caller's `auth.users` row; the profile and every synced row cascade. The app then signs out and erases its local data.
+
+**On the web.** Google Play also asks for a way to request deletion without the app (for example after uninstalling it). If you distribute a build with sync, publish a page (and link it in your store listing) that tells users how to request deletion, for example:
+
+> To delete your Alpha Planner account and all data synced to our server, email **privacy@your-domain.example** from the address you signed up with, with the subject "Delete my account". We delete the account within 30 days and confirm by email. Data stored only on your device is removed when you uninstall the app or use Settings → Reset All Data.
+
+To fulfil a request, delete the user in the dashboard (**Authentication → Users → … → Delete user**) or run this in the SQL Editor:
+
+```sql
+DELETE FROM auth.users WHERE email = 'user@example.com';
+```
+
+Everything that belongs to the user cascades, as with the in-app deletion.
 
 ## Notes for operators
 
