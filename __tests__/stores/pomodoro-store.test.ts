@@ -64,6 +64,7 @@ import { usePomodoroStore } from '@/stores/pomodoro-store';
 import { useGamificationStore } from '@/stores/gamification-store';
 import { useTodoStore } from '@/stores/todo-store';
 import { useSettingsStore } from '@/stores/settings-store';
+import type { PomodoroSession } from '@/types';
 import { INITIAL_TIMER_STATE } from '@/types';
 
 const INITIAL_STATE = {
@@ -407,7 +408,7 @@ function makeRunningTimer(overrides: Partial<typeof INITIAL_TIMER_STATE> = {}) {
   };
 }
 
-function makeSession(overrides: Record<string, unknown> = {}) {
+function makeSession(overrides: Partial<PomodoroSession> = {}): PomodoroSession {
   return {
     id: 'sess-1',
     todoId: null,
@@ -423,7 +424,10 @@ function makeSession(overrides: Record<string, unknown> = {}) {
 }
 
 /** Override the settings-store mock for a single test */
-function withSettings(overrides: Record<string, unknown>) {
+function withSettings(overrides: {
+  pomodoroSettings?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
+}) {
   const base = (useSettingsStore.getState as jest.Mock)();
   (useSettingsStore.getState as jest.Mock).mockReturnValue({
     ...base,

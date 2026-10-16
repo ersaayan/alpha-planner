@@ -41,7 +41,7 @@ const SYNC_INITIAL = {
 };
 
 function addSampleTodo(
-  overrides: Partial<Parameters<typeof useTodoStore.getState>['0']['addTodo'] extends (a: infer P) => any ? P : never> = {},
+  overrides: Partial<Parameters<ReturnType<typeof useTodoStore.getState>['addTodo']>[0]> = {},
 ): Todo {
   return useTodoStore.getState().addTodo({
     title: 'Integration test todo',
@@ -52,6 +52,7 @@ function addSampleTodo(
     priority: 'medium',
     estimatedPomodoros: null,
     completedAt: null,
+    order: 0, // addTodo assigns the real order
     ...overrides,
   });
 }

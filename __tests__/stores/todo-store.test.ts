@@ -29,7 +29,7 @@ beforeEach(() => {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function addSampleTodo(overrides: Partial<Parameters<typeof useTodoStore.getState>['0']['addTodo'] extends (a: infer P) => any ? P : never> = {}): Todo {
+function addSampleTodo(overrides: Partial<Parameters<ReturnType<typeof useTodoStore.getState>['addTodo']>[0]> = {}): Todo {
   return useTodoStore.getState().addTodo({
     title: 'Test todo',
     description: null,
@@ -39,6 +39,7 @@ function addSampleTodo(overrides: Partial<Parameters<typeof useTodoStore.getStat
     priority: 'medium',
     estimatedPomodoros: null,
     completedAt: null,
+    order: 0, // addTodo assigns the real order
     ...overrides,
   });
 }
