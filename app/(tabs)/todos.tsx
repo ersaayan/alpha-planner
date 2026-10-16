@@ -130,7 +130,7 @@ export default function TodosScreen() {
                     ]}
                   />
                   <Text style={[styles.categoryText, { color: getCategoryColor(item.categoryId) }]}>
-                    {getCategoryName(item.categoryId)}
+                    {getCategoryName(item.categoryId) ?? ''}
                   </Text>
                 </View>
               )}

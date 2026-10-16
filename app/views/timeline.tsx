@@ -187,7 +187,7 @@ export default function TimelineScreen() {
                   ]}
                 />
                 <Text category="c2" style={{ color: colors.textMuted }}>
-                  {getCategoryName(todo.categoryId)}
+                  {getCategoryName(todo.categoryId) ?? ''}
                 </Text>
               </View>
             )}

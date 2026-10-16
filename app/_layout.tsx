@@ -1,5 +1,5 @@
 import '@/services/i18n/i18n-config';
-import * as eva from '@eva-design/eva';
+import * as eva from '@ui-kitten/eva';
 import {
   Inter_300Light,
   Inter_400Regular,
