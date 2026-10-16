@@ -9,7 +9,7 @@ import {
   Inter_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/inter';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { ApplicationProvider } from '@ui-kitten/components';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';

@@ -1,5 +1,5 @@
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import type { StyleProp, ViewStyle } from 'react-native';
+import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
 
 // Map Eva icon names to Feather/MaterialCommunity icons
 type IconEntry = { pack: 'feather' | 'material'; name: string };
@@ -229,7 +229,7 @@ const ICON_MAP: Record<string, IconEntry> = {
 
 interface IconProps {
   name: string;
-  fill?: string;
+  fill?: ColorValue;
   style?: StyleProp<ViewStyle>;
   size?: number;
 }

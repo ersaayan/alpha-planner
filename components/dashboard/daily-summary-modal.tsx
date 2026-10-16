@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   modal: {

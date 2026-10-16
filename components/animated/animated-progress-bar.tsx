@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   track: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   fill: {
     position: 'absolute',
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   gradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     overflow: 'hidden',
   },
   shimmer: {
@@ -188,12 +188,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   shimmerGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
     transform: [{ skewX: '-20deg' }],
   },
   milestones: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row',
   },
   milestone: {

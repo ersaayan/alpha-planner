@@ -51,6 +51,11 @@ jest.mock('@/stores/sync-store', () => ({
 
 jest.mock('react-native', () => ({
   AppState: { currentState: 'active' },
+  // expo's lazily installed global fetch reads Platform at first access
+  Platform: {
+    OS: 'ios',
+    select: (spec: Record<string, unknown>) => spec.ios ?? spec.native ?? spec.default,
+  },
 }));
 
 import { scheduleTimerNotification, cancelScheduledTimerNotifications } from '@/services/background';
