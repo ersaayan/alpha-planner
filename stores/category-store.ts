@@ -3,9 +3,9 @@ import { DEFAULT_CATEGORIES } from '@/types';
 import { DEFAULT_CATEGORY_IDS } from '@/constants/defaults';
 import { Palette } from '@/constants/theme';
 import { generateId } from '@/utils/uuid';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
 import { useTodoStore } from './todo-store';
 
@@ -161,17 +161,23 @@ export const useCategoryStore = create<CategoryState>()(
         return category?.color ?? Palette.sage;
       },
     }),
-    {
+    createPersistOptions<CategoryState, Pick<CategoryState, 'categories' | 'isInitialized'>>({
       name: 'category-storage',
       version: 1,
-      storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persistedState: unknown, _version: number) => {
-        const state = persistedState as any;
-        return {
-          categories: state?.categories || [],
-          isInitialized: state?.isInitialized ?? false,
-        } as CategoryState;
-      },
-    }
+      partialize: (state) => ({ categories: state.categories, isInitialized: state.isInitialized }),
+      migrate: migrateCategoryState,
+    })
   )
 );
+
+export function migrateCategoryState(persisted: unknown, _fromVersion: number) {
+  const state = asRecord(persisted);
+  const categories = asRecordArray(state.categories).filter(
+    (category) => typeof category.id === 'string' && category.id.length > 0
+  ) as unknown as Category[];
+  return {
+    categories,
+    // Stored categories mean the defaults were already created once; never re-create them on top.
+    isInitialized: state.isInitialized === true || categories.length > 0,
+  };
+}

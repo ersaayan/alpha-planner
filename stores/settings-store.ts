@@ -1,23 +1,19 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { persist } from 'zustand/middleware';
 import type { AppSettings, PomodoroSettings } from '@/types';
-import { DEFAULT_APP_SETTINGS, DEFAULT_POMODORO_SETTINGS, INITIAL_TIMER_STATE, INITIAL_USER_STATS } from '@/types';
-import { usePomodoroStore } from './pomodoro-store';
-import { useTodoStore } from './todo-store';
-import { useCategoryStore } from './category-store';
-import { useGamificationStore } from './gamification-store';
+import { DEFAULT_APP_SETTINGS, DEFAULT_POMODORO_SETTINGS } from '@/types';
+import { asRecord, createPersistOptions } from './persist';
 
 interface SettingsState {
   settings: AppSettings;
   pomodoroSettings: PomodoroSettings;
-  _hasHydrated: boolean;
 
   // Actions
   updateSettings: (settings: Partial<AppSettings>) => void;
   updatePomodoroSettings: (settings: Partial<PomodoroSettings>) => void;
   completeOnboarding: () => void;
   resetSettings: () => void;
+  /** Erases everything stored on this device. See stores/reset-all-data.ts. */
   resetAllData: () => Promise<void>;
 }
 
@@ -26,7 +22,6 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       settings: DEFAULT_APP_SETTINGS,
       pomodoroSettings: DEFAULT_POMODORO_SETTINGS,
-      _hasHydrated: false,
 
       updateSettings: (newSettings) =>
         set((state) => ({
@@ -57,66 +52,26 @@ export const useSettingsStore = create<SettingsState>()(
         }),
 
       resetAllData: async () => {
-        // Stop any running timer first to prevent ghost interval
-        try {
-          const pomodoroState = usePomodoroStore.getState();
-          if (pomodoroState.timer.state === 'running' || pomodoroState.timer.state === 'paused') {
-            pomodoroState.stopTimer();
-          }
-        } catch {
-          // Timer stop is best-effort
-        }
-
-        // Clear all persisted stores
-        await AsyncStorage.multiRemove([
-          'settings-storage',
-          'pomodoro-storage',
-          'todo-storage',
-          'category-storage',
-          'gamification-storage',
-        ]);
-
-        // Reset this store's state
-        set({
-          settings: DEFAULT_APP_SETTINGS,
-          pomodoroSettings: DEFAULT_POMODORO_SETTINGS,
-        });
-
-        // Reset other stores via their zustand APIs
-        usePomodoroStore.setState({
-          timer: INITIAL_TIMER_STATE,
-          sessions: [],
-          currentSession: null,
-        });
-        useTodoStore.setState({ todos: [], filter: {} });
-        useCategoryStore.setState({ categories: [], isInitialized: false });
-        useGamificationStore.setState({
-          stats: INITIAL_USER_STATS,
-          unlockedAchievements: [],
-          dailyStats: [],
-          pendingNotifications: [],
-        });
+        // Loaded lazily: reset-all-data imports every store, including pomodoro-store,
+        // which itself imports this store.
+        const { resetAllData } = require('./reset-all-data') as typeof import('./reset-all-data');
+        await resetAllData();
       },
     }),
-    {
+    createPersistOptions<SettingsState, Pick<SettingsState, 'settings' | 'pomodoroSettings'>>({
       name: 'settings-storage',
       version: 1,
-      storage: createJSONStorage(() => AsyncStorage),
-      onRehydrateStorage: () => () => {
-        useSettingsStore.setState({ _hasHydrated: true });
-      },
-      partialize: (state) => {
-        const { _hasHydrated, ...rest } = state;
-        return rest;
-      },
-      migrate: (persistedState: unknown, _version: number) => {
-        const state = persistedState as any;
-        return {
-          settings: { ...DEFAULT_APP_SETTINGS, ...(state?.settings || {}) },
-          pomodoroSettings: { ...DEFAULT_POMODORO_SETTINGS, ...(state?.pomodoroSettings || {}) },
-          _hasHydrated: false,
-        } as SettingsState;
-      },
-    }
+      partialize: (state) => ({ settings: state.settings, pomodoroSettings: state.pomodoroSettings }),
+      migrate: migrateSettingsState,
+    })
   )
 );
+
+/** v0 (unversioned) and v1 share a shape; the deep merge fills in any missing setting. */
+export function migrateSettingsState(persisted: unknown, _fromVersion: number) {
+  const state = asRecord(persisted);
+  return {
+    settings: asRecord(state.settings),
+    pomodoroSettings: asRecord(state.pomodoroSettings),
+  };
+}

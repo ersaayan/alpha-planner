@@ -1,12 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import type { DailyQuest } from '@/types';
 import { QUEST_TEMPLATES, DAILY_QUEST_COUNT, DAILY_QUEST_ALL_COMPLETE_BONUS, scaleQuestTarget } from '@/constants/daily-quests';
 import { XP_VALUES } from '@/constants/gamification';
 import { generateId } from '@/utils/uuid';
 import { getDateKey } from '@/utils/date';
 import { useGamificationStore } from './gamification-store';
+import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
 
 interface DailyQuestsStore {
@@ -151,13 +151,23 @@ export const useDailyQuestsStore = create<DailyQuestsStore>()(
         return get().quests.filter((q) => q.date === today && q.isCompleted).length;
       },
     }),
-    {
+    createPersistOptions<DailyQuestsStore, Pick<DailyQuestsStore, 'quests' | 'lastGeneratedDate'>>({
       name: 'daily-quests-store',
-      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
       partialize: (state) => ({
         quests: state.quests,
         lastGeneratedDate: state.lastGeneratedDate,
       }),
-    }
+      migrate: migrateDailyQuestsState,
+    })
   )
 );
+
+/** v0 (unversioned) → v1: same shape, with malformed entries dropped. */
+export function migrateDailyQuestsState(persisted: unknown, _fromVersion: number) {
+  const state = asRecord(persisted);
+  return {
+    quests: asRecordArray(state.quests).filter((item) => typeof item.id === 'string'),
+    lastGeneratedDate: typeof state.lastGeneratedDate === 'string' ? state.lastGeneratedDate : null,
+  };
+}

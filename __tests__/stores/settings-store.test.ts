@@ -1,46 +1,9 @@
-jest.mock('@/stores/pomodoro-store', () => ({
-  usePomodoroStore: {
-    getState: jest.fn(() => ({
-      timer: { state: 'stopped' },
-      stopTimer: jest.fn(),
-    })),
-    setState: jest.fn(),
-  },
-}));
-
-jest.mock('@/stores/todo-store', () => ({
-  useTodoStore: {
-    getState: jest.fn(() => ({ todos: [], filter: {} })),
-    setState: jest.fn(),
-  },
-}));
-
-jest.mock('@/stores/category-store', () => ({
-  useCategoryStore: {
-    getState: jest.fn(() => ({ categories: [], isInitialized: false })),
-    setState: jest.fn(),
-  },
-}));
-
-jest.mock('@/stores/gamification-store', () => ({
-  useGamificationStore: {
-    getState: jest.fn(() => ({
-      stats: {},
-      unlockedAchievements: [],
-      dailyStats: [],
-      pendingNotifications: [],
-    })),
-    setState: jest.fn(),
-  },
-}));
-
-import { useSettingsStore } from '@/stores/settings-store';
+import { migrateSettingsState, useSettingsStore } from '@/stores/settings-store';
 import { DEFAULT_APP_SETTINGS, DEFAULT_POMODORO_SETTINGS } from '@/types';
 
 const INITIAL_STATE = {
   settings: { ...DEFAULT_APP_SETTINGS },
   pomodoroSettings: { ...DEFAULT_POMODORO_SETTINGS },
-  _hasHydrated: false,
 };
 
 beforeEach(() => {
@@ -54,10 +17,6 @@ describe('useSettingsStore', () => {
     const state = useSettingsStore.getState();
     expect(state.settings).toEqual(DEFAULT_APP_SETTINGS);
     expect(state.pomodoroSettings).toEqual(DEFAULT_POMODORO_SETTINGS);
-  });
-
-  it('_hasHydrated starts false', () => {
-    expect(useSettingsStore.getState()._hasHydrated).toBe(false);
   });
 
   // ── updateSettings ────────────────────────────────────────────────────
@@ -143,16 +102,17 @@ describe('useSettingsStore', () => {
     expect(state.pomodoroSettings).toEqual(DEFAULT_POMODORO_SETTINGS);
   });
 
-  // ── resetAllData ──────────────────────────────────────────────────────
+  // resetAllData is covered in __tests__/stores/reset-all-data.test.ts
+});
 
-  it('resetAllData: resets settings to defaults', async () => {
-    useSettingsStore.getState().updateSettings({ theme: 'dark' });
-    useSettingsStore.getState().completeOnboarding();
+describe('migrateSettingsState', () => {
+  it('keeps stored settings objects for the deep merge', () => {
+    const migrated = migrateSettingsState({ settings: { theme: 'dark' }, pomodoroSettings: { focusDuration: 1800 } }, 0);
+    expect(migrated).toEqual({ settings: { theme: 'dark' }, pomodoroSettings: { focusDuration: 1800 } });
+  });
 
-    await useSettingsStore.getState().resetAllData();
-
-    const state = useSettingsStore.getState();
-    expect(state.settings).toEqual(DEFAULT_APP_SETTINGS);
-    expect(state.pomodoroSettings).toEqual(DEFAULT_POMODORO_SETTINGS);
+  it('tolerates garbage', () => {
+    expect(migrateSettingsState(null, 0)).toEqual({ settings: {}, pomodoroSettings: {} });
+    expect(migrateSettingsState({ settings: 'x', pomodoroSettings: [1] }, 0)).toEqual({ settings: {}, pomodoroSettings: {} });
   });
 });
