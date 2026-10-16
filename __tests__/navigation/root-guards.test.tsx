@@ -9,7 +9,12 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { DEFAULT_APP_SETTINGS } from '@/types';
 import { setSyncConfigured } from '../helpers/sync';
 
-const page = (label: string) => () => <Text>{label}</Text>;
+function page(label: string) {
+  function StubScreen() {
+    return <Text>{label}</Text>;
+  }
+  return StubScreen;
+}
 
 /** The real root navigator over stub screens. */
 const ROUTES = {

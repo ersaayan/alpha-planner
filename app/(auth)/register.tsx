@@ -1,6 +1,8 @@
 import { Icon } from '@/components/icon';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCloseAuth, useFinishSignIn } from '@/hooks/use-finish-sign-in';
+import { getAuthErrorKey, getValidationErrorKey } from '@/services/supabase/auth-errors';
 import { useAuthStore } from '@/stores/auth-store';
 import { validateDisplayName, validateEmail, validatePassword } from '@/utils/validators';
 import { Input, Text } from '@ui-kitten/components';
@@ -26,28 +28,40 @@ export default function RegisterScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { signUp, isLoading } = useAuthStore();
+  const signUp = useAuthStore((state) => state.signUp);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const finishSignIn = useFinishSignIn();
+  const closeAuth = useCloseAuth();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSignUp = async () => {
-    const nameError = validateDisplayName(displayName);
-    if (nameError) { Alert.alert(t('common.error'), nameError); return; }
-    const emailError = validateEmail(email);
-    if (emailError) { Alert.alert(t('common.error'), emailError); return; }
+    const trimmedName = displayName.trim();
+    const trimmedEmail = email.trim();
+    const nameError = validateDisplayName(trimmedName);
+    if (nameError) { Alert.alert(t('common.error'), t(getValidationErrorKey(nameError))); return; }
+    const emailError = validateEmail(trimmedEmail);
+    if (emailError) { Alert.alert(t('common.error'), t(getValidationErrorKey(emailError))); return; }
     const passwordError = validatePassword(password);
-    if (passwordError) { Alert.alert(t('common.error'), passwordError); return; }
+    if (passwordError) { Alert.alert(t('common.error'), t(getValidationErrorKey(passwordError))); return; }
 
+    let result;
     try {
-      await signUp(email.trim(), password, displayName.trim());
-      Alert.alert(t('auth.accountCreated'), t('auth.accountCreatedMsg'), [
+      result = await signUp(trimmedEmail, password, trimmedName);
+    } catch (e: unknown) {
+      Alert.alert(t('auth.signUpFailed'), t(getAuthErrorKey(e)));
+      return;
+    }
+    if (result.needsConfirmation) {
+      Alert.alert(t('auth.accountCreated'), t('auth.confirmEmailMsg'), [
         { text: t('common.ok'), onPress: () => router.replace('/(auth)/login' as any) },
       ]);
-    } catch (e: unknown) {
-      Alert.alert(t('auth.signUpFailed'), (e as Error).message);
+      return;
     }
+    // Signed in right away (email confirmation is off on this server).
+    finishSignIn(result);
   };
 
   return (
@@ -132,6 +146,12 @@ export default function RegisterScreen() {
           >
             <Text category="c1" style={{ color: colors.primary }}>
               {t('auth.hasAccount')}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={closeAuth} style={styles.linkButton} accessibilityRole="button">
+            <Text category="c1" style={{ color: colors.textSecondary }}>
+              {t('auth.notNow')}
             </Text>
           </Pressable>
         </Animated.View>

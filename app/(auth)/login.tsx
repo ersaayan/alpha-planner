@@ -1,6 +1,8 @@
 import { Icon } from '@/components/icon';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useCloseAuth, useFinishSignIn } from '@/hooks/use-finish-sign-in';
+import { getAuthErrorKey, getValidationErrorKey } from '@/services/supabase/auth-errors';
 import { useAuthStore } from '@/stores/auth-store';
 import { validateEmail, validatePassword } from '@/utils/validators';
 import { Input, Text } from '@ui-kitten/components';
@@ -26,22 +28,29 @@ export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const { signIn, isLoading } = useAuthStore();
+  const signIn = useAuthStore((state) => state.signIn);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const finishSignIn = useFinishSignIn();
+  const closeAuth = useCloseAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSignIn = async () => {
-    const emailError = validateEmail(email);
-    if (emailError) { Alert.alert(t('common.error'), emailError); return; }
+    const trimmedEmail = email.trim();
+    const emailError = validateEmail(trimmedEmail);
+    if (emailError) { Alert.alert(t('common.error'), t(getValidationErrorKey(emailError))); return; }
     const passwordError = validatePassword(password);
-    if (passwordError) { Alert.alert(t('common.error'), passwordError); return; }
+    if (passwordError) { Alert.alert(t('common.error'), t(getValidationErrorKey(passwordError))); return; }
 
+    let result;
     try {
-      await signIn(email.trim(), password);
+      result = await signIn(trimmedEmail, password);
     } catch (e: unknown) {
-      Alert.alert(t('auth.signInFailed'), (e as Error).message);
+      Alert.alert(t('auth.signInFailed'), t(getAuthErrorKey(e)));
+      return;
     }
+    finishSignIn(result);
   };
 
   return (
@@ -116,6 +125,12 @@ export default function LoginScreen() {
           >
             <Text category="c1" style={{ color: colors.primary }}>
               {t('auth.noAccount')}
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={closeAuth} style={styles.linkButton} accessibilityRole="button">
+            <Text category="c1" style={{ color: colors.textSecondary }}>
+              {t('auth.notNow')}
             </Text>
           </Pressable>
         </Animated.View>
