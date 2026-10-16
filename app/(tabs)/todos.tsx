@@ -20,6 +20,7 @@ import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCheckbox } from '@/components/animated/animated-checkbox';
 import { EmptyState } from '@/components/common';
+import { foldForSearch } from '@/utils/search';
 
 const STATUS_TABS: { label: string; value: TodoStatus | 'all' }[] = [
   { label: 'All', value: 'all' },
@@ -47,10 +48,10 @@ export default function TodosScreen() {
     return todos.filter((todo) => {
       if (activeTab !== 'all' && todo.status !== activeTab) return false;
       if (searchQuery) {
-        const query = searchQuery.toLowerCase();
+        const query = foldForSearch(searchQuery);
         return (
-          todo.title.toLowerCase().includes(query) ||
-          todo.description?.toLowerCase().includes(query)
+          foldForSearch(todo.title).includes(query) ||
+          (todo.description ? foldForSearch(todo.description).includes(query) : false)
         );
       }
       return true;
