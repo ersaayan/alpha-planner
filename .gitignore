@@ -13,15 +13,26 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
 *.mobileprovision
 
+# generated native folders
+/ios
+/android
+
+# build artifacts
+*.apk
+*.aab
+*.ipa
+
 # Metro
 .metro-health-check*
 
-# debug
+# debug / logs
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
@@ -30,21 +41,29 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# environment files (keep the example)
+.env
+.env.*
+!.env.example
+
+# secrets and service credentials
+google-services.json
+GoogleService-Info.plist
+credentials.json
 
 # typescript
 *.tsbuildinfo
 
-app-example
-
-# generated native folders
-/ios
-/android
-*.apk
-
-# superpowers brainstorming
-.superpowers/
-
 # test coverage
 coverage/
+
+# editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# AI-assistant tooling and local state
+.claude/
+.agents/
+.superpowers/
+skills-lock.json
