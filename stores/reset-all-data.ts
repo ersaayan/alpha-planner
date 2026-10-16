@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { runStartupTasks } from '@/services/app/startup-tasks';
 import { changeLanguage } from '@/services/i18n/i18n-config';
-import { INITIAL_PRESTIGE_STATE, INITIAL_TIMER_STATE } from '@/types';
+import { whenAlertsSettled } from '@/services/notifications/pomodoro-alerts';
+import { INITIAL_PRESTIGE_STATE } from '@/types';
 import { useAuthStore } from './auth-store';
 import { useCategoryStore } from './category-store';
 import { useDailyQuestsStore } from './daily-quests-store';
@@ -22,9 +23,10 @@ export interface ResetAllDataOptions {
   keepSignedIn?: boolean;
 }
 
-/** Stores that use stores/persist.ts; reset to their initial state. */
+/** Every persisted store (all use stores/persist.ts). */
 const RESETTABLE_STORES = [
   useSettingsStore,
+  usePomodoroStore,
   useTodoStore,
   useCategoryStore,
   useGamificationStore,
@@ -43,14 +45,14 @@ function storageName(store: { persist: { getOptions: () => { name?: string } } }
  * every store to its first-launch state. PRIVACY.md promises exactly this.
  */
 export async function resetAllData(options: ResetAllDataOptions = {}): Promise<void> {
-  // Stop any running timer first to prevent a ghost interval
+  // Stop the timer through its own API (engine + phase-end alerts) without crediting
+  // anything, and let the alert worker finish before the global cancel below.
   try {
-    const pomodoroState = usePomodoroStore.getState();
-    if (pomodoroState.timer.state === 'running' || pomodoroState.timer.state === 'paused') {
-      pomodoroState.stopTimer();
-    }
+    usePomodoroStore.setState({ sessions: [], currentSession: null });
+    usePomodoroStore.getState().resetTimer();
+    await whenAlertsSettled();
   } catch {
-    // Timer stop is best-effort
+    // Best-effort: everything is cancelled and erased below anyway
   }
 
   // Scheduled and shown notifications (timer, daily summary) must not outlive the data.
@@ -68,7 +70,7 @@ export async function resetAllData(options: ResetAllDataOptions = {}): Promise<v
   const { status, user } = useAuthStore.getState();
 
   // Remove the stored copies, including backups of unreadable data.
-  const names = [...RESETTABLE_STORES, usePomodoroStore]
+  const names = RESETTABLE_STORES
     .map(storageName)
     .filter((name): name is string => typeof name === 'string');
   await AsyncStorage.multiRemove([...names, ...names.map(backupKey)]);
@@ -104,11 +106,9 @@ export async function resetAllData(options: ResetAllDataOptions = {}): Promise<v
   if (options.keepSignedIn && user) {
     useSyncStore.getState().setOwner(user.id);
   }
-  usePomodoroStore.setState({
-    timer: INITIAL_TIMER_STATE,
-    sessions: [],
-    currentSession: null,
-  });
+  // The timer again, now with the default settings (and its alerts re-armed for a stopped timer).
+  usePomodoroStore.setState({ sessions: [], currentSession: null });
+  usePomodoroStore.getState().resetTimer();
 
   // Back to first-launch state: default categories, today's quests, this week's goals.
   runStartupTasks();

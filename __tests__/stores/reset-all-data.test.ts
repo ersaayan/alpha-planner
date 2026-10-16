@@ -18,6 +18,7 @@ import { useCategoryStore } from '@/stores/category-store';
 import { useDailyQuestsStore } from '@/stores/daily-quests-store';
 import { useGamificationStore } from '@/stores/gamification-store';
 import { whenStoresHydrated } from '@/stores/hydration';
+import { PHASE_END_IDS } from '@/services/notifications/pomodoro-alerts';
 import { backupKey } from '@/stores/persist';
 import { usePomodoroStore } from '@/stores/pomodoro-store';
 import { resetAllData } from '@/stores/reset-all-data';
@@ -70,6 +71,7 @@ async function fillEveryStore() {
   useWeeklyGoalsStore.getState().setPersonalGoal('pomodoros', 99);
 
   usePomodoroStore.setState({ sessions: [{ id: 'p1' } as never] });
+  usePomodoroStore.getState().startTimer();
 
   disk()[backupKey('todo-storage')] = 'old corrupt copy';
 }
@@ -120,7 +122,10 @@ describe('resetAllData', () => {
     expect(authService.signOut).toHaveBeenCalled();
 
     expect(usePomodoroStore.getState().sessions).toEqual([]);
+    expect(usePomodoroStore.getState().currentSession).toBeNull();
     expect(usePomodoroStore.getState().timer).toEqual(INITIAL_TIMER_STATE);
+    // Stopping the running timer must not credit anything after the wipe
+    expect(useGamificationStore.getState().stats.totalPomodoros).toBe(0);
   });
 
   it('re-creates the default categories and today\'s quests right away', async () => {
@@ -151,6 +156,23 @@ describe('resetAllData', () => {
     await resetAllData();
     expect(Notifications.cancelAllScheduledNotificationsAsync).toHaveBeenCalled();
     expect(Notifications.dismissAllNotificationsAsync).toHaveBeenCalled();
+  });
+
+  it('stops a running timer and cancels its phase-end alerts through the timer API', async () => {
+    usePomodoroStore.getState().startTimer();
+    expect(usePomodoroStore.getState().timer.state).toBe('running');
+    (Notifications.cancelScheduledNotificationAsync as jest.Mock).mockClear();
+
+    await resetAllData();
+
+    expect(usePomodoroStore.getState().timer.state).toBe('stopped');
+    // The timer cancels its own alerts and finishes before the global cancel runs
+    const cancelMock = Notifications.cancelScheduledNotificationAsync as jest.Mock;
+    const globalCancel = (Notifications.cancelAllScheduledNotificationsAsync as jest.Mock).mock.invocationCallOrder[0];
+    const cancelledFirst = cancelMock.mock.calls
+      .filter((_call, i) => cancelMock.mock.invocationCallOrder[i] < globalCancel)
+      .map(([id]) => id);
+    expect(cancelledFirst).toEqual(expect.arrayContaining([...PHASE_END_IDS]));
   });
 
   it('applies the default (system) language again', async () => {
