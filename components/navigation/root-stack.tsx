@@ -45,6 +45,7 @@ export function RootStack() {
         <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
         <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
         <Stack.Screen name="views/timeline" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/notification-reliability" />
 
         <Stack.Protected guard={isSyncConfigured} redirectTo="/">
           <Stack.Screen name="(auth)" options={{ presentation: 'modal' }} />

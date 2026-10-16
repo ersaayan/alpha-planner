@@ -35,6 +35,7 @@ const ROUTES = {
   'views/kanban': page('Kanban'),
   'views/calendar': page('Calendar'),
   'views/timeline': page('Timeline'),
+  'settings/notification-reliability': page('Notification reliability'),
   '+not-found': page('Not found'),
 };
 
@@ -100,6 +101,14 @@ describe('root navigation guards', () => {
 
     expect(await screen.findByText('Welcome')).toBeTruthy();
     expect(screen.queryByText('Todo detail')).toBeNull();
+  });
+
+  it('every screen outside onboarding is guarded, including settings sub-screens', async () => {
+    setOnboarded(false);
+    await renderRouter(ROUTES, { initialUrl: '/settings/notification-reliability' });
+
+    expect(await screen.findByText('Welcome')).toBeTruthy();
+    expect(screen.queryByText('Notification reliability')).toBeNull();
   });
 
   it('a returning user lands on the tabs, and onboarding is not reachable', async () => {

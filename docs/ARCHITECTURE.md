@@ -4,7 +4,7 @@ A short, factual map of how Alpha Planner is put together. It describes the mode
 
 ## Overview
 
-Alpha Planner is an [Expo](https://expo.dev) / React Native app written in TypeScript. Screens live in `app/` (Expo Router), UI state lives in [Zustand](https://zustand.docs.pmnd.rs/) stores that persist themselves to AsyncStorage, and a small set of services wraps platform features (notifications, background work, i18n, optional sync).
+Alpha Planner is an [Expo](https://expo.dev) / React Native app written in TypeScript. Screens live in `app/` (Expo Router), UI state lives in [Zustand](https://zustand.docs.pmnd.rs/) stores that persist themselves to AsyncStorage, and a small set of services wraps platform features (notifications, i18n, optional sync).
 
 The app is **local-first**: it works with no account and no network. Everything below the "Optional sync" section runs entirely on the device.
 
@@ -15,9 +15,9 @@ The app is **local-first**: it works with no account and no network. Everything 
 | `app/` | Screens and navigation. File-based routes for Expo Router: tabs (dashboard, Pomodoro, tasks, stats, settings), onboarding, task create/detail, the kanban / calendar / timeline views, the optional sign-in modal and `+not-found`. |
 | `components/` | Reusable UI: animated primitives, charts, gamification modals and toasts, the circular timer, navigation (including the guarded root stack), the optional sync account card. |
 | `constants/` | Static configuration: theme and Eva theme, animations, XP values, levels, achievements, daily quests, weekly goals, combo multipliers, defaults. |
-| `hooks/` | React hooks: app start-up (`use-app-bootstrap`), color scheme, sync trigger, sign-in completion. |
+| `hooks/` | React hooks: app start-up (`use-app-bootstrap`), the timer's app lifecycle and alert permissions (`use-pomodoro-lifecycle`, `use-alert-permissions`), color scheme, sync trigger, sign-in completion. |
 | `locales/` | `en.json` and `tr.json` translation files. |
-| `services/` | Non-UI logic: `app/` (start-up tasks), `notifications/`, `background/`, `gamification/` (daily summary, monthly prestige), `i18n/`, and the optional `supabase/` + `sync/`. |
+| `services/` | Non-UI logic: `app/` (start-up tasks), `notifications/` (timer alerts, permissions, other notifications), `gamification/` (daily summary, monthly prestige), `i18n/`, and the optional `supabase/` + `sync/`. |
 | `stores/` | Zustand stores (see below). |
 | `types/` | Shared TypeScript types. |
 | `utils/` | Pure helpers (dates, validators, ids, timer maths, theme helpers). |
@@ -60,15 +60,38 @@ Routing is decided by `Stack.Protected` guards in `components/navigation/root-st
 
 ## Timer model
 
-The Pomodoro timer is driven by **wall-clock timestamps**, never by counting ticks.
+The Pomodoro timer is driven by **wall-clock timestamps**, never by counting ticks. The maths lives in pure functions in `utils/pomodoro-helpers.ts`; the store (`stores/pomodoro-store.ts`), the alert scheduler and the screens all derive from them.
 
-- A running phase stores `startedAt` (epoch milliseconds), `totalTime` (the phase length) and the accumulated paused duration.
-- The moment the phase ends is therefore `startedAt + totalTime + total paused duration`. Remaining time is always computed as *end time − now*, so it is correct after any delay: backgrounding, device sleep, or the app being killed and reopened. The timer state is persisted, so a session survives app restarts.
-- **JS intervals only drive the UI.** A one-second interval re-renders the countdown while the app is in the foreground; it is stopped in the background and is not relied upon for correctness. When the app returns to the foreground it re-derives the remaining time from the timestamps and, if the phase has already ended, completes it then.
-- **End-of-phase alerts are pre-scheduled local notifications.** When a phase starts or resumes, the app schedules a notification for the exact end timestamp; pausing, stopping or skipping cancels it and rescheduling happens on resume. Because the operating system delivers the alert, it fires with the screen off or the app suspended, with no running JS required. Notifications use the `pomodoro` channel (Android) and a bundled sound.
-- Completing a focus phase hands off to the gamification flow below; the next phase (short or long break, based on the configured number of sessions until a long break) can optionally auto-start.
+- **State.** A running phase stores `startedAt` (epoch ms), `totalTime` (its own length, fixed at start) and `totalPausedDuration`. Its end is `phaseEndMs = startedAt + (totalTime + totalPausedDuration) * 1000`. Remaining time is `phaseEndMs − now`, clamped to `[0, totalTime]`. `remainingTime` in the store is only a snapshot taken at the last state change and is never used to decide whether a phase has ended.
+- **One completion path.** `reconcileTimer(timer, settings, now)` returns every phase whose end is at or before `now`, exactly once, and the state that follows. `syncTimer` feeds that into a single `commit` step that records the sessions, credits each finished focus once (gamification XP/quests/goals and the linked task count, using the phase's own length and its real end time) and queues the sync operation. The in-app clock, returning to the foreground, cold start and notification actions all go through it.
+- **Auto-start chain.** When auto-start is on, a finished phase starts the next one at the exact end of the previous one. `chainIndex` counts phases since the user last started or resumed the timer. A chain is limited to `ALERT_CHAIN_LIMIT` (8) phase ends; after the last one the timer waits in the ready state of the next phase, so a phone left alone for hours does not collect phantom sessions.
+- **In-app clock.** One timeout outside React wakes when the displayed second changes or the phase ends. It updates `usePomodoroClock` (a small non-persisted store the screens read) and calls `syncTimer` at the end. Nothing else depends on it, and JS timers stopping in the background is fine. The persisted store changes only on state changes, so AsyncStorage is not written every second.
+- **Persistence.** The store persists `timer`, `sessions` (last 90 days) and `currentSession`, with `version` + `migrate` that repairs older or corrupted states. Catch-up does not run during hydration: `hooks/use-pomodoro-lifecycle.ts` waits until the settings, gamification, todo, daily-quest and weekly-goal stores have hydrated too, so a credit is never overwritten by a store that loads later.
 
-Because the OS owns the alert, behaviour around exact alarms, Do Not Disturb and battery optimisation differs between iOS and Android versions. Always test timer changes on both platforms (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
+### End-of-phase alerts
+
+The operating system delivers every alert, so alerts fire with the screen off, the app suspended, or the app swiped away. `services/notifications/pomodoro-alerts.ts` owns them:
+
+- **`armAlerts(snapshot)` is the only writer.** It is serialized and idempotent: each call describes the complete desired state, and calls made while one is running are coalesced. The store calls it on start, resume, phase change, pause, stop, skip, reset and setting changes. AppState changes never cancel or reschedule anything.
+- **The whole chain is pre-scheduled.** On start or resume, every phase end up to the next manual start (at most 8) is scheduled as a `DATE` notification with a fixed identifier per chain position, `pomodoro-phase-end-<chainIndex>`. Re-arming replaces those ids instead of adding new ones. Pause, stop, skip and reset cancel them. After a phase completes, alerts of the phases that already ended are left alone, because they may still be about to fire.
+- **Foreground.** Alerts stay armed while the app is open. The notification handler shows the banner and plays the sound, and the app adds a haptic when its own clock completes the phase.
+- **Taps and actions.** Every timer notification carries `data.url = '/pomodoro'`; a tap opens the Pomodoro screen, also on cold start (via the last notification response). Action buttons (Pause, Resume, Skip, Stop) open the app so they also work after it was killed; the timer is synced before the action is applied.
+- **Settings.** Nothing is scheduled when the in-app notifications toggle is off (the daily summary included). Changing sound, vibration, durations, auto-start, time format or language re-arms the chain.
+- **Permission.** Launch never prompts. The Pomodoro screen asks at the first Start, after a short explanation; if notifications are denied it shows a banner that opens Settings. Turning the in-app toggle back on asks again.
+
+**Android**
+
+- The channel is set in the **trigger** (`{ type: DATE, date, channelId }`), never in `content`. Alert channels are versioned (`pomodoro-alert-…-v2`) because a channel's sound and vibration are fixed once created: one per sound/vibration combination, with `timer_complete.wav` and a vibration pattern. Old channels are deleted. Channel names are localized.
+- Triggers use `delivery: 'alarmClock'` (`AlarmManager.setAlarmClock`), which Doze and OEM battery savers do not defer. That needs the exact-alarm permission (`SCHEDULE_EXACT_ALARM`), which Android 14+ denies by default. Without it the alarm silently becomes inexact and can be many minutes late, so the Pomodoro screen shows a prompt that opens "Alarms & reminders" (`requestExactAlarmPermissionsAsync`), and alerts are re-armed once it is granted.
+- While a phase runs or is paused, an ongoing notification shows "Ends at HH:MM" (or the paused remaining time) with action buttons. It uses the same identifier as the current phase's alert, so the alert replaces it when the phase ends. There is no foreground service.
+- `app/settings/notification-reliability.tsx` checks the permission, the alert channel and exact alarms, links to the battery optimisation list and to dontkillmyapp.com for the phone's maker, and can send a test alert.
+
+**iOS**
+
+- Alerts use `interruptionLevel: 'timeSensitive'` (entitlement in `app.json`) so they break through Focus modes the user has not restricted. The app has no `UIBackgroundModes`, and must not play audio in the background.
+- iOS keeps at most 64 pending notifications; the chain uses at most 8.
+
+Because the operating system owns the alerts, behaviour differs between iOS and Android versions and phone makers. Always test timer changes on both platforms with [the manual test plan](testing/timer-manual-test-plan.md) (see also [CONTRIBUTING.md](../CONTRIBUTING.md)).
 
 ## Gamification flow
 
