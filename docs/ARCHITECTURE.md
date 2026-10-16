@@ -38,7 +38,7 @@ Each domain has its own store in `stores/`, re-exported from `stores/index.ts`:
 | `daily-quests-store` / `weekly-goals-store` | Today's quests and this week's goals with progress. |
 | `sync-store` / `auth-store` | Queue (per signed-in account) and status for the optional sync, and who is signed in. The session tokens live in the Supabase client's own storage, not here. |
 
-Persistence uses Zustand's `persist` middleware. Every store except `pomodoro-store` builds its options with `createPersistOptions` (`stores/persist.ts`), which guarantees that user data survives launches and upgrades:
+Persistence uses Zustand's `persist` middleware. Every store builds its options with `createPersistOptions` (`stores/persist.ts`), which guarantees that user data survives launches and upgrades:
 
 - **Nothing is written before hydration.** Zustand saves on every `set()`, even before the stored data has loaded; the shared storage drops those writes until the store has merged what is on disk, so early defaults can never overwrite the user's data.
 - **Every store has a `version` and a real `migrate`**, and stored data is **deep-merged over the defaults**, so a field added in a later release gets its default instead of `undefined`.
