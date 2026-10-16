@@ -41,12 +41,15 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  back: jest.fn(),
+  canGoBack: jest.fn(() => true),
+};
+
 jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-  }),
+  useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
   Redirect: () => null,
 }));
@@ -81,8 +84,16 @@ jest.spyOn(Alert, 'alert');
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSignUp = jest.fn();
+  mockSignUp = jest.fn().mockResolvedValue({ needsConfirmation: true, switchedAccount: false });
 });
+
+async function fillAndSubmit(name: string, email: string, password: string) {
+  await fireEvent.changeText(screen.getByPlaceholderText('Your name'), name);
+  await fireEvent.changeText(screen.getByPlaceholderText('your@email.com'), email);
+  await fireEvent.changeText(screen.getByPlaceholderText('Min 6 characters'), password);
+  const matches = screen.getAllByText('Create Account');
+  await fireEvent.press(matches[matches.length - 1]);
+}
 
 describe('RegisterScreen', () => {
   it('renders name, email, password inputs', async () => {
@@ -161,5 +172,35 @@ describe('RegisterScreen', () => {
     await fireEvent.press(matches[matches.length - 1]);
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Password must be at least 6 characters');
+  });
+
+  it('trims name and email', async () => {
+    await render(<RegisterScreen />);
+    await fillAndSubmit('  John  ', ' john@example.com ', 'password123');
+    expect(mockSignUp).toHaveBeenCalledWith('john@example.com', 'password123', 'John');
+  });
+
+  it('asks to confirm the email, then goes to sign-in', async () => {
+    await render(<RegisterScreen />);
+    await fillAndSubmit('John', 'john@example.com', 'password123');
+
+    expect(Alert.alert).toHaveBeenCalledWith('Account Created', expect.stringContaining('confirmation'), expect.any(Array));
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    buttons[0].onPress();
+    expect(mockRouter.replace).toHaveBeenCalledWith('/(auth)/login');
+  });
+
+  it('closes the modal when the server signs the new user in right away', async () => {
+    mockSignUp.mockResolvedValue({ needsConfirmation: false, switchedAccount: false });
+    await render(<RegisterScreen />);
+    await fillAndSubmit('John', 'john@example.com', 'password123');
+    expect(mockRouter.back).toHaveBeenCalled();
+  });
+
+  it('shows a translated message when the email is taken', async () => {
+    mockSignUp.mockRejectedValue(Object.assign(new Error('User already registered'), { code: 'user_already_exists' }));
+    await render(<RegisterScreen />);
+    await fillAndSubmit('John', 'john@example.com', 'password123');
+    expect(Alert.alert).toHaveBeenCalledWith('Sign Up Failed', 'An account with this email already exists.');
   });
 });

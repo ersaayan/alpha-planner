@@ -84,7 +84,7 @@ export default function WelcomeScreen() {
         <Button
           size="giant"
           style={styles.ctaButton}
-          onPress={() => router.replace('/(onboarding)/pomodoro-setup')}
+          onPress={() => router.push('/(onboarding)/pomodoro-setup')}
         >
           {t('onboarding.welcome.getStarted')}
         </Button>

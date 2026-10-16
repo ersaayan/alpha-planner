@@ -3,9 +3,9 @@ import { calculateComboXp } from '@/constants/combo';
 import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, UserAchievement, UserStats } from '@/types';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
 import { getDateKey } from '@/utils/date';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
+import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
 
 interface GamificationState {
@@ -619,21 +619,10 @@ export const useGamificationStore = create<GamificationState>()(
         return get().unlockedAchievements.some((ua) => ua.achievementId === achievementId);
       },
     }),
-    {
+    createPersistOptions<GamificationState, PersistedGamificationState>({
       name: 'gamification-storage',
+      // v1 had no combo/prestige; v2 added them. Already at 2 in shipped builds, so it stays 2.
       version: 2,
-      storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persistedState: unknown, _version: number) => {
-        const state = persistedState as any;
-        return {
-          stats: { ...INITIAL_USER_STATS, ...(state?.stats || {}) },
-          unlockedAchievements: state?.unlockedAchievements || [],
-          dailyStats: state?.dailyStats || [],
-          pendingNotifications: state?.pendingNotifications || [],
-          combo: { ...INITIAL_COMBO_STATE, ...(state?.combo || {}) },
-          prestige: { ...INITIAL_PRESTIGE_STATE, ...(state?.prestige || {}) },
-        } as GamificationState;
-      },
       partialize: (state) => ({
         stats: state.stats,
         unlockedAchievements: state.unlockedAchievements,
@@ -642,6 +631,25 @@ export const useGamificationStore = create<GamificationState>()(
         combo: state.combo,
         prestige: state.prestige,
       }),
-    }
+      migrate: migrateGamificationState,
+    })
   )
 );
+
+type PersistedGamificationState = Pick<
+  GamificationState,
+  'stats' | 'unlockedAchievements' | 'dailyStats' | 'pendingNotifications' | 'combo' | 'prestige'
+>;
+
+/** v0/v1 → v2. Missing combo/prestige objects are filled from defaults by the deep merge. */
+export function migrateGamificationState(persisted: unknown, _fromVersion: number) {
+  const state = asRecord(persisted);
+  return {
+    stats: asRecord(state.stats),
+    unlockedAchievements: asRecordArray(state.unlockedAchievements),
+    dailyStats: asRecordArray(state.dailyStats),
+    pendingNotifications: asRecordArray(state.pendingNotifications),
+    combo: asRecord(state.combo),
+    prestige: asRecord(state.prestige),
+  };
+}

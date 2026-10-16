@@ -2,14 +2,20 @@ import { Icon } from "@/components/icon";
 import { CircularProgress } from "@/components/pomodoro";
 import { Text } from "@ui-kitten/components";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { useEffect, useRef } from "react";
+import { useIsFocused } from "expo-router";
+import { BottomTabBarHeightContext } from "expo-router/js-tabs";
+import { useContext, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   AccessibilityInfo,
   Alert,
+  Linking,
+  Platform,
   Pressable,
   StyleSheet,
   View,
-  useWindowDimensions
+  useWindowDimensions,
+  type LayoutChangeEvent,
 } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -28,153 +34,167 @@ import {
   FontSize,
   GamificationColors,
   InterFonts,
-  Spacing
+  Spacing,
 } from "@/constants/theme";
+import { useAlertPermissions } from "@/hooks/use-alert-permissions";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { notificationService } from "@/services/notifications";
-import { usePomodoroStore, useSettingsStore, useTodoStore } from "@/stores";
+import {
+  openChannelSettings,
+  requestExactAlarmPermission,
+  requestNotificationPermission,
+} from "@/services/notifications/alert-permissions";
+import { alertChannelId } from "@/services/notifications/pomodoro-alerts";
+import {
+  usePomodoroClock,
+  usePomodoroStore,
+  useSettingsStore,
+  useTodoStore,
+} from "@/stores";
+import { formatClock } from "@/utils/pomodoro-helpers";
+
+const KEEP_AWAKE_TAG = "pomodoro-timer";
+const MIN_CIRCLE = 150;
+const MAX_CIRCLE = 320;
+
+// Ask for notification permission at most once per app session from the Start button.
+let askedForPermissionThisSession = false;
+
+function confirmAsync(title: string, message: string, cancel: string, ok: string) {
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(
+      title,
+      message,
+      [
+        { text: cancel, style: "cancel", onPress: () => resolve(false) },
+        { text: ok, onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
 
 export default function PomodoroScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useContext(BottomTabBarHeightContext);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? "light"];
+  const isFocused = useIsFocused();
+  const { width } = useWindowDimensions();
 
   // Select primitive values individually
-  const remainingTime = usePomodoroStore((state) => state.timer.remainingTime);
+  const remainingSeconds = usePomodoroClock((state) => state.remainingSeconds);
+  const totalTime = usePomodoroStore((state) => state.timer.totalTime);
   const timerState = usePomodoroStore((state) => state.timer.state);
   const timerPhase = usePomodoroStore((state) => state.timer.phase);
   const linkedTodoId = usePomodoroStore((state) => state.timer.linkedTodoId);
-  const sessionsCompleted = usePomodoroStore(
-    (state) => state.timer.sessionsCompleted,
-  );
+  const sessionsCompleted = usePomodoroStore((state) => state.timer.sessionsCompleted);
 
-  // Get the linked todo from the todo store
   const linkedTodo = useTodoStore((state) =>
-    linkedTodoId ? state.todos.find((todo) => todo.id === linkedTodoId) : null
+    linkedTodoId ? state.todos.find((todo) => todo.id === linkedTodoId) : null,
   );
 
   const startTimer = usePomodoroStore((state) => state.startTimer);
   const pauseTimer = usePomodoroStore((state) => state.pauseTimer);
   const resumeTimer = usePomodoroStore((state) => state.resumeTimer);
   const stopTimer = usePomodoroStore((state) => state.stopTimer);
-  const getProgress = usePomodoroStore((state) => state.getProgress);
   const skipToNextPhase = usePomodoroStore((state) => state.skipToNextPhase);
   const linkTodo = usePomodoroStore((state) => state.linkTodo);
-  const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
-  const { width } = useWindowDimensions();
+  const refreshAlerts = usePomodoroStore((state) => state.refreshAlerts);
+  const keepScreenAwake = useSettingsStore((state) => state.pomodoroSettings.keepScreenAwake);
+  const sessionsUntilLongBreak = useSettingsStore(
+    (state) => state.pomodoroSettings.sessionsUntilLongBreak,
+  );
+  const vibrationEnabled = useSettingsStore((state) => state.pomodoroSettings.vibrationEnabled);
+  const notificationsEnabled = useSettingsStore((state) => state.settings.notificationsEnabled);
+  const soundEnabled = useSettingsStore((state) => state.settings.soundEnabled);
+  const { permissions, refresh: refreshPermissions } = useAlertPermissions();
 
-  // Animation values
+  const progress =
+    totalTime > 0 ? Math.min(1, Math.max(0, 1 - remainingSeconds / totalTime)) : 0;
+  const isRunning = timerState === "running";
+
+  // Keep the screen on only while this screen is visible and the timer runs.
+  useEffect(() => {
+    if (!keepScreenAwake || !isFocused || !isRunning) return;
+    void activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => undefined);
+    return () => {
+      void Promise.resolve(deactivateKeepAwake(KEEP_AWAKE_TAG)).catch(() => undefined);
+    };
+  }, [keepScreenAwake, isFocused, isRunning]);
+
+  function phaseLabel(phase: typeof timerPhase) {
+    switch (phase) {
+      case "focus":
+        return t("pomodoro.focusTime");
+      case "short_break":
+        return t("pomodoro.shortBreak");
+      case "long_break":
+        return t("pomodoro.longBreak");
+      default:
+        return t("pomodoro.readyToFocus");
+    }
+  }
+
   const sessionDotScale = useSharedValue(1);
 
-  // Format time display
-  const formatTime = () => {
-    const minutes = Math.floor(remainingTime / 60);
-    const seconds = remainingTime % 60;
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  };
-
-  // Keep screen awake while timer is running
-  useEffect(() => {
-    const shouldKeepAwake =
-      pomodoroSettings.keepScreenAwake && timerState === "running";
-
-    if (shouldKeepAwake) {
-      activateKeepAwakeAsync("pomodoro-timer");
-    } else {
-      deactivateKeepAwake("pomodoro-timer");
-    }
-
-    return () => {
-      deactivateKeepAwake("pomodoro-timer");
-    };
-  }, [pomodoroSettings.keepScreenAwake, timerState]);
-
-  // Track phase transitions to detect completion (more reliable than remainingTime === 0)
+  // Announce phase changes for screen readers and bounce the current session dot.
   const prevPhaseRef = useRef(timerPhase);
   const prevTimerStateRef = useRef(timerState);
   useEffect(() => {
-    const phaseChanged = prevPhaseRef.current !== timerPhase;
-    const wasRunning = prevTimerStateRef.current === "running";
-
-    if (phaseChanged && wasRunning) {
-      const completedPhase = prevPhaseRef.current;
-      const phaseLabel =
-        completedPhase === "focus"
-          ? "Focus session"
-          : completedPhase === "short_break"
-            ? "Short break"
-            : "Long break";
+    const completedPhase = prevPhaseRef.current;
+    if (completedPhase !== timerPhase && prevTimerStateRef.current === "running") {
       AccessibilityInfo.announceForAccessibility(
-        `${phaseLabel} complete. Timer finished.`,
+        t("pomodoro.phaseComplete", { phase: phaseLabel(completedPhase) }),
       );
-
-      // Animate session dot
-      sessionDotScale.value = withSequence(
-        withSpring(1.3, SpringConfig.bouncy),
-        withSpring(1, SpringConfig.default),
+      sessionDotScale.set(
+        withSequence(withSpring(1.3, SpringConfig.bouncy), withSpring(1, SpringConfig.default)),
       );
     }
-
     prevPhaseRef.current = timerPhase;
     prevTimerStateRef.current = timerState;
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only phase/state transitions matter
   }, [timerPhase, timerState]);
 
-  const getPhaseColor = () => {
-    switch (timerPhase) {
-      case "focus":
-        return colors.timerFocus;
-      case "short_break":
-      case "long_break":
-        return colors.timerBreak;
-      default:
-        return colors.timerIdle;
-    }
-  };
+  const phaseColor =
+    timerPhase === "focus"
+      ? colors.timerFocus
+      : timerPhase === "idle"
+        ? colors.timerIdle
+        : colors.timerBreak;
+  const phaseSecondaryColor =
+    timerPhase === "focus"
+      ? GamificationColors.progressEnd
+      : timerPhase === "idle"
+        ? colors.textMuted
+        : colors.secondary;
+  const phaseIcon = timerPhase === "focus" ? "bulb" : timerPhase === "idle" ? "clock" : "coffee";
+  const isBreak = timerPhase === "short_break" || timerPhase === "long_break";
 
-  const getPhaseSecondaryColor = () => {
-    switch (timerPhase) {
-      case "focus":
-        return GamificationColors.progressEnd;
-      case "short_break":
-      case "long_break":
-        return colors.secondary;
-      default:
-        return colors.textMuted;
+  const handleStart = async () => {
+    if (
+      notificationsEnabled &&
+      permissions?.notifications === "undetermined" &&
+      permissions.canAskAgain &&
+      !askedForPermissionThisSession
+    ) {
+      askedForPermissionThisSession = true;
+      const proceed = await confirmAsync(
+        t("pomodoro.permissionTitle"),
+        t("pomodoro.permissionMessage"),
+        t("common.skip"),
+        t("common.continue"),
+      );
+      if (proceed) {
+        await requestNotificationPermission().catch(() => undefined);
+        void refreshPermissions();
+      }
     }
-  };
-
-  const getPhaseLabel = () => {
-    switch (timerPhase) {
-      case "focus":
-        return "Focus Time";
-      case "short_break":
-        return "Short Break";
-      case "long_break":
-        return "Long Break";
-      default:
-        return "Ready to Focus";
-    }
-  };
-
-  const getPhaseIcon = () => {
-    switch (timerPhase) {
-      case "focus":
-        return "bulb";
-      case "short_break":
-      case "long_break":
-        return "coffee";
-      default:
-        return "clock";
-    }
-  };
-
-  const handleStart = () => {
     startTimer();
   };
 
   const handlePauseResume = () => {
-    if (timerState === "running") {
+    if (isRunning) {
       pauseTimer();
     } else {
       resumeTimer();
@@ -182,46 +202,71 @@ export default function PomodoroScreen() {
   };
 
   const handleStop = () => {
-    if (timerState === 'running' || timerState === 'paused') {
-      Alert.alert(
-        'Stop Timer?',
-        'Your current progress for this session will be lost.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Stop',
-            style: 'destructive',
-            onPress: () => {
-              stopTimer();
-              notificationService.dismissTimerNotification();
-            },
-          },
-        ]
-      );
-    } else {
-      stopTimer();
-      notificationService.dismissTimerNotification();
-    }
-  };
-
-  const handleSkip = () => {
-    skipToNextPhase();
+    Alert.alert(t("pomodoro.stopTitle"), t("pomodoro.stopMessage"), [
+      { text: t("common.cancel"), style: "cancel" },
+      { text: t("pomodoro.stop"), style: "destructive", onPress: stopTimer },
+    ]);
   };
 
   const sessionDotStyle = useAnimatedStyle(() => ({
     transform: [{ scale: sessionDotScale.value }],
   }));
 
-  // Calculate tab bar height for proper spacing
-  const tabBarHeight = Math.max(insets.bottom, 20) + 80;
-  const circleSize = Math.max(220, Math.min(width - Spacing.xl * 2, 320));
-  const strokeWidth = 14;
-  const cycleSessionIndex =
-    sessionsCompleted % Math.max(1, pomodoroSettings.sessionsUntilLongBreak);
-
-  const handleUnlink = () => {
-    linkTodo(null);
+  // Size the circle from the space it actually has (small phones, linked task card).
+  const [timerAreaHeight, setTimerAreaHeight] = useState<number | null>(null);
+  const handleTimerAreaLayout = (event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+    setTimerAreaHeight((previous) => (previous === height ? previous : height));
   };
+  const widthLimit = width - Spacing.xl * 2;
+  const heightLimit = timerAreaHeight === null ? widthLimit : timerAreaHeight - Spacing.md * 2;
+  const circleSize = Math.round(
+    Math.max(MIN_CIRCLE, Math.min(MAX_CIRCLE, widthLimit, heightLimit)),
+  );
+  const strokeWidth = circleSize < 220 ? 10 : 14;
+  const timeFontSize = Math.round(circleSize * 0.22);
+  const bottomInset = (tabBarHeight ?? Math.max(insets.bottom, 20) + 80) + Spacing.sm;
+
+  const cycleSessionIndex = sessionsCompleted % Math.max(1, sessionsUntilLongBreak);
+
+  // One banner at a time, most important first.
+  let banner: { message: string; action: string; onPress: () => void } | null = null;
+  if (notificationsEnabled && permissions) {
+    if (permissions.notifications === "denied") {
+      banner = {
+        message: t("pomodoro.notificationsOff"),
+        action: permissions.canAskAgain ? t("pomodoro.allow") : t("pomodoro.openSettings"),
+        onPress: async () => {
+          if (permissions.canAskAgain) {
+            await requestNotificationPermission().catch(() => undefined);
+          } else {
+            await Linking.openSettings();
+          }
+          void refreshPermissions();
+          refreshAlerts();
+        },
+      };
+    } else if (permissions.alertChannelEnabled === false) {
+      banner = {
+        message: t("pomodoro.channelOff"),
+        action: t("pomodoro.openSettings"),
+        onPress: () => openChannelSettings(alertChannelId(soundEnabled, vibrationEnabled)),
+      };
+    } else if (Platform.OS === "android" && !permissions.exactAlarms) {
+      banner = {
+        message: t("pomodoro.exactAlarmsOff"),
+        action: t("pomodoro.allow"),
+        onPress: async () => {
+          const granted = await requestExactAlarmPermission();
+          void refreshPermissions();
+          // Alarms set without the permission are inexact; set them again.
+          if (granted) refreshAlerts();
+        },
+      };
+    }
+  }
+
+  const timeText = formatClock(remainingSeconds);
 
   return (
     <View
@@ -230,120 +275,93 @@ export default function PomodoroScreen() {
         {
           backgroundColor: colors.background,
           paddingTop: insets.top,
-          paddingBottom: tabBarHeight,
+          paddingBottom: bottomInset,
         },
       ]}
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Focus Timer
-        </Text>
-        <View
-          style={[
-            styles.sessionBadge,
-            { backgroundColor: colors.primary + "20" },
-          ]}
-        >
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t("pomodoro.title")}</Text>
+        <View style={[styles.sessionBadge, { backgroundColor: colors.primary + "20" }]}>
           <Icon name="flag" fill={colors.primary} style={styles.sessionIcon} />
           <Text style={[styles.sessionText, { color: colors.primary }]}>
-            Session {cycleSessionIndex + 1}
+            {t("pomodoro.session", { number: cycleSessionIndex + 1 })}
           </Text>
         </View>
       </View>
 
+      {banner && (
+        <View
+          style={[styles.banner, { backgroundColor: colors.warning + "20" }]}
+          accessibilityRole="alert"
+        >
+          <Icon name="bell-off" fill={colors.warning} style={styles.bannerIcon} />
+          <Text style={[styles.bannerText, { color: colors.text }]}>{banner.message}</Text>
+          <Pressable
+            onPress={banner.onPress}
+            style={[styles.bannerButton, { borderColor: colors.warning }]}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.bannerButtonText, { color: colors.text }]}>{banner.action}</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Timer Circle */}
-      <View style={styles.timerContainer}>
+      <View style={styles.timerContainer} onLayout={handleTimerAreaLayout}>
         <CircularProgress
           size={circleSize}
           strokeWidth={strokeWidth}
-          progress={getProgress()}
-          progressColor={getPhaseColor()}
-          secondaryColor={getPhaseSecondaryColor()}
+          progress={progress}
+          progressColor={phaseColor}
+          secondaryColor={phaseSecondaryColor}
           backgroundColor={colors.border}
-          showGlow={timerState === "running"}
-          isRunning={timerState === "running"}
+          showGlow={isRunning}
+          isRunning={isRunning}
         >
           <View style={styles.timerContent}>
-            {/* Phase badge */}
-            <View
-              style={[
-                styles.phaseBadge,
-                { backgroundColor: getPhaseColor() + "20" },
-              ]}
-            >
-              <Icon
-                name={getPhaseIcon()}
-                fill={getPhaseColor()}
-                style={styles.phaseIcon}
-              />
-              <Text style={[styles.phaseLabel, { color: getPhaseColor() }]}>
-                {getPhaseLabel()}
+            <View style={[styles.phaseBadge, { backgroundColor: phaseColor + "20" }]}>
+              <Icon name={phaseIcon} fill={phaseColor} style={styles.phaseIcon} />
+              <Text style={[styles.phaseLabel, { color: phaseColor }]}>
+                {phaseLabel(timerPhase)}
               </Text>
             </View>
 
-            {/* Time display */}
-            <Text style={[styles.timeText, { color: colors.text }]}>
-              {formatTime()}
+            <Text
+              style={[styles.timeText, { color: colors.text, fontSize: timeFontSize }]}
+              accessibilityLabel={t("pomodoro.timeRemaining", { time: timeText })}
+            >
+              {timeText}
             </Text>
-
-            {/* Time's up message */}
-            {remainingTime === 0 && timerState === "running" && (
-              <View
-                style={[
-                  styles.timesUpBadge,
-                  { backgroundColor: colors.warning + "20" },
-                ]}
-              >
-                <Icon
-                  name="bell"
-                  fill={colors.warning}
-                  style={styles.timesUpIcon}
-                />
-                <Text style={[styles.timesUpText, { color: colors.warning }]}>
-                  Time&apos;s up!
-                </Text>
-              </View>
-            )}
           </View>
         </CircularProgress>
       </View>
 
       {/* Session dots */}
       <View style={styles.sessionDots}>
-        {Array.from({ length: pomodoroSettings.sessionsUntilLongBreak }).map(
-          (_, i) => (
-            <Animated.View
-              key={i}
-              style={[
-                styles.sessionDot,
-                i === cycleSessionIndex && sessionDotStyle,
-                {
-                  backgroundColor:
-                    i < cycleSessionIndex ? colors.primary : colors.border,
-                  borderColor:
-                    i === cycleSessionIndex ? colors.primary : "transparent",
-                  borderWidth: i === cycleSessionIndex ? 2 : 0,
-                },
-              ]}
-            >
-              {i < cycleSessionIndex && (
-                <Icon name="checkmark" fill="#fff" style={styles.dotCheck} />
-              )}
-            </Animated.View>
-          ),
-        )}
+        {Array.from({ length: sessionsUntilLongBreak }).map((_, i) => (
+          <Animated.View
+            key={i}
+            style={[
+              styles.sessionDot,
+              i === cycleSessionIndex && sessionDotStyle,
+              {
+                backgroundColor: i < cycleSessionIndex ? colors.primary : colors.border,
+                borderColor: i === cycleSessionIndex ? colors.primary : "transparent",
+                borderWidth: i === cycleSessionIndex ? 2 : 0,
+              },
+            ]}
+          >
+            {i < cycleSessionIndex && <Icon name="checkmark" fill="#fff" style={styles.dotCheck} />}
+          </Animated.View>
+        ))}
       </View>
 
       {/* Controls */}
       <View style={styles.controls}>
         {timerState === "stopped" ? (
           <AnimatedButton
-            title={
-              timerPhase === "short_break" || timerPhase === "long_break"
-                ? "Start Break"
-                : "Start Focus"
-            }
+            title={isBreak ? t("pomodoro.startBreak") : t("pomodoro.startFocus")}
             icon="play"
             variant="primary"
             size="lg"
@@ -353,7 +371,7 @@ export default function PomodoroScreen() {
         ) : (
           <View style={styles.activeControls}>
             <AnimatedButton
-              title="Stop"
+              title={t("pomodoro.stop")}
               icon="stop-circle"
               variant="danger"
               size="md"
@@ -361,8 +379,8 @@ export default function PomodoroScreen() {
               onPress={handleStop}
             />
             <AnimatedButton
-              title={timerState === "running" ? "Pause" : "Resume"}
-              icon={timerState === "running" ? "pause" : "play"}
+              title={isRunning ? t("pomodoro.pause") : t("pomodoro.resume")}
+              icon={isRunning ? "pause" : "play"}
               variant="primary"
               size="md"
               style={styles.controlButton}
@@ -374,15 +392,11 @@ export default function PomodoroScreen() {
 
       {/* Skip button */}
       {timerState !== "stopped" && (
-        <Pressable style={styles.skipButton} onPress={handleSkip}>
+        <Pressable style={styles.skipButton} onPress={skipToNextPhase} accessibilityRole="button">
           <Text style={[styles.skipText, { color: colors.textSecondary }]}>
-            Skip to {timerPhase === "focus" ? "Break" : "Focus"}
+            {timerPhase === "focus" ? t("pomodoro.skipToBreak") : t("pomodoro.skipToFocus")}
           </Text>
-          <Icon
-            name="skip-forward"
-            fill={colors.textSecondary}
-            style={styles.skipIcon}
-          />
+          <Icon name="skip-forward" fill={colors.textSecondary} style={styles.skipIcon} />
         </Pressable>
       )}
 
@@ -394,47 +408,31 @@ export default function PomodoroScreen() {
           contentStyle={styles.linkedContent}
           pointerEvents="box-none"
         >
-          <View
-            style={[
-              styles.linkedIconContainer,
-              { backgroundColor: colors.primary + "20" },
-            ]}
-          >
-            <Icon
-              name="link-2"
-              fill={colors.primary}
-              style={styles.linkedIcon}
-            />
+          <View style={[styles.linkedIconContainer, { backgroundColor: colors.primary + "20" }]}>
+            <Icon name="link-2" fill={colors.primary} style={styles.linkedIcon} />
           </View>
           <View style={styles.linkedTextContainer}>
             <Text style={[styles.linkedLabel, { color: colors.textMuted }]}>
-              Currently working on
+              {t("pomodoro.currentlyWorkingOn")}
             </Text>
             <Text
-              style={[
-                styles.linkedTitle,
-                { color: linkedTodo ? colors.text : colors.textSecondary },
-              ]}
+              style={[styles.linkedTitle, { color: linkedTodo ? colors.text : colors.textSecondary }]}
               numberOfLines={1}
             >
-              {linkedTodo?.title ?? "Linked task not found"}
+              {linkedTodo?.title ?? t("pomodoro.linkedTaskNotFound")}
             </Text>
           </View>
           <Pressable
-            style={[
-              styles.unlinkButton,
-              { backgroundColor: colors.backgroundSecondary },
-            ]}
-            onPress={handleUnlink}
+            style={[styles.unlinkButton, { backgroundColor: colors.backgroundSecondary }]}
+            onPress={() => linkTodo(null)}
             accessibilityRole="button"
-            accessibilityLabel="Unlink task"
+            accessibilityLabel={t("pomodoro.unlinkTask")}
           >
             <Icon name="close" fill={colors.textMuted} style={styles.unlinkIcon} />
-            <Text style={[styles.unlinkText, { color: colors.textMuted }]}>Unlink</Text>
+            <Text style={[styles.unlinkText, { color: colors.textMuted }]}>{t("pomodoro.unlink")}</Text>
           </Pressable>
         </AnimatedCard>
       )}
-
     </View>
   );
 }
@@ -446,7 +444,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
   },
   headerTitle: {
     fontFamily: InterFonts.bold,
@@ -469,11 +467,41 @@ const styles = StyleSheet.create({
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.sm,
   },
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    marginHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.sm,
+  },
+  bannerIcon: {
+    width: 18,
+    height: 18,
+  },
+  bannerText: {
+    flex: 1,
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+  },
+  bannerButton: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  bannerButtonText: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.xs,
+  },
   timerContainer: {
     flex: 1,
+    alignSelf: "stretch",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: Spacing.xl,
+    minHeight: MIN_CIRCLE,
   },
   timerContent: {
     alignItems: "center",
@@ -484,7 +512,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   phaseIcon: {
     width: 14,
@@ -499,30 +527,13 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontFamily: InterFonts.light,
-    fontSize: 72,
     letterSpacing: -2,
-  },
-  timesUpBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    marginTop: Spacing.md,
-  },
-  timesUpIcon: {
-    width: 14,
-    height: 14,
-    marginRight: 6,
-  },
-  timesUpText: {
-    fontFamily: InterFonts.medium,
-    fontSize: FontSize.sm,
+    fontVariant: ["tabular-nums"],
   },
   sessionDots: {
     flexDirection: "row",
     gap: Spacing.md,
-    marginBottom: Spacing.xl,
+    marginVertical: Spacing.md,
   },
   sessionDot: {
     width: 20,
@@ -537,7 +548,7 @@ const styles = StyleSheet.create({
   },
   controls: {
     paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.sm,
     width: "100%",
   },
   activeControls: {
@@ -550,7 +561,7 @@ const styles = StyleSheet.create({
   skipButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
   },
   skipText: {
@@ -564,7 +575,7 @@ const styles = StyleSheet.create({
   },
   linkedCard: {
     marginHorizontal: Spacing.lg,
-    marginBottom: Spacing.md,
+    marginTop: Spacing.sm,
     alignSelf: "stretch",
   },
   linkedContent: {

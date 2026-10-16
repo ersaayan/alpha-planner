@@ -1,10 +1,14 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/services/supabase/client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useSyncStore } from '@/stores/sync-store';
 import type { SyncOperation } from '@/types/sync.types';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAYS = [1000, 2000, 4000]; // exponential backoff
+/*
+ * EXPERIMENTAL. Only runs in builds with Supabase configured and a signed-in user.
+ * The engine is push-only for now: pulling and merging remote changes (and conflict
+ * resolution) is v1.x work, see docs/ARCHITECTURE.md.
+ */
 
 // Tables that support sync
 const SYNCABLE_TABLES = [
@@ -21,25 +25,21 @@ const SYNCABLE_TABLES = [
 // Tables with soft delete (have deleted_at column)
 const SOFT_DELETE_TABLES = new Set(['categories', 'todos', 'subtasks']);
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 /**
  * Execute a single sync operation against Supabase.
  */
-async function executeOperation(op: SyncOperation, userId: string): Promise<void> {
+async function executeOperation(client: SupabaseClient, op: SyncOperation, userId: string): Promise<void> {
   const dataWithUser = { ...op.data, user_id: userId };
 
   switch (op.type) {
     case 'insert': {
-      const { error } = await supabase.from(op.table).upsert(dataWithUser);
+      const { error } = await client.from(op.table).upsert(dataWithUser);
       if (error) throw error;
       break;
     }
     case 'update': {
       const { id, ...rest } = dataWithUser as Record<string, unknown> & { id: string; user_id: string };
-      const { error } = await supabase
+      const { error } = await client
         .from(op.table)
         .update(rest)
         .eq('id', id as string);
@@ -49,13 +49,13 @@ async function executeOperation(op: SyncOperation, userId: string): Promise<void
     case 'delete': {
       if (SOFT_DELETE_TABLES.has(op.table)) {
         // Soft delete: set deleted_at
-        const { error } = await supabase
+        const { error } = await client
           .from(op.table)
           .update({ deleted_at: new Date().toISOString() })
           .eq('id', op.data.id as string);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await client
           .from(op.table)
           .delete()
           .eq('id', op.data.id as string);
@@ -67,75 +67,59 @@ async function executeOperation(op: SyncOperation, userId: string): Promise<void
 }
 
 /**
- * Push all pending operations to Supabase.
- * Uses exponential backoff on failure.
+ * Push pending operations of the signed-in user to Supabase, oldest first.
+ *
+ * - Operations queued for another account are discarded, never uploaded.
+ * - A failed operation stays in the queue (with its retry count increased) and the
+ *   push stops there, so later operations never overtake an earlier one. Nothing is
+ *   dropped because of a failure; the next sync retries it.
  */
 export async function pushPendingOperations(): Promise<{ success: number; failed: number }> {
-  const syncStore = useSyncStore.getState();
-  const authStore = useAuthStore.getState();
-  const userId = authStore.user?.id;
+  const client = supabase;
+  const userId = useAuthStore.getState().user?.id;
+  if (!client || !userId) return { success: 0, failed: 0 };
 
-  if (!userId) return { success: 0, failed: 0 };
+  const foreign = useSyncStore.getState().pendingOperations.filter((op) => op.userId !== userId);
+  if (foreign.length > 0) {
+    useSyncStore.getState().dequeueMany(foreign.map((op) => op.id));
+  }
 
-  const pending = [...syncStore.pendingOperations];
-  if (pending.length === 0) return { success: 0, failed: 0 };
-
+  const pending = useSyncStore.getState().pendingOperations.filter((op) => op.userId === userId);
   let success = 0;
-  let failed = 0;
-  const succeeded: string[] = [];
 
   for (const op of pending) {
     try {
-      await executeOperation(op, userId);
-      succeeded.push(op.id);
-      success++;
+      await executeOperation(client, op, userId);
     } catch (error) {
-      if (op.retryCount >= MAX_RETRIES - 1) {
-        // Max retries reached — drop the operation
-        console.warn(`Sync op ${op.id} failed after ${MAX_RETRIES} retries:`, error);
-        succeeded.push(op.id); // Remove from queue
-        failed++;
-      } else {
-        // Retry with backoff
-        syncStore.incrementRetry(op.id);
-        const delayMs = RETRY_DELAYS[op.retryCount] ?? 4000;
-        await delay(delayMs);
-        // Try once more
-        try {
-          await executeOperation(op, userId);
-          succeeded.push(op.id);
-          success++;
-        } catch {
-          failed++;
-        }
-      }
+      console.warn(`[sync] Operation ${op.id} failed; it stays queued.`, error);
+      useSyncStore.getState().incrementRetry(op.id);
+      return { success, failed: 1 };
     }
+    useSyncStore.getState().dequeue(op.id);
+    success++;
+    // Stop if the account changed while a request was in flight.
+    if (useAuthStore.getState().user?.id !== userId) break;
   }
 
-  if (succeeded.length > 0) {
-    syncStore.dequeueMany(succeeded);
-  }
-
-  return { success, failed };
+  return { success, failed: 0 };
 }
 
 /**
- * Pull remote changes since lastSyncedAt.
- * Returns records grouped by table.
+ * Pull remote changes since lastSyncedAt, grouped by table.
+ * Not called by fullSync() yet: nothing merges the result into the local stores, and
+ * advancing the cursor without merging would skip those changes for good later.
  */
 export async function pullRemoteChanges(): Promise<Record<string, unknown[]>> {
-  const syncStore = useSyncStore.getState();
-  const authStore = useAuthStore.getState();
-  const userId = authStore.user?.id;
+  const client = supabase;
+  const userId = useAuthStore.getState().user?.id;
+  if (!client || !userId) return {};
 
-  if (!userId) return {};
-
-  const since = syncStore.lastSyncedAt;
+  const since = useSyncStore.getState().lastSyncedAt;
   const result: Record<string, unknown[]> = {};
 
   for (const table of SYNCABLE_TABLES) {
     try {
-      let query = supabase
+      let query = client
         .from(table)
         .select('*')
         .eq('user_id', userId);
@@ -143,9 +127,6 @@ export async function pullRemoteChanges(): Promise<Record<string, unknown[]>> {
       if (since) {
         query = query.gt('updated_at', since);
       }
-
-      // For soft-delete tables, include deleted records for sync awareness
-      // (RLS handles user isolation, no extra filter needed)
 
       const { data, error } = await query;
       if (error) {
@@ -159,9 +140,6 @@ export async function pullRemoteChanges(): Promise<Record<string, unknown[]>> {
       console.warn(`Pull error for ${table}:`, error);
     }
   }
-
-  // Update lastSyncedAt
-  syncStore.setLastSyncedAt(new Date().toISOString());
 
   return result;
 }
@@ -193,30 +171,24 @@ export function mergeIntoLocalStores(
 }
 
 /**
- * Full sync cycle: pull remote → merge → push pending.
+ * Sync cycle: push the signed-in user's pending changes.
  */
 export async function fullSync(): Promise<void> {
+  if (!supabase || useAuthStore.getState().status !== 'signedIn' || useSyncStore.getState().isSyncing) return;
+
   const syncStore = useSyncStore.getState();
-  const authStore = useAuthStore.getState();
-
-  if (!authStore.session || syncStore.isSyncing) return;
-
   syncStore.setSyncing(true);
   syncStore.setError(null);
 
   try {
-    // Pull first (get latest server state)
-    await pullRemoteChanges();
-
-    // Then push local changes
     const { failed } = await pushPendingOperations();
 
     if (failed > 0) {
-      syncStore.setError(`${failed} operation(s) failed to sync`);
+      useSyncStore.getState().setError(`${failed} operation(s) failed to sync`);
     }
   } catch (error) {
-    syncStore.setError((error as Error).message);
+    useSyncStore.getState().setError((error as Error).message);
   } finally {
-    syncStore.setSyncing(false);
+    useSyncStore.getState().setSyncing(false);
   }
 }

@@ -1,14 +1,96 @@
-import { useSyncStore } from '@/stores/sync-store';
+import { migrateSyncState, useSyncStore } from '@/stores/sync-store';
+import { setSyncConfigured } from '../helpers/sync';
 
 const INITIAL_STATE = {
   pendingOperations: [],
   lastSyncedAt: null,
+  ownerId: 'user-1',
   isSyncing: false,
   lastError: null,
 };
 
+beforeAll(() => {
+  setSyncConfigured(true);
+});
+
+afterAll(() => {
+  setSyncConfigured(false);
+});
+
 beforeEach(() => {
+  setSyncConfigured(true);
   useSyncStore.setState(INITIAL_STATE);
+});
+
+describe('useSyncStore: inert unless configured and signed in', () => {
+  it('enqueue is a no-op when sync is not configured (store builds)', () => {
+    setSyncConfigured(false);
+    useSyncStore.getState().enqueue('todos', 'insert', { id: '1' });
+    expect(useSyncStore.getState().pendingOperations).toEqual([]);
+  });
+
+  it('enqueue is a no-op when nobody is signed in', () => {
+    useSyncStore.setState({ ownerId: null });
+    useSyncStore.getState().enqueue('todos', 'insert', { id: '1' });
+    expect(useSyncStore.getState().pendingOperations).toEqual([]);
+  });
+
+  it('enqueue tags each operation with its owner', () => {
+    useSyncStore.getState().enqueue('todos', 'insert', { id: '1' });
+    expect(useSyncStore.getState().pendingOperations[0].userId).toBe('user-1');
+  });
+
+  it('setOwner to another user clears the queue and cursor', () => {
+    useSyncStore.getState().enqueue('todos', 'insert', { id: '1' });
+    useSyncStore.getState().setLastSyncedAt('2026-10-01T00:00:00.000Z');
+
+    useSyncStore.getState().setOwner('user-2');
+
+    const state = useSyncStore.getState();
+    expect(state.ownerId).toBe('user-2');
+    expect(state.pendingOperations).toEqual([]);
+    expect(state.lastSyncedAt).toBeNull();
+  });
+
+  it('setOwner with the same user keeps the queue', () => {
+    useSyncStore.getState().enqueue('todos', 'insert', { id: '1' });
+    useSyncStore.getState().setOwner('user-1');
+    expect(useSyncStore.getState().pendingOperations).toHaveLength(1);
+  });
+
+  it('setOwner(null) (sign-out) clears the queue', () => {
+    useSyncStore.getState().enqueue('todos', 'insert', { id: '1' });
+    useSyncStore.getState().setOwner(null);
+    expect(useSyncStore.getState().pendingOperations).toEqual([]);
+    expect(useSyncStore.getState().ownerId).toBeNull();
+  });
+});
+
+describe('migrateSyncState', () => {
+  it('v0 → v1 drops ownerless operations and resets the cursor', () => {
+    const v0 = {
+      pendingOperations: [{ id: 'op1', table: 'todos', type: 'insert', data: {}, createdAt: '', retryCount: 0 }],
+      lastSyncedAt: '2026-10-01T00:00:00.000Z',
+    };
+    expect(migrateSyncState(v0, 0)).toEqual({ pendingOperations: [], lastSyncedAt: null, ownerId: null });
+  });
+
+  it('keeps only operations owned by the stored owner', () => {
+    const v1 = {
+      ownerId: 'a',
+      lastSyncedAt: null,
+      pendingOperations: [
+        { id: 'op1', userId: 'a' },
+        { id: 'op2', userId: 'b' },
+      ],
+    };
+    expect(migrateSyncState(v1, 1).pendingOperations).toEqual([{ id: 'op1', userId: 'a' }]);
+  });
+
+  it('tolerates garbage', () => {
+    expect(migrateSyncState('nope', 0)).toEqual({ pendingOperations: [], lastSyncedAt: null, ownerId: null });
+    expect(migrateSyncState(undefined, 1)).toEqual({ pendingOperations: [], lastSyncedAt: null, ownerId: null });
+  });
 });
 
 describe('useSyncStore', () => {

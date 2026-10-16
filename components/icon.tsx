@@ -158,6 +158,8 @@ const STATUS_ICONS: Record<string, IconEntry> = {
 const PEOPLE_ICONS: Record<string, IconEntry> = {
   'person': { pack: 'feather', name: 'user' },
   'person-outline': { pack: 'feather', name: 'user' },
+  'log-out': { pack: 'feather', name: 'log-out' },
+  'log-out-outline': { pack: 'feather', name: 'log-out' },
   'people': { pack: 'feather', name: 'users' },
   'people-outline': { pack: 'feather', name: 'users' },
   'heart': { pack: 'feather', name: 'heart' },

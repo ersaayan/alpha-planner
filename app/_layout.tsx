@@ -11,25 +11,28 @@ import {
 } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { ApplicationProvider } from '@ui-kitten/components';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
+import { RootStack } from '@/components/navigation/root-stack';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
-import { notificationService } from '@/services/notifications';
+import { usePomodoroLifecycle } from '@/hooks/use-pomodoro-lifecycle';
 import { useSync } from '@/hooks/use-sync';
-import { useCategoryStore, useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
+import { useAppBootstrap } from '@/hooks/use-app-bootstrap';
+import { useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
+import { useStoresHydrated } from '@/stores/hydration';
 
-// Prevent splash screen from auto-hiding
+// Keep the splash screen up until fonts and stored data are loaded (see useAppBootstrap)
 SplashScreen.preventAutoHideAsync();
 
+// Deep links open on top of the tabs, so "back" lands in the app instead of exiting.
+// The anchor is guarded like any screen: during onboarding it is skipped and cleared.
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -61,113 +64,13 @@ const AlphaDarkTheme = {
   },
 };
 
-function usePomodoroBackgroundSync() {
-  const appStateRef = useRef(AppState.currentState);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      const previousState = appStateRef.current;
-      appStateRef.current = nextAppState;
-
-      // App coming to foreground
-      if (nextAppState === 'active') {
-        const store = usePomodoroStore.getState();
-        const currentTimer = store.timer;
-
-        if (currentTimer.state === 'running' && currentTimer.startedAt) {
-          // Sync remaining time — catches up all elapsed seconds
-          store.syncTimer({ fromBackground: previousState !== 'active' });
-
-          // Restart the ticking interval if timer is still running after sync
-          if (usePomodoroStore.getState().timer.state === 'running') {
-            store._startTicking();
-          }
-        }
-
-        // Dismiss ongoing notification & cancel scheduled completion notification
-        // (the foreground interval will handle everything from here)
-        notificationService.dismissTimerNotification();
-        cancelScheduledTimerNotifications();
-      } else if (nextAppState === 'background') {
-        // ── App going into background ──
-        const store = usePomodoroStore.getState();
-        const currentTimer = store.timer;
-        const { settings, pomodoroSettings } = useSettingsStore.getState();
-
-        if (currentTimer.state === 'running' && currentTimer.startedAt) {
-          // Stop internal interval to save battery
-          store._stopTicking();
-
-          // Show ongoing notification with countdown
-          if (settings.notificationsEnabled) {
-            notificationService.showTimerNotification(
-              currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-              currentTimer.remainingTime,
-              currentTimer.totalTime,
-              false,
-            );
-          }
-
-          // Schedule exact completion notification using absolute timestamp
-          const completionMs = currentTimer.startedAt
-            + (currentTimer.totalTime * 1000)
-            + ((currentTimer.totalPausedDuration ?? 0) * 1000);
-          scheduleTimerNotification(
-            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-            completionMs,
-            {
-              soundEnabled: settings.soundEnabled,
-              vibrationEnabled: pomodoroSettings.vibrationEnabled,
-              isAbsoluteMs: true,
-            },
-          );
-        } else if (currentTimer.state === 'paused' && settings.notificationsEnabled) {
-          // Show paused state in notification shade
-          notificationService.showTimerNotification(
-            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-            currentTimer.remainingTime,
-            currentTimer.totalTime,
-            true,
-          );
-        }
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
-}
-
-/**
- * Handles recovery after the app has been killed and restarted.
- * Zustand rehydrates the timer state from AsyncStorage; this hook
- * detects a previously-running timer and syncs it forward.
- */
-function usePomodoroRehydrationSync() {
-  useEffect(() => {
-    const unsubscribe = usePomodoroStore.persist.onFinishHydration((state) => {
-      if (state.timer.state === 'running' && state.timer.startedAt) {
-        // Timer was running when the app was killed — catch up
-        usePomodoroStore.getState().syncTimer({ fromBackground: true });
-
-        // If timer is still running after sync, restart ticking
-        const synced = usePomodoroStore.getState();
-        if (synced.timer.state === 'running') {
-          synced._startTicking();
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-}
-
 export default function RootLayout() {
-  usePomodoroBackgroundSync();
-  usePomodoroRehydrationSync();
+  usePomodoroLifecycle();
   useSync();
 
   const colorScheme = useColorScheme();
-  const initializeCategories = useCategoryStore((state) => state.initializeCategories);
+  const isReady = useAppBootstrap();
+  const storesHydrated = useStoresHydrated();
   const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
 
   // Load Inter fonts
@@ -180,54 +83,18 @@ export default function RootLayout() {
     Inter_800ExtraBold,
   });
 
-  // Hide splash screen when fonts are loaded
+  // Hide the splash screen once fonts and stored data are loaded
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && isReady) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, isReady]);
 
   useEffect(() => {
     onLayoutRootView();
   }, [onLayoutRootView]);
 
-  useEffect(() => {
-    // Initialize default categories on first launch
-    initializeCategories();
-
-    // Gamification startup checks (lazy generation)
-    const { applyPrestigeWithRewards } = require('@/services/gamification/prestige-service');
-    const { useDailyQuestsStore } = require('@/stores/daily-quests-store');
-    const { useWeeklyGoalsStore } = require('@/stores/weekly-goals-store');
-
-    // Check prestige reset (new month?)
-    applyPrestigeWithRewards();
-
-    // Generate today's quests if needed
-    useDailyQuestsStore.getState().ensureTodayQuests();
-
-    // Generate this week's goals if needed
-    useWeeklyGoalsStore.getState().ensureThisWeekGoals();
-  }, [initializeCategories]);
-
-  useEffect(() => {
-    // Always initialize notification service for permission check, channel setup, and action callbacks.
-    // This ensures hasPermission is up-to-date and channels are created even if notifications
-    // were disabled at first launch and enabled later.
-    notificationService.initialize().then(() => {
-      // Wire notification action callbacks so pause/resume/stop work from notification shade
-      notificationService.setActionCallbacks({
-        onPause: () => usePomodoroStore.getState().pauseTimer(),
-        onResume: () => usePomodoroStore.getState().resumeTimer(),
-        onStop: () => usePomodoroStore.getState().stopTimer(),
-      });
-
-      // Schedule daily summary notification at 23:00
-      notificationService.scheduleDailySummaryNotification();
-    }).catch((error) => {
-      console.warn('Notification initialization failed:', error);
-    });
-  }, []);
+  // Startup tasks (default categories, quests, goals, prestige) run in useAppBootstrap, after hydration.
 
   // Achievement celebration — show a brief alert when achievements are unlocked
   const pendingNotifications = useGamificationStore((state) => state.pendingNotifications);
@@ -252,15 +119,18 @@ export default function RootLayout() {
   }, [pendingNotifications, currentAchievementId, dismissNotification]);
 
   useEffect(() => {
+    // Not before hydration: default settings must not overwrite a stored timer.
+    if (!storesHydrated) return;
     usePomodoroStore.getState().applySettingsToTimer(pomodoroSettings);
-  }, [pomodoroSettings]);
+  }, [pomodoroSettings, storesHydrated]);
 
   const isDark = colorScheme === 'dark';
   const evaTheme = isDark ? { ...eva.dark, ...alphaDarkTheme } : { ...eva.light, ...alphaTheme };
   const navigationTheme = isDark ? AlphaDarkTheme : AlphaLightTheme;
 
-  // Don't render until fonts are loaded
-  if (!fontsLoaded && !fontError) {
+  // Don't render until fonts and stored data are loaded: the navigation guards
+  // depend on stored settings (e.g. whether onboarding was completed).
+  if ((!fontsLoaded && !fontError) || !isReady) {
     return null;
   }
 
@@ -268,30 +138,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <ApplicationProvider {...eva} theme={evaTheme}>
         <ThemeProvider value={navigationTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="todo/[id]"
-              options={{
-                headerShown: true,
-                title: 'Todo Details',
-              }}
-            />
-            <Stack.Screen
-              name="todo/create"
-              options={{
-                headerShown: true,
-                title: 'New Todo',
-              }}
-            />
-
-            <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
-            <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
-            <Stack.Screen name="views/timeline" options={{ headerShown: false }} />
-          </Stack>
+          <RootStack />
           <StatusBar style={isDark ? 'light' : 'dark'} />
         </ThemeProvider>
       </ApplicationProvider>

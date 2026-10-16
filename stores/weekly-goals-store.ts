@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import type { WeeklyGoal } from '@/types';
 import { WEEKLY_GOAL_TEMPLATES, SYSTEM_WEEKLY_GOAL_COUNT, WEEKLY_GOAL_ALL_COMPLETE_BONUS, PERSONAL_GOAL_XP, scaleWeeklyTarget } from '@/constants/weekly-goals';
 import { XP_VALUES } from '@/constants/gamification';
@@ -8,6 +7,7 @@ import { generateId } from '@/utils/uuid';
 import { getDateKey } from '@/utils/date';
 import { startOfWeek, format } from 'date-fns';
 import { useGamificationStore } from './gamification-store';
+import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
 
 interface WeeklyGoalsStore {
@@ -185,13 +185,23 @@ export const useWeeklyGoalsStore = create<WeeklyGoalsStore>()(
         return get().goals.filter((g) => g.weekStart === weekKey && g.isCompleted).length;
       },
     }),
-    {
+    createPersistOptions<WeeklyGoalsStore, Pick<WeeklyGoalsStore, 'goals' | 'lastGeneratedWeek'>>({
       name: 'weekly-goals-store',
-      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
       partialize: (state) => ({
         goals: state.goals,
         lastGeneratedWeek: state.lastGeneratedWeek,
       }),
-    }
+      migrate: migrateWeeklyGoalsState,
+    })
   )
 );
+
+/** v0 (unversioned) → v1: same shape, with malformed entries dropped. */
+export function migrateWeeklyGoalsState(persisted: unknown, _fromVersion: number) {
+  const state = asRecord(persisted);
+  return {
+    goals: asRecordArray(state.goals).filter((item) => typeof item.id === 'string'),
+    lastGeneratedWeek: typeof state.lastGeneratedWeek === 'string' ? state.lastGeneratedWeek : null,
+  };
+}

@@ -1,4 +1,5 @@
 import { Icon } from '@/components/icon';
+import { AccountSection } from '@/components/settings/account-section';
 import Slider from '@react-native-community/slider';
 import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useCategoryStore, useSettingsStore } from '@/stores';
 import { changeLanguage } from '@/services/i18n/i18n-config';
 import { updateProfile } from '@/services/supabase/auth-service';
+import { isSyncConfigured } from '@/services/supabase/client';
 import { useRouter } from 'expo-router';
 
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
@@ -22,8 +24,7 @@ export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const profile = useAuthStore((state) => state.profile);
-  const signOut = useAuthStore((state) => state.signOut);
+  const isSignedIn = useAuthStore((state) => state.status === 'signedIn');
 
   const settings = useSettingsStore((state) => state.settings);
   const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
@@ -351,6 +352,22 @@ export default function SettingsScreen() {
             onChange={(checked) => updatePomodoroSettings({ vibrationEnabled: checked })}
           />
         </View>
+
+        <Divider style={styles.divider} />
+
+        <Pressable
+          style={styles.settingItem}
+          onPress={() => router.push('/settings/notification-reliability')}
+          accessibilityRole="button"
+        >
+          <View style={styles.settingInfo}>
+            <Text category="s1">{t('settings.notificationReliability')}</Text>
+            <Text category="c1" style={{ color: colors.textMuted }}>
+              {t('settings.notificationReliabilityDesc')}
+            </Text>
+          </View>
+          <Icon name="chevron-right" fill={colors.textMuted} style={{ width: 20, height: 20 }} />
+        </Pressable>
       </Card>
 
       {/* App Settings */}
@@ -601,9 +618,10 @@ export default function SettingsScreen() {
               onPress={() => {
                 updateSettings({ language: lang });
                 changeLanguage(lang);
-                // Sync language preference to profile
-                const locale = lang === 'system' ? 'system' : lang;
-                updateProfile({ locale }).catch(() => {});
+                // Sync language preference to the profile (builds with sync, signed in)
+                if (isSyncConfigured && isSignedIn) {
+                  updateProfile({ locale: lang }).catch(() => {});
+                }
               }}
             >
               <Text category="s2" style={{ color: colors.text, flex: 1 }}>
@@ -617,52 +635,8 @@ export default function SettingsScreen() {
         })}
       </Card>
 
-      {/* Account */}
-      <Text category="s1" style={styles.sectionTitle}>
-        {t('settings.account')}
-      </Text>
-      <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.settingItem}>
-          <View style={{ flex: 1 }}>
-            <Text category="s2" style={{ color: colors.text }}>
-              {profile?.displayName ?? t('settings.user')}
-            </Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {profile?.locale === 'tr' ? t('settings.languageTr') : t('settings.languageEn')}
-              {profile?.prestigeCount ? ` · ${t('settings.prestige', { count: profile.prestigeCount })}` : ''}
-            </Text>
-          </View>
-          <Icon name="person-outline" fill={colors.textMuted} size={24} />
-        </View>
-
-        <Divider style={styles.divider} />
-
-        <Button
-          appearance="ghost"
-          status="danger"
-          accessoryLeft={(props) => <Icon {...props} name="log-out-outline" />}
-          onPress={() => {
-            Alert.alert(
-              t('auth.signOutTitle'),
-              t('auth.signOutConfirm'),
-              [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                  text: t('auth.signOut'),
-                  style: 'destructive',
-                  onPress: async () => {
-                    await signOut();
-                    router.replace('/(auth)/login' as any);
-                  },
-                },
-              ]
-            );
-          }}
-          style={styles.dangerButton}
-        >
-          {t('auth.signOut')}
-        </Button>
-      </Card>
+      {/* Account (only in builds with sync configured) */}
+      <AccountSection />
 
       {/* Danger Zone */}
       <Text category="s1" style={styles.sectionTitle}>

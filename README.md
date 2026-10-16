@@ -93,7 +93,7 @@ cp .env.example .env
 # EXPO_PUBLIC_SUPABASE_KEY=...   # anon / publishable key only, never a service_role key
 ```
 
-The database schema is in [`supabase/migrations`](supabase/migrations), and [`supabase/README.md`](supabase/README.md) walks through the setup. If you ship a build with sync enabled, you are responsible for your own privacy policy.
+With sync on, signing in is still optional: the app works without an account, and **Settings → Sync** offers "Sign in to sync" (and account deletion). The database schema is in [`supabase/migrations`](supabase/migrations), and [`supabase/README.md`](supabase/README.md) walks through the setup. If you ship a build with sync enabled, you are responsible for your own privacy policy.
 
 ## Project structure
 

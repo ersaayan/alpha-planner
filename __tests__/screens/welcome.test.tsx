@@ -42,10 +42,11 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: mockReplace,
     back: jest.fn(),
   }),
@@ -87,6 +88,6 @@ describe('WelcomeScreen', () => {
   it('navigates to pomodoro-setup on button press', async () => {
     await render(<WelcomeScreen />);
     await fireEvent.press(screen.getByText('Get Started'));
-    expect(mockReplace).toHaveBeenCalledWith('/(onboarding)/pomodoro-setup');
+    expect(mockPush).toHaveBeenCalledWith('/(onboarding)/pomodoro-setup');
   });
 });

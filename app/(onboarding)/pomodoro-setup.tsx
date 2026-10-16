@@ -32,7 +32,7 @@ export default function PomodoroSetupScreen() {
       longBreakDuration: longBreak * 60,
       sessionsUntilLongBreak,
     });
-    router.replace('/(onboarding)/category-selection');
+    router.push('/(onboarding)/category-selection');
   };
 
   const handleUseDefaults = () => {

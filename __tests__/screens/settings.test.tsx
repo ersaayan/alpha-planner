@@ -44,7 +44,7 @@ jest.mock('@/services/i18n/i18n-config', () => ({ changeLanguage: jest.fn() }));
 jest.mock('@/services/supabase/auth-service', () => ({ updateProfile: jest.fn().mockResolvedValue({}) }));
 
 jest.mock('@/stores', () => ({
-  useAuthStore: (sel: any) => sel({ profile: { displayName: 'Fatma', locale: 'en', prestigeCount: 0 }, signOut: jest.fn() }),
+  useAuthStore: (sel: any) => sel({ status: 'unknown', profile: null }),
   useSettingsStore: (sel: any) => sel({
     settings: {
       notificationsEnabled: true,
@@ -123,14 +123,16 @@ describe('Settings Screen', () => {
     expect(screen.getAllByText('English').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Account section with user name', async () => {
+  it('shows no account or sync UI when sync is not configured (store builds)', async () => {
     await render(<SettingsScreen />);
-    expect(screen.getByText('Account')).toBeTruthy();
-    expect(screen.getByText('Fatma')).toBeTruthy();
+    expect(screen.queryByText('Account')).toBeNull();
+    expect(screen.queryByText('Sign Out')).toBeNull();
+    expect(screen.queryByText('Sign in to sync')).toBeNull();
+    expect(screen.queryByText('Sync (experimental)')).toBeNull();
   });
 
-  it('renders Sign Out button', async () => {
+  it('still offers Reset All Data', async () => {
     await render(<SettingsScreen />);
-    expect(screen.getByText('Sign Out')).toBeTruthy();
+    expect(screen.getByText('Reset All Data')).toBeTruthy();
   });
 });

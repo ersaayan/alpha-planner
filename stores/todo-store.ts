@@ -1,9 +1,9 @@
 import type { Subtask, Todo, TodoFilter } from '@/types';
 import { generateId } from '@/utils/uuid';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { useGamificationStore } from './gamification-store';
+import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
 
 interface TodoState {
@@ -363,14 +363,41 @@ export const useTodoStore = create<TodoState>()(
           .sort((a, b) => a.order - b.order);
       },
     }),
-    {
+    createPersistOptions<TodoState, Pick<TodoState, 'todos' | 'filter'>>({
       name: 'todo-storage',
       version: 1,
-      storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ todos: state.todos, filter: state.filter }),
-      migrate: (persistedState: unknown, version: number) => {
-        return persistedState as TodoState;
-      },
-    }
+      migrate: migrateTodoState,
+    })
   )
 );
+
+/** v0 (unversioned) and v1 share a shape; normalize every todo so missing fields never crash a screen. */
+export function migrateTodoState(persisted: unknown, _fromVersion: number) {
+  const state = asRecord(persisted);
+  return {
+    todos: asRecordArray(state.todos).map(normalizeTodo),
+    filter: asRecord(state.filter),
+  };
+}
+
+function normalizeTodo(raw: Record<string, unknown>, index: number): Todo {
+  const now = new Date().toISOString();
+  return {
+    description: null,
+    dueDate: null,
+    status: 'pending',
+    categoryId: null,
+    priority: 'medium',
+    pomodoroSessions: 0,
+    estimatedPomodoros: null,
+    completedAt: null,
+    order: index,
+    createdAt: now,
+    updatedAt: now,
+    ...raw,
+    id: typeof raw.id === 'string' && raw.id ? raw.id : generateId(),
+    title: typeof raw.title === 'string' ? raw.title : '',
+    subtasks: asRecordArray(raw.subtasks) as unknown as Subtask[],
+  } as Todo;
+}

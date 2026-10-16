@@ -41,12 +41,15 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+const mockRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  back: jest.fn(),
+  canGoBack: jest.fn(() => true),
+};
+
 jest.mock('expo-router', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-    replace: jest.fn(),
-    back: jest.fn(),
-  }),
+  useRouter: () => mockRouter,
   useLocalSearchParams: () => ({}),
   Redirect: () => null,
 }));
@@ -81,8 +84,14 @@ jest.spyOn(Alert, 'alert');
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSignIn = jest.fn();
+  mockSignIn = jest.fn().mockResolvedValue({ switchedAccount: false });
 });
+
+async function submit(email: string, password: string) {
+  await fireEvent.changeText(screen.getByPlaceholderText('your@email.com'), email);
+  await fireEvent.changeText(screen.getByPlaceholderText('Min 6 characters'), password);
+  await fireEvent.press(screen.getByText('Sign In'));
+}
 
 describe('LoginScreen', () => {
   it('renders email and password inputs', async () => {
@@ -148,5 +157,52 @@ describe('LoginScreen', () => {
   it('renders app title Alpha Planner', async () => {
     await render(<LoginScreen />);
     expect(screen.getByText('Alpha Planner')).toBeTruthy();
+  });
+
+  it('trims the email before validating and signing in', async () => {
+    await render(<LoginScreen />);
+    await submit('  test@example.com  ', 'password123');
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'password123');
+  });
+
+  it('closes the sign-in modal after a successful sign-in', async () => {
+    await render(<LoginScreen />);
+    await submit('test@example.com', 'password123');
+    expect(mockRouter.back).toHaveBeenCalled();
+  });
+
+  it('shows a translated message when sign-in fails', async () => {
+    mockSignIn.mockRejectedValue(Object.assign(new Error('Invalid login credentials'), { code: 'invalid_credentials' }));
+    await render(<LoginScreen />);
+    await submit('test@example.com', 'wrong-pass');
+    expect(Alert.alert).toHaveBeenCalledWith('Sign In Failed', 'Incorrect email or password.');
+    expect(mockRouter.back).not.toHaveBeenCalled();
+  });
+
+  it('asks whether to keep local data when another account signs in', async () => {
+    mockSignIn.mockResolvedValue({ switchedAccount: true });
+    await render(<LoginScreen />);
+    await submit('other@example.com', 'password123');
+
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Data from another account',
+      expect.any(String),
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Keep data' }),
+        expect.objectContaining({ text: 'Erase data', style: 'destructive' }),
+      ]),
+      { cancelable: false }
+    );
+    const buttons = (Alert.alert as jest.Mock).mock.calls[0][2];
+    buttons.find((b: { text: string }) => b.text === 'Keep data').onPress();
+    expect(mockRouter.back).toHaveBeenCalled();
+  });
+
+  it('"Not now" closes the modal without signing in', async () => {
+    await render(<LoginScreen />);
+    await fireEvent.press(screen.getByText('Not now'));
+    expect(mockRouter.back).toHaveBeenCalled();
+    expect(mockSignIn).not.toHaveBeenCalled();
   });
 });

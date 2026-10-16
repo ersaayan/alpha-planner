@@ -5,9 +5,19 @@ import { getLocales } from 'expo-localization';
 import tr from '@/locales/tr.json';
 import en from '@/locales/en.json';
 
-const deviceLocale = getLocales()[0]?.languageCode ?? 'en';
-const defaultLng = deviceLocale === 'tr' ? 'tr' : 'en';
+export type LanguageSetting = 'tr' | 'en' | 'system';
 
+/** The device language if we support it, English otherwise. */
+export function getSystemLanguage(): 'tr' | 'en' {
+  return getLocales()[0]?.languageCode === 'tr' ? 'tr' : 'en';
+}
+
+export function resolveLanguage(setting: LanguageSetting | undefined): 'tr' | 'en' {
+  return setting === 'tr' || setting === 'en' ? setting : getSystemLanguage();
+}
+
+// Starts in the device language; the saved setting is applied once the settings
+// store has hydrated (see hooks/use-app-bootstrap.ts).
 i18n
   .use(initReactI18next)
   .init({
@@ -15,7 +25,7 @@ i18n
       tr: { translation: tr },
       en: { translation: en },
     },
-    lng: defaultLng,
+    lng: getSystemLanguage(),
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false,
@@ -26,13 +36,11 @@ i18n
 export default i18n;
 
 /**
- * Change the app language. Call from settings.
+ * Change the app language. Call from settings, and with the saved setting at startup.
  */
-export function changeLanguage(lang: 'tr' | 'en' | 'system'): void {
-  if (lang === 'system') {
-    const systemLocale = getLocales()[0]?.languageCode ?? 'en';
-    i18n.changeLanguage(systemLocale === 'tr' ? 'tr' : 'en');
-  } else {
-    i18n.changeLanguage(lang);
+export function changeLanguage(lang: LanguageSetting): void {
+  const resolved = resolveLanguage(lang);
+  if (i18n.language !== resolved) {
+    void i18n.changeLanguage(resolved);
   }
 }

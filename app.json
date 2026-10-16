@@ -39,7 +39,7 @@
       "package": "com.ersaayan.alphaplanner"
     },
     "web": {
-      "output": "static",
+      "output": "single",
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
