@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createClient, processLock, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto';
 
 // Sync is optional. Store builds ship without these variables, so the app must
@@ -17,7 +17,7 @@ function createSupabaseClient(): SupabaseClient | null {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
-        lock: processLock,
+        // No `lock` option: deprecated since auth-js 2.118, which coordinates refreshes itself.
       },
     });
   } catch (error) {
