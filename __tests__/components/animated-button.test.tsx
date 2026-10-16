@@ -39,39 +39,39 @@ describe('AnimatedButton', () => {
     jest.clearAllMocks();
   });
 
-  it('renders button with title', () => {
-    render(<AnimatedButton title="Save" onPress={() => {}} />);
+  it('renders button with title', async () => {
+    await render(<AnimatedButton title="Save" onPress={() => {}} />);
     expect(screen.getByText('Save')).toBeTruthy();
   });
 
-  it('calls onPress when pressed', () => {
+  it('calls onPress when pressed', async () => {
     const onPress = jest.fn();
-    render(<AnimatedButton title="Submit" onPress={onPress} />);
-    fireEvent.press(screen.getByText('Submit'));
+    await render(<AnimatedButton title="Submit" onPress={onPress} />);
+    await fireEvent.press(screen.getByText('Submit'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('renders with icon', () => {
-    render(
+  it('renders with icon', async () => {
+    await render(
       <AnimatedButton title="Add" icon="plus-outline" onPress={() => {}} />
     );
     expect(screen.getByText('Add')).toBeTruthy();
     expect(screen.getByTestId('icon-plus-outline')).toBeTruthy();
   });
 
-  it('shows loading text when loading', () => {
-    render(<AnimatedButton title="Save" loading={true} onPress={() => {}} />);
+  it('shows loading text when loading', async () => {
+    await render(<AnimatedButton title="Save" loading={true} onPress={() => {}} />);
     // When loading, the component renders "..." instead of the title
     expect(screen.getByText('...')).toBeTruthy();
     expect(screen.queryByText('Save')).toBeNull();
   });
 
-  it('is disabled when disabled prop is true', () => {
+  it('is disabled when disabled prop is true', async () => {
     const onPress = jest.fn();
-    render(
+    await render(
       <AnimatedButton title="Delete" disabled={true} onPress={onPress} />
     );
-    fireEvent.press(screen.getByText('Delete'));
+    await fireEvent.press(screen.getByText('Delete'));
     expect(onPress).not.toHaveBeenCalled();
   });
 });

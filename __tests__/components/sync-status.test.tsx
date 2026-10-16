@@ -22,27 +22,27 @@ describe('SyncStatus', () => {
     });
   });
 
-  it('renders nothing when idle (no syncing, no error, no pending)', () => {
-    const { toJSON } = render(<SyncStatus />);
+  it('renders nothing when idle (no syncing, no error, no pending)', async () => {
+    const { toJSON } = await render(<SyncStatus />);
     expect(toJSON()).toBeNull();
   });
 
-  it('renders activity indicator when syncing', () => {
+  it('renders activity indicator when syncing', async () => {
     useSyncStore.setState({ isSyncing: true, lastError: null, pendingOperations: [] });
-    render(<SyncStatus />);
+    await render(<SyncStatus />);
     // ActivityIndicator does not have a text node; check the component tree is non-null
-    const { toJSON } = render(<SyncStatus />);
+    const { toJSON } = await render(<SyncStatus />);
     const tree = toJSON();
     expect(tree).not.toBeNull();
   });
 
-  it('renders error dot when lastError is set', () => {
+  it('renders error dot when lastError is set', async () => {
     useSyncStore.setState({
       isSyncing: false,
       lastError: 'Network error',
       pendingOperations: [],
     });
-    const { toJSON } = render(<SyncStatus />);
+    const { toJSON } = await render(<SyncStatus />);
     const tree = toJSON();
     expect(tree).not.toBeNull();
     // The rendered tree should contain a View with the error backgroundColor
@@ -51,7 +51,7 @@ describe('SyncStatus', () => {
     expect(json).toContain('#F44336');
   });
 
-  it('renders warning dot when pending operations exist', () => {
+  it('renders warning dot when pending operations exist', async () => {
     useSyncStore.setState({
       isSyncing: false,
       lastError: null,
@@ -59,7 +59,7 @@ describe('SyncStatus', () => {
         { id: '1', table: 'todos', type: 'insert', data: {}, createdAt: '', retryCount: 0 },
       ] as any,
     });
-    const { toJSON } = render(<SyncStatus />);
+    const { toJSON } = await render(<SyncStatus />);
     const tree = toJSON();
     expect(tree).not.toBeNull();
     // The rendered tree should contain a View with the warning backgroundColor

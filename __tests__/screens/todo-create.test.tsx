@@ -64,40 +64,40 @@ describe('Todo Create Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders title input', () => {
-    render(<CreateTodoScreen />);
+  it('renders title input', async () => {
+    await render(<CreateTodoScreen />);
     expect(screen.getByText('Task Title')).toBeTruthy();
     expect(screen.getByPlaceholderText('What do you need to do?')).toBeTruthy();
   });
 
-  it('renders description input', () => {
-    render(<CreateTodoScreen />);
+  it('renders description input', async () => {
+    await render(<CreateTodoScreen />);
     expect(screen.getByText('Description (optional)')).toBeTruthy();
     expect(screen.getByPlaceholderText('Add more details...')).toBeTruthy();
   });
 
-  it('renders priority buttons (Low, Medium, High, Urgent)', () => {
-    render(<CreateTodoScreen />);
+  it('renders priority buttons (Low, Medium, High, Urgent)', async () => {
+    await render(<CreateTodoScreen />);
     expect(screen.getByText('Low')).toBeTruthy();
     expect(screen.getByText('Medium')).toBeTruthy();
     expect(screen.getByText('High')).toBeTruthy();
     expect(screen.getByText('Urgent')).toBeTruthy();
   });
 
-  it('renders category selector', () => {
-    render(<CreateTodoScreen />);
+  it('renders category selector', async () => {
+    await render(<CreateTodoScreen />);
     expect(screen.getByText('Category')).toBeTruthy();
     expect(screen.getByText('Work')).toBeTruthy();
   });
 
-  it('renders create/save button', () => {
-    render(<CreateTodoScreen />);
+  it('renders create/save button', async () => {
+    await render(<CreateTodoScreen />);
     expect(screen.getByText('Create Task')).toBeTruthy();
   });
 
-  it('does not call addTodo for empty title on submit', () => {
-    render(<CreateTodoScreen />);
-    fireEvent.press(screen.getByText('Create Task'));
+  it('does not call addTodo for empty title on submit', async () => {
+    await render(<CreateTodoScreen />);
+    await fireEvent.press(screen.getByText('Create Task'));
     expect(mockAddTodo).not.toHaveBeenCalled();
   });
 });

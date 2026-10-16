@@ -21,25 +21,25 @@ import { Text, View } from 'react-native';
 import { SectionHeader } from '@/components/common/section-header';
 
 describe('SectionHeader', () => {
-  it('renders title text', () => {
-    render(<SectionHeader title="Today's Tasks" />);
+  it('renders title text', async () => {
+    await render(<SectionHeader title="Today's Tasks" />);
     expect(screen.getByText("Today's Tasks")).toBeTruthy();
   });
 
-  it('renders action element when provided', () => {
+  it('renders action element when provided', async () => {
     const action = <Text>See All</Text>;
-    render(<SectionHeader title="Tasks" action={action} />);
+    await render(<SectionHeader title="Tasks" action={action} />);
     expect(screen.getByText('See All')).toBeTruthy();
   });
 
-  it('does not render action when not provided', () => {
-    render(<SectionHeader title="Tasks" />);
+  it('does not render action when not provided', async () => {
+    await render(<SectionHeader title="Tasks" />);
     expect(screen.queryByText('See All')).toBeNull();
   });
 
-  it('applies custom style', () => {
+  it('applies custom style', async () => {
     const customStyle = { marginTop: 32 };
-    render(
+    await render(
       <View testID="wrapper">
         <SectionHeader title="Tasks" style={customStyle} />
       </View>

@@ -62,31 +62,31 @@ beforeEach(() => {
 });
 
 describe('WelcomeScreen', () => {
-  it('renders Alpha Planner title', () => {
-    render(<WelcomeScreen />);
+  it('renders Alpha Planner title', async () => {
+    await render(<WelcomeScreen />);
     expect(screen.getByText('Alpha Planner')).toBeTruthy();
   });
 
-  it('renders Focus. Plan. Grow. subtitle', () => {
-    render(<WelcomeScreen />);
+  it('renders Focus. Plan. Grow. subtitle', async () => {
+    await render(<WelcomeScreen />);
     expect(screen.getByText('Focus. Plan. Grow.')).toBeTruthy();
   });
 
-  it('renders 3 feature cards', () => {
-    render(<WelcomeScreen />);
+  it('renders 3 feature cards', async () => {
+    await render(<WelcomeScreen />);
     expect(screen.getByText('Pomodoro Timer')).toBeTruthy();
     expect(screen.getByText('Smart Tasks')).toBeTruthy();
     expect(screen.getByText('Achievements')).toBeTruthy();
   });
 
-  it('renders get started button', () => {
-    render(<WelcomeScreen />);
+  it('renders get started button', async () => {
+    await render(<WelcomeScreen />);
     expect(screen.getByText('Get Started')).toBeTruthy();
   });
 
-  it('navigates to pomodoro-setup on button press', () => {
-    render(<WelcomeScreen />);
-    fireEvent.press(screen.getByText('Get Started'));
+  it('navigates to pomodoro-setup on button press', async () => {
+    await render(<WelcomeScreen />);
+    await fireEvent.press(screen.getByText('Get Started'));
     expect(mockReplace).toHaveBeenCalledWith('/(onboarding)/pomodoro-setup');
   });
 });

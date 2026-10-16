@@ -32,31 +32,31 @@ import { Text } from 'react-native';
 import { EmptyState } from '@/components/common/empty-state';
 
 describe('EmptyState', () => {
-  it('renders title text', () => {
-    render(<EmptyState title="No items found" />);
+  it('renders title text', async () => {
+    await render(<EmptyState title="No items found" />);
     expect(screen.getByText('No items found')).toBeTruthy();
   });
 
-  it('renders subtitle when provided', () => {
-    render(
+  it('renders subtitle when provided', async () => {
+    await render(
       <EmptyState title="No items" subtitle="Try adding something new" />
     );
     expect(screen.getByText('Try adding something new')).toBeTruthy();
   });
 
-  it('does not render subtitle when not provided', () => {
-    render(<EmptyState title="No items" />);
+  it('does not render subtitle when not provided', async () => {
+    await render(<EmptyState title="No items" />);
     expect(screen.queryByText('Try adding something new')).toBeNull();
   });
 
-  it('renders action element when provided', () => {
+  it('renders action element when provided', async () => {
     const action = <Text>Add Item</Text>;
-    render(<EmptyState title="No items" action={action} />);
+    await render(<EmptyState title="No items" action={action} />);
     expect(screen.getByText('Add Item')).toBeTruthy();
   });
 
-  it('renders icon when provided', () => {
-    render(<EmptyState title="No items" icon="inbox-outline" />);
+  it('renders icon when provided', async () => {
+    await render(<EmptyState title="No items" icon="inbox-outline" />);
     expect(screen.getByTestId('icon-inbox-outline')).toBeTruthy();
   });
 });

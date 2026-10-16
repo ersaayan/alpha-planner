@@ -1,6 +1,3 @@
-// Mock react-native-worklets (its native part is not available under Jest)
-jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'));
-
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')

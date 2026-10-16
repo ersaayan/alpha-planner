@@ -61,23 +61,23 @@ describe('LevelUpModal', () => {
     jest.clearAllMocks();
   });
 
-  it('renders when visible is true', () => {
-    render(<LevelUpModal {...defaultProps} />);
+  it('renders when visible is true', async () => {
+    await render(<LevelUpModal {...defaultProps} />);
     expect(screen.getByText('LEVEL UP!')).toBeTruthy();
   });
 
-  it('does not render when visible is false', () => {
-    render(<LevelUpModal {...defaultProps} visible={false} />);
+  it('does not render when visible is false', async () => {
+    await render(<LevelUpModal {...defaultProps} visible={false} />);
     expect(screen.queryByText('LEVEL UP!')).toBeNull();
   });
 
-  it('displays congratulations text', () => {
-    render(<LevelUpModal {...defaultProps} />);
+  it('displays congratulations text', async () => {
+    await render(<LevelUpModal {...defaultProps} />);
     expect(screen.getByText('Congratulations!')).toBeTruthy();
   });
 
-  it('displays new level number or title', () => {
-    render(<LevelUpModal {...defaultProps} />);
+  it('displays new level number or title', async () => {
+    await render(<LevelUpModal {...defaultProps} />);
     expect(screen.getByText('Young Leaf')).toBeTruthy();
     // The description also includes the level number
     expect(
@@ -87,11 +87,11 @@ describe('LevelUpModal', () => {
     ).toBeTruthy();
   });
 
-  it('calls onClose when continue button pressed', () => {
+  it('calls onClose when continue button pressed', async () => {
     const onClose = jest.fn();
-    render(<LevelUpModal {...defaultProps} onClose={onClose} />);
+    await render(<LevelUpModal {...defaultProps} onClose={onClose} />);
     // The AnimatedButton mock renders a Pressable with title text
-    fireEvent.press(screen.getByText('Continue'));
+    await fireEvent.press(screen.getByText('Continue'));
     // handleClose triggers animations with runOnJS(onClose).
     // In the mock environment the callback fires synchronously.
     expect(onClose).toHaveBeenCalled();

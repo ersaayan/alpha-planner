@@ -47,28 +47,28 @@ describe('XPGainToast', () => {
     jest.clearAllMocks();
   });
 
-  it('renders when visible is true', () => {
-    render(<XPGainToast {...defaultProps} />);
+  it('renders when visible is true', async () => {
+    await render(<XPGainToast {...defaultProps} />);
     expect(screen.getByText('+25 XP')).toBeTruthy();
   });
 
-  it('does not render when visible is false', () => {
-    render(<XPGainToast {...defaultProps} visible={false} />);
+  it('does not render when visible is false', async () => {
+    await render(<XPGainToast {...defaultProps} visible={false} />);
     expect(screen.queryByText('+25 XP')).toBeNull();
   });
 
-  it('displays XP amount', () => {
-    render(<XPGainToast {...defaultProps} amount={100} />);
+  it('displays XP amount', async () => {
+    await render(<XPGainToast {...defaultProps} amount={100} />);
     expect(screen.getByText('+100 XP')).toBeTruthy();
   });
 
-  it('displays reason text', () => {
-    render(<XPGainToast {...defaultProps} />);
+  it('displays reason text', async () => {
+    await render(<XPGainToast {...defaultProps} />);
     expect(screen.getByText('Pomodoro completed')).toBeTruthy();
   });
 
-  it('has accessibility label with amount', () => {
-    render(<XPGainToast {...defaultProps} />);
+  it('has accessibility label with amount', async () => {
+    await render(<XPGainToast {...defaultProps} />);
     expect(
       screen.getByLabelText('Gained 25 XP, Pomodoro completed')
     ).toBeTruthy();

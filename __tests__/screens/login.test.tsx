@@ -85,68 +85,68 @@ beforeEach(() => {
 });
 
 describe('LoginScreen', () => {
-  it('renders email and password inputs', () => {
-    render(<LoginScreen />);
+  it('renders email and password inputs', async () => {
+    await render(<LoginScreen />);
     expect(screen.getByText('Email')).toBeTruthy();
     expect(screen.getByText('Password')).toBeTruthy();
   });
 
-  it('renders sign in button', () => {
-    render(<LoginScreen />);
+  it('renders sign in button', async () => {
+    await render(<LoginScreen />);
     expect(screen.getByText('Sign In')).toBeTruthy();
   });
 
-  it('renders create account link', () => {
-    render(<LoginScreen />);
+  it('renders create account link', async () => {
+    await render(<LoginScreen />);
     expect(screen.getByText("Don't have an account? Create one")).toBeTruthy();
   });
 
-  it('calls signIn with email and password on submit', () => {
-    render(<LoginScreen />);
+  it('calls signIn with email and password on submit', async () => {
+    await render(<LoginScreen />);
 
     const emailInput = screen.getByPlaceholderText('your@email.com');
     const passwordInput = screen.getByPlaceholderText('Min 6 characters');
 
-    fireEvent.changeText(emailInput, 'test@example.com');
-    fireEvent.changeText(passwordInput, 'password123');
-    fireEvent.press(screen.getByText('Sign In'));
+    await fireEvent.changeText(emailInput, 'test@example.com');
+    await fireEvent.changeText(passwordInput, 'password123');
+    await fireEvent.press(screen.getByText('Sign In'));
 
     expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'password123');
   });
 
-  it('shows alert for empty email', () => {
-    render(<LoginScreen />);
+  it('shows alert for empty email', async () => {
+    await render(<LoginScreen />);
 
-    fireEvent.press(screen.getByText('Sign In'));
+    await fireEvent.press(screen.getByText('Sign In'));
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Email is required');
   });
 
-  it('shows alert for invalid email format', () => {
-    render(<LoginScreen />);
+  it('shows alert for invalid email format', async () => {
+    await render(<LoginScreen />);
 
     const emailInput = screen.getByPlaceholderText('your@email.com');
-    fireEvent.changeText(emailInput, 'not-an-email');
-    fireEvent.press(screen.getByText('Sign In'));
+    await fireEvent.changeText(emailInput, 'not-an-email');
+    await fireEvent.press(screen.getByText('Sign In'));
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Invalid email');
   });
 
-  it('shows alert for short password', () => {
-    render(<LoginScreen />);
+  it('shows alert for short password', async () => {
+    await render(<LoginScreen />);
 
     const emailInput = screen.getByPlaceholderText('your@email.com');
     const passwordInput = screen.getByPlaceholderText('Min 6 characters');
 
-    fireEvent.changeText(emailInput, 'test@example.com');
-    fireEvent.changeText(passwordInput, '12');
-    fireEvent.press(screen.getByText('Sign In'));
+    await fireEvent.changeText(emailInput, 'test@example.com');
+    await fireEvent.changeText(passwordInput, '12');
+    await fireEvent.press(screen.getByText('Sign In'));
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Password must be at least 6 characters');
   });
 
-  it('renders app title Alpha Planner', () => {
-    render(<LoginScreen />);
+  it('renders app title Alpha Planner', async () => {
+    await render(<LoginScreen />);
     expect(screen.getByText('Alpha Planner')).toBeTruthy();
   });
 });

@@ -57,41 +57,41 @@ describe('Todos Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders Tasks title', () => {
-    render(<TodosScreen />);
+  it('renders Tasks title', async () => {
+    await render(<TodosScreen />);
     expect(screen.getByText('My Tasks')).toBeTruthy();
   });
 
-  it('renders search input', () => {
-    render(<TodosScreen />);
+  it('renders search input', async () => {
+    await render(<TodosScreen />);
     expect(screen.getByPlaceholderText('Search tasks...')).toBeTruthy();
   });
 
-  it('renders status filter tabs (All, Pending, In Progress, Done)', () => {
-    render(<TodosScreen />);
+  it('renders status filter tabs (All, Pending, In Progress, Done)', async () => {
+    await render(<TodosScreen />);
     expect(screen.getByText('All')).toBeTruthy();
     expect(screen.getByText('Pending')).toBeTruthy();
     expect(screen.getByText('In Progress')).toBeTruthy();
     expect(screen.getByText('Done')).toBeTruthy();
   });
 
-  it('renders todo items', () => {
-    render(<TodosScreen />);
+  it('renders todo items', async () => {
+    await render(<TodosScreen />);
     expect(screen.getByText('Buy groceries')).toBeTruthy();
     expect(screen.getByText('Finish report')).toBeTruthy();
   });
 
-  it('renders add button', () => {
-    render(<TodosScreen />);
+  it('renders add button', async () => {
+    await render(<TodosScreen />);
     expect(screen.getByText('Add')).toBeTruthy();
   });
 
-  it('renders empty state when no todos match filter', () => {
+  it('renders empty state when no todos match filter', async () => {
     jest.spyOn(require('@/stores'), 'useTodoStore').mockImplementation((sel: any) => sel({
       todos: [],
       toggleTodoStatus: jest.fn(),
     }));
-    render(<TodosScreen />);
+    await render(<TodosScreen />);
     expect(screen.getByText('No tasks found')).toBeTruthy();
   });
 });

@@ -71,33 +71,33 @@ describe('Pomodoro Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders timer display with time', () => {
-    render(<PomodoroScreen />);
+  it('renders timer display with time', async () => {
+    await render(<PomodoroScreen />);
     expect(screen.getByText('25:00')).toBeTruthy();
   });
 
-  it('renders Start button when stopped', () => {
-    render(<PomodoroScreen />);
+  it('renders Start button when stopped', async () => {
+    await render(<PomodoroScreen />);
     expect(screen.getByText('Start Focus')).toBeTruthy();
   });
 
-  it('renders session counter', () => {
-    render(<PomodoroScreen />);
+  it('renders session counter', async () => {
+    await render(<PomodoroScreen />);
     expect(screen.getByText('Session 1')).toBeTruthy();
   });
 
-  it('renders phase label (Focus/Break)', () => {
-    render(<PomodoroScreen />);
+  it('renders phase label (Focus/Break)', async () => {
+    await render(<PomodoroScreen />);
     expect(screen.getByText('Focus Time')).toBeTruthy();
   });
 
-  it('start button calls startTimer', () => {
-    render(<PomodoroScreen />);
-    fireEvent.press(screen.getByText('Start Focus'));
+  it('start button calls startTimer', async () => {
+    await render(<PomodoroScreen />);
+    await fireEvent.press(screen.getByText('Start Focus'));
     expect(mockStartTimer).toHaveBeenCalled();
   });
 
-  it('renders skip button when timer is running', () => {
+  it('renders skip button when timer is running', async () => {
     jest.spyOn(require('@/stores'), 'usePomodoroStore').mockImplementation((sel: any) => sel({
       timer: { state: 'running', phase: 'focus', remainingTime: 1200, totalTime: 1500, sessionsCompleted: 0, linkedTodoId: null, startedAt: null, pausedAt: null, totalPausedDuration: 0, notificationId: null, currentSessionId: null },
       startTimer: mockStartTimer,
@@ -108,7 +108,7 @@ describe('Pomodoro Screen', () => {
       getProgress: () => 0.2,
       linkTodo: jest.fn(),
     }));
-    render(<PomodoroScreen />);
+    await render(<PomodoroScreen />);
     expect(screen.getByText(/Skip to/)).toBeTruthy();
   });
 });

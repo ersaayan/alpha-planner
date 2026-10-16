@@ -238,20 +238,22 @@ export function Icon({ name, fill = '#8F9BB3', style, size }: IconProps) {
   // Extract size from style if provided
   const styleObj = style as { width?: number; height?: number } | undefined;
   const iconSize = size || styleObj?.width || styleObj?.height || 24;
+  // RN's ColorValue also allows null and processed (numeric) colors, which vector icons don't accept
+  const color = fill === null || typeof fill === 'number' ? undefined : fill;
 
   const mapping = ICON_MAP[name];
 
   if (!mapping) {
     // Default to Feather with a fallback icon
     console.warn(`Icon "${name}" not found in mapping, using default`);
-    return <Feather name="circle" size={iconSize} color={fill} />;
+    return <Feather name="circle" size={iconSize} color={color} />;
   }
 
   if (mapping.pack === 'feather') {
-    return <Feather name={mapping.name as keyof typeof Feather.glyphMap} size={iconSize} color={fill} />;
+    return <Feather name={mapping.name as keyof typeof Feather.glyphMap} size={iconSize} color={color} />;
   }
 
-  return <MaterialCommunityIcons name={mapping.name as keyof typeof MaterialCommunityIcons.glyphMap} size={iconSize} color={fill} />;
+  return <MaterialCommunityIcons name={mapping.name as keyof typeof MaterialCommunityIcons.glyphMap} size={iconSize} color={color} />;
 }
 
 export default Icon;

@@ -54,26 +54,26 @@ describe('AnimatedCheckbox', () => {
     jest.clearAllMocks();
   });
 
-  it('renders without crashing', () => {
-    render(<AnimatedCheckbox checked={false} />);
+  it('renders without crashing', async () => {
+    await render(<AnimatedCheckbox checked={false} />);
     expect(screen.getByRole('checkbox')).toBeTruthy();
   });
 
-  it('calls onToggle when pressed', () => {
+  it('calls onToggle when pressed', async () => {
     const onToggle = jest.fn();
-    render(<AnimatedCheckbox checked={false} onToggle={onToggle} />);
-    fireEvent.press(screen.getByRole('checkbox'));
+    await render(<AnimatedCheckbox checked={false} onToggle={onToggle} />);
+    await fireEvent.press(screen.getByRole('checkbox'));
     expect(onToggle).toHaveBeenCalledWith(true);
   });
 
-  it('renders checked state', () => {
-    render(<AnimatedCheckbox checked={true} />);
+  it('renders checked state', async () => {
+    await render(<AnimatedCheckbox checked={true} />);
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox.props.accessibilityState).toMatchObject({ checked: true });
   });
 
-  it('renders unchecked state', () => {
-    render(<AnimatedCheckbox checked={false} />);
+  it('renders unchecked state', async () => {
+    await render(<AnimatedCheckbox checked={false} />);
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox.props.accessibilityState).toMatchObject({ checked: false });
   });

@@ -64,31 +64,31 @@ describe('Stats Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders Statistics title', () => {
-    render(<StatsScreen />);
+  it('renders Statistics title', async () => {
+    await render(<StatsScreen />);
     expect(screen.getByText('Statistics')).toBeTruthy();
   });
 
-  it('renders level with tier display', () => {
-    render(<StatsScreen />);
+  it('renders level with tier display', async () => {
+    await render(<StatsScreen />);
     expect(screen.getByText(/Seedling/)).toBeTruthy();
     expect(screen.getByText(/Young Leaf/)).toBeTruthy();
   });
 
-  it('renders stat cards (pomodoros, focus time, tasks, streak)', () => {
-    render(<StatsScreen />);
+  it('renders stat cards (pomodoros, focus time, tasks, streak)', async () => {
+    await render(<StatsScreen />);
     expect(screen.getByText('Pomodoros')).toBeTruthy();
     expect(screen.getByText('Focus Time')).toBeTruthy();
     expect(screen.getByText('Tasks Done')).toBeTruthy();
     expect(screen.getByText('Day Streak')).toBeTruthy();
   });
 
-  it('renders achievements section', () => {
-    render(<StatsScreen />);
+  it('renders achievements section', async () => {
+    await render(<StatsScreen />);
     expect(screen.getByText('Achievements')).toBeTruthy();
   });
 
-  it('renders empty state for new user', () => {
+  it('renders empty state for new user', async () => {
     jest.spyOn(require('@/stores'), 'useGamificationStore').mockImplementation((sel: any) => sel({
       stats: { level: 1, currentStreak: 0, totalPomodoros: 0, totalXp: 0, currentXp: 0, totalFocusTime: 0, totalTasksCompleted: 0, longestStreak: 0 },
       getXpProgress: () => ({ current: 0, required: 100, percentage: 0 }),
@@ -97,7 +97,7 @@ describe('Stats Screen', () => {
       prestige: { count: 0, currentSeasonStart: '2026-04', history: [] },
       isAchievementUnlocked: () => false,
     }));
-    render(<StatsScreen />);
+    await render(<StatsScreen />);
     expect(screen.getByText('Start Your Journey!')).toBeTruthy();
   });
 });

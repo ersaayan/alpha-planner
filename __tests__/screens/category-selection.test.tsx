@@ -83,37 +83,37 @@ beforeEach(() => {
 });
 
 describe('CategorySelectionScreen', () => {
-  it('renders category grid', () => {
-    render(<CategorySelectionScreen />);
+  it('renders category grid', async () => {
+    await render(<CategorySelectionScreen />);
     expect(screen.getByText('Choose Categories')).toBeTruthy();
     expect(screen.getByText('Work')).toBeTruthy();
     expect(screen.getByText('Personal')).toBeTruthy();
   });
 
-  it('renders at least 2 default categories', () => {
-    render(<CategorySelectionScreen />);
+  it('renders at least 2 default categories', async () => {
+    await render(<CategorySelectionScreen />);
     expect(screen.getByText('Work')).toBeTruthy();
     expect(screen.getByText('Personal')).toBeTruthy();
   });
 
-  it('renders Add Custom button', () => {
-    render(<CategorySelectionScreen />);
+  it('renders Add Custom button', async () => {
+    await render(<CategorySelectionScreen />);
     expect(screen.getByText('Add Custom')).toBeTruthy();
   });
 
-  it('renders Finish button', () => {
-    render(<CategorySelectionScreen />);
+  it('renders Finish button', async () => {
+    await render(<CategorySelectionScreen />);
     expect(screen.getByText("Let's Go!")).toBeTruthy();
   });
 
-  it('shows alert when finishing with no categories selected', () => {
-    render(<CategorySelectionScreen />);
+  it('shows alert when finishing with no categories selected', async () => {
+    await render(<CategorySelectionScreen />);
 
     // Deselect both categories by pressing them (they start selected)
-    fireEvent.press(screen.getByText('Work'));
-    fireEvent.press(screen.getByText('Personal'));
+    await fireEvent.press(screen.getByText('Work'));
+    await fireEvent.press(screen.getByText('Personal'));
 
-    fireEvent.press(screen.getByText("Let's Go!"));
+    await fireEvent.press(screen.getByText("Let's Go!"));
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Select Categories',
@@ -121,11 +121,11 @@ describe('CategorySelectionScreen', () => {
     );
   });
 
-  it('calls completeOnboarding on finish with categories selected', () => {
-    render(<CategorySelectionScreen />);
+  it('calls completeOnboarding on finish with categories selected', async () => {
+    await render(<CategorySelectionScreen />);
 
     // Categories are selected by default, just press finish
-    fireEvent.press(screen.getByText("Let's Go!"));
+    await fireEvent.press(screen.getByText("Let's Go!"));
 
     expect(mockKeepOnlyCategories).toHaveBeenCalledWith(['1', '2']);
     expect(mockCompleteOnboarding).toHaveBeenCalled();

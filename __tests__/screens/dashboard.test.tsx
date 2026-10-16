@@ -53,44 +53,44 @@ describe('Dashboard Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders personalized greeting with display name', () => {
-    render(<HomeScreen />);
+  it('renders personalized greeting with display name', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText(/Hoşgeldin, Fatma/)).toBeTruthy();
   });
 
-  it('renders level tier and title', () => {
-    render(<HomeScreen />);
+  it('renders level tier and title', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText(/Seedling/)).toBeTruthy();
     expect(screen.getByText(/Young Leaf/)).toBeTruthy();
   });
 
-  it('renders XP progress section', () => {
-    render(<HomeScreen />);
+  it('renders XP progress section', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText('Experience')).toBeTruthy();
     expect(screen.getByText(/500 XP/)).toBeTruthy();
   });
 
-  it('renders quick stats', () => {
-    render(<HomeScreen />);
+  it('renders quick stats', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText('Day Streak')).toBeTruthy();
     expect(screen.getByText('Done Today')).toBeTruthy();
     expect(screen.getByText('Pomodoros')).toBeTruthy();
   });
 
-  it('renders active tasks section', () => {
-    render(<HomeScreen />);
+  it('renders active tasks section', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText('Active Tasks')).toBeTruthy();
     expect(screen.getByText('Test Task')).toBeTruthy();
   });
 
-  it('renders quick action buttons (New Task, Start Focus)', () => {
-    render(<HomeScreen />);
+  it('renders quick action buttons (New Task, Start Focus)', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText('New Task')).toBeTruthy();
     expect(screen.getByText('Start Focus')).toBeTruthy();
   });
 
-  it('renders timer status section', () => {
-    render(<HomeScreen />);
+  it('renders timer status section', async () => {
+    await render(<HomeScreen />);
     expect(screen.getByText('Quick Actions')).toBeTruthy();
   });
 });

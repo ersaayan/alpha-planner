@@ -55,36 +55,36 @@ describe('AchievementUnlock', () => {
     jest.clearAllMocks();
   });
 
-  it('renders when visible is true', () => {
-    render(<AchievementUnlock {...defaultProps} />);
+  it('renders when visible is true', async () => {
+    await render(<AchievementUnlock {...defaultProps} />);
     expect(screen.getByText('ACHIEVEMENT UNLOCKED')).toBeTruthy();
   });
 
-  it('does not render content when visible is false', () => {
-    render(<AchievementUnlock {...defaultProps} visible={false} />);
+  it('does not render content when visible is false', async () => {
+    await render(<AchievementUnlock {...defaultProps} visible={false} />);
     expect(screen.queryByText('ACHIEVEMENT UNLOCKED')).toBeNull();
   });
 
-  it('displays achievement title', () => {
-    render(<AchievementUnlock {...defaultProps} />);
+  it('displays achievement title', async () => {
+    await render(<AchievementUnlock {...defaultProps} />);
     expect(screen.getByText('First Focus')).toBeTruthy();
   });
 
-  it('displays achievement description', () => {
-    render(<AchievementUnlock {...defaultProps} />);
+  it('displays achievement description', async () => {
+    await render(<AchievementUnlock {...defaultProps} />);
     expect(screen.getByText('Complete your first pomodoro')).toBeTruthy();
   });
 
-  it('displays XP reward', () => {
-    render(<AchievementUnlock {...defaultProps} />);
+  it('displays XP reward', async () => {
+    await render(<AchievementUnlock {...defaultProps} />);
     expect(screen.getByText('+50 XP')).toBeTruthy();
   });
 
-  it('calls onClose when backdrop pressed', () => {
+  it('calls onClose when backdrop pressed', async () => {
     const onClose = jest.fn();
-    render(<AchievementUnlock {...defaultProps} onClose={onClose} />);
+    await render(<AchievementUnlock {...defaultProps} onClose={onClose} />);
     // The overlay is a Pressable wrapping the entire component
-    fireEvent.press(screen.getByText('ACHIEVEMENT UNLOCKED'));
+    await fireEvent.press(screen.getByText('ACHIEVEMENT UNLOCKED'));
     expect(onClose).toHaveBeenCalled();
   });
 });

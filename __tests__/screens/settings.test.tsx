@@ -88,49 +88,49 @@ describe('Settings Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders Settings title', () => {
-    render(<SettingsScreen />);
+  it('renders Settings title', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Settings')).toBeTruthy();
   });
 
-  it('renders Pomodoro Timer section', () => {
-    render(<SettingsScreen />);
+  it('renders Pomodoro Timer section', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Pomodoro Timer')).toBeTruthy();
     expect(screen.getByText('Focus Duration')).toBeTruthy();
     expect(screen.getByText('Short Break')).toBeTruthy();
     expect(screen.getByText('Long Break')).toBeTruthy();
   });
 
-  it('renders Notifications section', () => {
-    render(<SettingsScreen />);
+  it('renders Notifications section', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Notifications')).toBeTruthy();
     expect(screen.getByText('Enable Notifications')).toBeTruthy();
     expect(screen.getByText('Sound')).toBeTruthy();
     expect(screen.getByText('Vibration')).toBeTruthy();
   });
 
-  it('renders Appearance section', () => {
-    render(<SettingsScreen />);
+  it('renders Appearance section', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Appearance')).toBeTruthy();
     expect(screen.getByText('Theme')).toBeTruthy();
     expect(screen.getByText('Light')).toBeTruthy();
     expect(screen.getByText('Dark')).toBeTruthy();
   });
 
-  it('renders Language section', () => {
-    render(<SettingsScreen />);
+  it('renders Language section', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Language')).toBeTruthy();
     expect(screen.getAllByText('English').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('renders Account section with user name', () => {
-    render(<SettingsScreen />);
+  it('renders Account section with user name', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Account')).toBeTruthy();
     expect(screen.getByText('Fatma')).toBeTruthy();
   });
 
-  it('renders Sign Out button', () => {
-    render(<SettingsScreen />);
+  it('renders Sign Out button', async () => {
+    await render(<SettingsScreen />);
     expect(screen.getByText('Sign Out')).toBeTruthy();
   });
 });

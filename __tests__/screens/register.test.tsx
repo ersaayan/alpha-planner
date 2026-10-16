@@ -85,80 +85,80 @@ beforeEach(() => {
 });
 
 describe('RegisterScreen', () => {
-  it('renders name, email, password inputs', () => {
-    render(<RegisterScreen />);
+  it('renders name, email, password inputs', async () => {
+    await render(<RegisterScreen />);
     expect(screen.getByText('Name')).toBeTruthy();
     expect(screen.getByText('Email')).toBeTruthy();
     expect(screen.getByText('Password')).toBeTruthy();
   });
 
-  it('renders Create Account button', () => {
-    render(<RegisterScreen />);
+  it('renders Create Account button', async () => {
+    await render(<RegisterScreen />);
     // "Create Account" appears as both page heading and button text
     const matches = screen.getAllByText('Create Account');
     expect(matches.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders sign in link', () => {
-    render(<RegisterScreen />);
+  it('renders sign in link', async () => {
+    await render(<RegisterScreen />);
     expect(screen.getByText('Already have an account? Sign in')).toBeTruthy();
   });
 
-  it('calls signUp with name, email, password on submit', () => {
-    render(<RegisterScreen />);
+  it('calls signUp with name, email, password on submit', async () => {
+    await render(<RegisterScreen />);
 
     const nameInput = screen.getByPlaceholderText('Your name');
     const emailInput = screen.getByPlaceholderText('your@email.com');
     const passwordInput = screen.getByPlaceholderText('Min 6 characters');
 
-    fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'john@example.com');
-    fireEvent.changeText(passwordInput, 'password123');
+    await fireEvent.changeText(nameInput, 'John Doe');
+    await fireEvent.changeText(emailInput, 'john@example.com');
+    await fireEvent.changeText(passwordInput, 'password123');
 
     // Press the button instance (last "Create Account" text)
     const matches = screen.getAllByText('Create Account');
-    fireEvent.press(matches[matches.length - 1]);
+    await fireEvent.press(matches[matches.length - 1]);
 
     expect(mockSignUp).toHaveBeenCalledWith('john@example.com', 'password123', 'John Doe');
   });
 
-  it('shows alert for empty name', () => {
-    render(<RegisterScreen />);
+  it('shows alert for empty name', async () => {
+    await render(<RegisterScreen />);
 
     const matches = screen.getAllByText('Create Account');
-    fireEvent.press(matches[matches.length - 1]);
+    await fireEvent.press(matches[matches.length - 1]);
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Name is required');
   });
 
-  it('shows alert for invalid email', () => {
-    render(<RegisterScreen />);
+  it('shows alert for invalid email', async () => {
+    await render(<RegisterScreen />);
 
     const nameInput = screen.getByPlaceholderText('Your name');
     const emailInput = screen.getByPlaceholderText('your@email.com');
 
-    fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'bad-email');
+    await fireEvent.changeText(nameInput, 'John Doe');
+    await fireEvent.changeText(emailInput, 'bad-email');
 
     const matches = screen.getAllByText('Create Account');
-    fireEvent.press(matches[matches.length - 1]);
+    await fireEvent.press(matches[matches.length - 1]);
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Invalid email');
   });
 
-  it('shows alert for short password', () => {
-    render(<RegisterScreen />);
+  it('shows alert for short password', async () => {
+    await render(<RegisterScreen />);
 
     const nameInput = screen.getByPlaceholderText('Your name');
     const emailInput = screen.getByPlaceholderText('your@email.com');
     const passwordInput = screen.getByPlaceholderText('Min 6 characters');
 
-    fireEvent.changeText(nameInput, 'John Doe');
-    fireEvent.changeText(emailInput, 'john@example.com');
-    fireEvent.changeText(passwordInput, '12');
+    await fireEvent.changeText(nameInput, 'John Doe');
+    await fireEvent.changeText(emailInput, 'john@example.com');
+    await fireEvent.changeText(passwordInput, '12');
 
     const matches = screen.getAllByText('Create Account');
-    fireEvent.press(matches[matches.length - 1]);
+    await fireEvent.press(matches[matches.length - 1]);
 
     expect(Alert.alert).toHaveBeenCalledWith('Error', 'Password must be at least 6 characters');
   });

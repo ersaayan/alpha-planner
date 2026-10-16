@@ -77,33 +77,33 @@ beforeEach(() => {
 });
 
 describe('PomodoroSetupScreen', () => {
-  it('renders Pomodoro Setup title or focus duration label', () => {
-    render(<PomodoroSetupScreen />);
+  it('renders Pomodoro Setup title or focus duration label', async () => {
+    await render(<PomodoroSetupScreen />);
     expect(screen.getByText('Focus Duration')).toBeTruthy();
     expect(screen.getByText('Set Your Timer')).toBeTruthy();
   });
 
-  it('renders 4 slider sections (focus, short break, long break, sessions)', () => {
-    render(<PomodoroSetupScreen />);
+  it('renders 4 slider sections (focus, short break, long break, sessions)', async () => {
+    await render(<PomodoroSetupScreen />);
     expect(screen.getByText('Focus Duration')).toBeTruthy();
     expect(screen.getByText('Short Break')).toBeTruthy();
     expect(screen.getByText('Long Break')).toBeTruthy();
     expect(screen.getByText('Sessions Until Long Break')).toBeTruthy();
   });
 
-  it('renders Use Classic button', () => {
-    render(<PomodoroSetupScreen />);
+  it('renders Use Classic button', async () => {
+    await render(<PomodoroSetupScreen />);
     expect(screen.getByText('Use Classic 25/5/15')).toBeTruthy();
   });
 
-  it('renders Next/Continue button', () => {
-    render(<PomodoroSetupScreen />);
+  it('renders Next/Continue button', async () => {
+    await render(<PomodoroSetupScreen />);
     expect(screen.getByText('Continue')).toBeTruthy();
   });
 
-  it('navigates to category-selection on next', () => {
-    render(<PomodoroSetupScreen />);
-    fireEvent.press(screen.getByText('Continue'));
+  it('navigates to category-selection on next', async () => {
+    await render(<PomodoroSetupScreen />);
+    await fireEvent.press(screen.getByText('Continue'));
     expect(mockUpdatePomodoroSettings).toHaveBeenCalled();
     expect(mockReplace).toHaveBeenCalledWith('/(onboarding)/category-selection');
   });

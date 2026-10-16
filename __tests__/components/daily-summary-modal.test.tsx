@@ -79,34 +79,34 @@ describe('DailySummaryModal', () => {
     jest.clearAllMocks();
   });
 
-  it('renders when visible is true', () => {
-    render(<DailySummaryModal {...defaultProps} />);
+  it('renders when visible is true', async () => {
+    await render(<DailySummaryModal {...defaultProps} />);
     expect(screen.getByText('Gunun Ozeti')).toBeTruthy();
   });
 
-  it('does not render content when visible is false', () => {
-    render(<DailySummaryModal {...defaultProps} visible={false} />);
+  it('does not render content when visible is false', async () => {
+    await render(<DailySummaryModal {...defaultProps} visible={false} />);
     expect(screen.queryByText('Gunun Ozeti')).toBeNull();
   });
 
-  it('displays pomodoro count', () => {
-    render(<DailySummaryModal {...defaultProps} />);
+  it('displays pomodoro count', async () => {
+    await render(<DailySummaryModal {...defaultProps} />);
     // AnimatedCounter mock renders the raw value as text
     expect(screen.getByText('6')).toBeTruthy();
     // The label beneath the pomodoro counter
     expect(screen.getByText('Pomodoro')).toBeTruthy();
   });
 
-  it('displays motivational message', () => {
-    render(<DailySummaryModal {...defaultProps} />);
+  it('displays motivational message', async () => {
+    await render(<DailySummaryModal {...defaultProps} />);
     expect(screen.getByText('Great work today!')).toBeTruthy();
   });
 
-  it('calls onClose when close button pressed', () => {
+  it('calls onClose when close button pressed', async () => {
     const onClose = jest.fn();
-    render(<DailySummaryModal {...defaultProps} onClose={onClose} />);
+    await render(<DailySummaryModal {...defaultProps} onClose={onClose} />);
     // The AnimatedButton mock renders a Pressable with title "Kapat"
-    fireEvent.press(screen.getByText('Kapat'));
+    await fireEvent.press(screen.getByText('Kapat'));
     // handleClose triggers an animation that calls onClose via runOnJS.
     // In the mock environment, runOnJS executes synchronously or the
     // Pressable in the header can be used. The AnimatedButton mock
