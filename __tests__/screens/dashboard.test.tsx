@@ -36,7 +36,8 @@ jest.mock('@/components/pomodoro', () => ({ CircularProgress: ({ children }: any
 jest.mock('@/stores', () => ({
   useAuthStore: (sel: any) => sel({ profile: { displayName: 'Fatma' } }),
   useGamificationStore: (sel: any) => sel({ stats: { level: 5, currentStreak: 3, totalPomodoros: 10, totalXp: 500, currentXp: 200, totalFocusTime: 3600, totalTasksCompleted: 5, longestStreak: 7 }, getXpProgress: () => ({ current: 200, required: 500, percentage: 40 }), combo: { sessionCombo: 0, dailyComboStreak: 0, lastDailyComboDate: null }, prestige: { count: 0, currentSeasonStart: '2026-04', history: [] }, unlockedAchievements: [], isAchievementUnlocked: () => false }),
-  usePomodoroStore: (sel: any) => sel({ timer: { state: 'stopped', phase: 'idle', remainingTime: 1500, totalTime: 1500, sessionsCompleted: 0, linkedTodoId: null, startedAt: null, pausedAt: null, totalPausedDuration: 0, notificationId: null, currentSessionId: null }, sessions: [], getProgress: () => 0 }),
+  usePomodoroStore: (sel: any) => sel({ timer: { state: 'stopped', phase: 'idle', remainingTime: 1500, totalTime: 1500, sessionsCompleted: 0, linkedTodoId: null, startedAt: null, pausedAt: null, totalPausedDuration: 0, chainIndex: 0, currentSessionId: null }, sessions: [] }),
+  usePomodoroClock: (sel: any) => sel({ remainingSeconds: 1500 }),
   useTodoStore: (sel: any) => sel({ todos: [{ id: '1', title: 'Test Task', status: 'pending', priority: 'medium', categoryId: null, subtasks: [], createdAt: '2026-04-05', updatedAt: '2026-04-05', order: 0 }] }),
   useSettingsStore: (sel: any) => sel({ settings: { dateFormat: 'DD/MM/YYYY' } }),
   useCategoryStore: (sel: any) => sel({ categories: [], getCategoryColor: () => '#FF0000' }),
