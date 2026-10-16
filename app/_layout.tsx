@@ -237,6 +237,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (pendingNotifications.length > 0 && !currentAchievementId) {
       const achievement = pendingNotifications[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guards against stacking Alert dialogs
       setCurrentAchievementId(achievement.id);
       Alert.alert(
         `🏆 Achievement Unlocked!`,

@@ -52,6 +52,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (shouldShowSummary()) {
       const data = getDailySummaryData();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount check against persisted stores
       setSummaryData(data);
       setSummaryMessage(getMotivationalMessage(data.motivationLevel));
       setShowSummary(true);

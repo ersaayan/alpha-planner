@@ -84,6 +84,7 @@ export default function TodoDetailScreen() {
     // Don't reset form if user is currently editing
     if (isEditing) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors the stored todo while not editing
     setTitle(todo.title);
     setDescription(todo.description || '');
     setDueDate(todo.dueDate ? new Date(todo.dueDate) : null);

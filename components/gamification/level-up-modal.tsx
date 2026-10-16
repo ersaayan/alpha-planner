@@ -104,13 +104,13 @@ export function LevelUpModal({
   }));
 
   const handleClose = () => {
-    backdropOpacity.value = withTiming(0, { duration: AnimationDuration.fast });
-    modalScale.value = withTiming(0.8, { duration: AnimationDuration.fast });
-    modalOpacity.value = withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
+    backdropOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
+    modalScale.set(withTiming(0.8, { duration: AnimationDuration.fast }));
+    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
       if (finished) {
         runOnJS(onClose)();
       }
-    });
+    }));
   };
 
   if (!visible) return null;

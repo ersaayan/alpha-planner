@@ -56,7 +56,9 @@ jest.mock('expo-router', () => ({
 
 jest.mock('@react-native-community/slider', () => {
   const { View } = require('react-native');
-  return (props: any) => <View testID="slider" {...props} />;
+  return function MockSlider(props: any) {
+    return <View testID="slider" {...props} />;
+  };
 });
 
 const mockUpdatePomodoroSettings = jest.fn();

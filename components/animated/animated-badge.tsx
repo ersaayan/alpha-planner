@@ -84,14 +84,14 @@ export function LevelBadge({
 
   useEffect(() => {
     if (showGlow) {
-      glowOpacity.value = withRepeat(
+      glowOpacity.set(withRepeat(
         withSequence(
           withTiming(0.4, { duration: 1500 }),
           withTiming(0.2, { duration: 1500 })
         ),
         -1,
         true
-      );
+      ));
     }
     return () => {
       cancelAnimation(glowOpacity);

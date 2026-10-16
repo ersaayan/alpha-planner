@@ -94,13 +94,13 @@ export function DailySummaryModal({
   }));
 
   const handleClose = () => {
-    backdropOpacity.value = withTiming(0, { duration: AnimationDuration.fast });
-    modalTranslateY.value = withTiming(40, { duration: AnimationDuration.fast });
-    modalOpacity.value = withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
+    backdropOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
+    modalTranslateY.set(withTiming(40, { duration: AnimationDuration.fast }));
+    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
       if (finished) {
         runOnJS(onClose)();
       }
-    });
+    }));
   };
 
   // --- helpers ---
