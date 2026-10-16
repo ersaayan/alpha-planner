@@ -58,8 +58,8 @@ export default function CategorySelectionScreen() {
       return;
     }
     keepOnlyCategories(selectedCategories);
+    // The root navigator's guard moves to the tabs and clears onboarding from history.
     completeOnboarding();
-    router.replace('/(tabs)');
   };
 
   return (

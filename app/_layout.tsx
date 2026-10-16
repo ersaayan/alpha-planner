@@ -11,7 +11,6 @@ import {
 } from '@expo-google-fonts/inter';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-navigation';
 import { ApplicationProvider } from '@ui-kitten/components';
-import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -19,17 +18,22 @@ import { Alert, AppState } from 'react-native';
 import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
+import { RootStack } from '@/components/navigation/root-stack';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
 import { notificationService } from '@/services/notifications';
 import { useSync } from '@/hooks/use-sync';
-import { useCategoryStore, useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
+import { useAppBootstrap } from '@/hooks/use-app-bootstrap';
+import { useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
+import { useStoresHydrated } from '@/stores/hydration';
 
-// Prevent splash screen from auto-hiding
+// Keep the splash screen up until fonts and stored data are loaded (see useAppBootstrap)
 SplashScreen.preventAutoHideAsync();
 
+// Deep links open on top of the tabs, so "back" lands in the app instead of exiting.
+// The anchor is guarded like any screen: during onboarding it is skipped and cleared.
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -167,7 +171,8 @@ export default function RootLayout() {
   useSync();
 
   const colorScheme = useColorScheme();
-  const initializeCategories = useCategoryStore((state) => state.initializeCategories);
+  const isReady = useAppBootstrap();
+  const storesHydrated = useStoresHydrated();
   const pomodoroSettings = useSettingsStore((state) => state.pomodoroSettings);
 
   // Load Inter fonts
@@ -180,35 +185,18 @@ export default function RootLayout() {
     Inter_800ExtraBold,
   });
 
-  // Hide splash screen when fonts are loaded
+  // Hide the splash screen once fonts and stored data are loaded
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && isReady) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, isReady]);
 
   useEffect(() => {
     onLayoutRootView();
   }, [onLayoutRootView]);
 
-  useEffect(() => {
-    // Initialize default categories on first launch
-    initializeCategories();
-
-    // Gamification startup checks (lazy generation)
-    const { applyPrestigeWithRewards } = require('@/services/gamification/prestige-service');
-    const { useDailyQuestsStore } = require('@/stores/daily-quests-store');
-    const { useWeeklyGoalsStore } = require('@/stores/weekly-goals-store');
-
-    // Check prestige reset (new month?)
-    applyPrestigeWithRewards();
-
-    // Generate today's quests if needed
-    useDailyQuestsStore.getState().ensureTodayQuests();
-
-    // Generate this week's goals if needed
-    useWeeklyGoalsStore.getState().ensureThisWeekGoals();
-  }, [initializeCategories]);
+  // Startup tasks (default categories, quests, goals, prestige) run in useAppBootstrap, after hydration.
 
   useEffect(() => {
     // Always initialize notification service for permission check, channel setup, and action callbacks.
@@ -252,15 +240,18 @@ export default function RootLayout() {
   }, [pendingNotifications, currentAchievementId, dismissNotification]);
 
   useEffect(() => {
+    // Not before hydration: default settings must not overwrite a stored timer.
+    if (!storesHydrated) return;
     usePomodoroStore.getState().applySettingsToTimer(pomodoroSettings);
-  }, [pomodoroSettings]);
+  }, [pomodoroSettings, storesHydrated]);
 
   const isDark = colorScheme === 'dark';
   const evaTheme = isDark ? { ...eva.dark, ...alphaDarkTheme } : { ...eva.light, ...alphaTheme };
   const navigationTheme = isDark ? AlphaDarkTheme : AlphaLightTheme;
 
-  // Don't render until fonts are loaded
-  if (!fontsLoaded && !fontError) {
+  // Don't render until fonts and stored data are loaded: the navigation guards
+  // depend on stored settings (e.g. whether onboarding was completed).
+  if ((!fontsLoaded && !fontError) || !isReady) {
     return null;
   }
 
@@ -268,30 +259,7 @@ export default function RootLayout() {
     <ErrorBoundary>
       <ApplicationProvider {...eva} theme={evaTheme}>
         <ThemeProvider value={navigationTheme}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="todo/[id]"
-              options={{
-                headerShown: true,
-                title: 'Todo Details',
-              }}
-            />
-            <Stack.Screen
-              name="todo/create"
-              options={{
-                headerShown: true,
-                title: 'New Todo',
-              }}
-            />
-
-            <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
-            <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
-            <Stack.Screen name="views/timeline" options={{ headerShown: false }} />
-          </Stack>
+          <RootStack />
           <StatusBar style={isDark ? 'light' : 'dark'} />
         </ThemeProvider>
       </ApplicationProvider>

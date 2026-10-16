@@ -129,6 +129,7 @@ describe('CategorySelectionScreen', () => {
 
     expect(mockKeepOnlyCategories).toHaveBeenCalledWith(['1', '2']);
     expect(mockCompleteOnboarding).toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+    // Navigation to the tabs is done by the root navigator's onboarding guard
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });
