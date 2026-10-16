@@ -1,7 +1,7 @@
 import { useColorScheme as useRNColorScheme } from 'react-native';
 import { useSettingsStore } from '@/stores';
 
-export function useColorScheme() {
+export function useColorScheme(): 'light' | 'dark' {
   const deviceScheme = useRNColorScheme();
   const theme = useSettingsStore((state) => state.settings.theme);
 
@@ -9,5 +9,6 @@ export function useColorScheme() {
     return theme;
   }
 
-  return deviceScheme ?? 'light';
+  // React Native reports 'unspecified' (or null) when the OS has no preference
+  return deviceScheme === 'dark' ? 'dark' : 'light';
 }
