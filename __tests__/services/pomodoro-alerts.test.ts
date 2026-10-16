@@ -146,6 +146,13 @@ describe('phase-end alerts', () => {
     expect(phaseEnds()[0].content.sound).toBe(soundEnabled ? ALERT_SOUND_FILE : false);
   });
 
+  it('keeps scheduling the chain when one alert fails', async () => {
+    mockPlatform.OS = 'ios'; // no ongoing notification: the first call is alert 0
+    schedule.mockRejectedValueOnce(new Error('boom'));
+    await arm(snapshot(running(), { settings: { autoStartBreaks: true } }));
+    expect(phaseEnds()).toHaveLength(2);
+  });
+
   it('does not schedule alerts that are already due', async () => {
     jest.setSystemTime(NOW + 26 * MIN);
     await arm(snapshot(running()), 0);

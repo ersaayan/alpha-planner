@@ -359,13 +359,17 @@ async function updateOngoing(snapshot: AlertSnapshot, nowMs: number): Promise<vo
   }
 }
 
+// iOS turns a DATE trigger into a time interval truncated to whole seconds and rejects
+// intervals <= 0, so alerts this close to their end are treated as already due.
+const MIN_SCHEDULE_LEAD_MS = 1000;
+
 async function applyAlerts(snapshot: AlertSnapshot, keepBelow: number): Promise<void> {
   const nowMs = Date.now();
   const fullPlan = snapshot.notificationsEnabled
     ? planAlerts(snapshot.timer, snapshot.pomodoroSettings)
     : [];
-  // A DATE trigger in the past never fires; the store completes those phases itself.
-  const plan = fullPlan.filter((alert) => alert.endMs > nowMs);
+  // A due alert is neither rescheduled nor cancelled; the store completes the phase itself.
+  const plan = fullPlan.filter((alert) => alert.endMs - nowMs >= MIN_SCHEDULE_LEAD_MS);
   const untouched = new Set(fullPlan.map((alert) => alert.chainIndex));
   const keep = snapshot.notificationsEnabled ? keepBelow : 0;
 
@@ -378,20 +382,26 @@ async function applyAlerts(snapshot: AlertSnapshot, keepBelow: number): Promise<
   );
 
   if (Platform.OS === 'android') {
-    await updateOngoing(snapshot, nowMs);
+    await updateOngoing(snapshot, nowMs).catch((error) => {
+      console.warn('[Pomodoro] Failed to update the ongoing notification:', error);
+    });
   }
 
+  // One failure must not cost the rest of the chain.
   for (const alert of plan) {
-    const text = phaseEndText(alert, snapshot);
-    await Notifications.scheduleNotificationAsync({
-      identifier: phaseEndId(alert.chainIndex),
-      content: alertContent(snapshot, text, {
-        kind: NOTIFICATION_KIND.phaseEnd,
-        phase: alert.phase,
-        chainIndex: alert.chainIndex,
-      }),
-      trigger: alertTrigger(snapshot, alert.endMs),
-    });
+    try {
+      await Notifications.scheduleNotificationAsync({
+        identifier: phaseEndId(alert.chainIndex),
+        content: alertContent(snapshot, phaseEndText(alert, snapshot), {
+          kind: NOTIFICATION_KIND.phaseEnd,
+          phase: alert.phase,
+          chainIndex: alert.chainIndex,
+        }),
+        trigger: alertTrigger(snapshot, alert.endMs),
+      });
+    } catch (error) {
+      console.warn(`[Pomodoro] Failed to schedule alert ${alert.chainIndex}:`, error);
+    }
   }
 }
 
