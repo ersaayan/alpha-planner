@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Expo SDK packages are versioned together; update them in one PR.
+      expo:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "@expo/*"
+          - "@expo-google-fonts/*"
+          - "jest-expo"
+          - "eslint-config-expo"
+          - "babel-preset-expo"
+    ignore:
+      # React and React Native versions are dictated by the Expo SDK.
+      # Upgrade them through an SDK upgrade (`npx expo install --fix`),
+      # not through standalone Dependabot bumps.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"

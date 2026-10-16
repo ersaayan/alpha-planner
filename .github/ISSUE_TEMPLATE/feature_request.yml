@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest an idea or an improvement for Alpha Planner
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Alpha Planner is deliberately **local-first** (no account, no analytics, no tracking), so requests that need a server or data collection are unlikely to be added to the default build.
+
+        Please search the [existing issues](https://github.com/ersaayan/alpha-planner/issues) first.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What are you trying to do, and what is hard or impossible today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work? Sketches or screenshots are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches or workarounds you thought about.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Pomodoro timer and notifications
+        - Tasks, subtasks and categories
+        - Views (list, kanban, calendar, timeline)
+        - Gamification (XP, achievements, quests, goals)
+        - Settings, themes and languages
+        - Optional sync
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to work on this and open a pull request.
