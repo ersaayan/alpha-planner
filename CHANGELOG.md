@@ -16,12 +16,20 @@ Work towards the first public release, 1.0.0.
 - GitHub Actions CI (type-check, lint, tests), issue forms, a pull request template and Dependabot configuration.
 - `.env.example` documenting the optional Supabase variables.
 - Supabase schema migration for optional, experimental sync in [`supabase/migrations`](supabase/migrations), with a self-hosting guide.
+- Builds with sync: optional "Sign in to sync" in Settings, sign-out that asks whether to keep the device's data, and account deletion (`delete_account` RPC, documented web deletion request).
+- Versioned storage for every store, with migrations, defaults for new fields and a backup of unreadable data, so data survives launches and upgrades.
+- A "page not found" screen.
 
 ### Changed
 
 - Upgraded to Expo SDK 58.
 - Pomodoro timer: remaining time is derived from wall-clock timestamps, and end-of-phase alerts are scheduled up front as local notifications so they fire reliably with the screen off or the app in the background.
-- Cloud sync is optional and enabled only when both `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY` are set.
+- Cloud sync is optional and enabled only when both `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY` are set. Without them the app no longer crashes at start, shows no account UI and queues nothing.
+- Navigation uses guarded routes: first launch goes straight to onboarding and then the app, deep links and back gestures cannot skip or re-enter onboarding, and onboarding's Back buttons work.
+- The splash screen stays up until saved data has loaded; default categories, quests and goals are created only afterwards, and quests and goals refresh when the day or week changes while the app is open.
+- "Reset All Data" now erases every store (quests, goals, combo, prestige, sync and account state) and all scheduled notifications.
+- The chosen language is restored at start-up; todo search matches Turkish İ/ı with I/i.
+- Sync queues changes per account and never uploads one account's changes for another; failed uploads stay queued instead of being dropped.
 - `.gitignore` now covers `.env` files, build artifacts, signing material and editor or assistant state.
 
 ### Removed

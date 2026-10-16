@@ -93,7 +93,7 @@ cp .env.example .env
 # EXPO_PUBLIC_SUPABASE_KEY=...   # yalnızca anon / publishable anahtar; asla service_role anahtarı değil
 ```
 
-Veritabanı şeması [`supabase/migrations`](supabase/migrations) klasöründedir; kurulum adımları için [`supabase/README.md`](supabase/README.md) dosyasına bak. Senkronizasyonu açık bir derleme dağıtırsan kendi gizlilik politikan senin sorumluluğundadır.
+Senkronizasyon açıkken de giriş yapmak isteğe bağlıdır: uygulama hesapsız çalışır, **Ayarlar → Senkronizasyon** bölümü "Senkronizasyon için giriş yap" (ve hesap silme) seçeneğini sunar. Veritabanı şeması [`supabase/migrations`](supabase/migrations) klasöründedir; kurulum adımları için [`supabase/README.md`](supabase/README.md) dosyasına bak. Senkronizasyonu açık bir derleme dağıtırsan kendi gizlilik politikan senin sorumluluğundadır.
 
 ## Proje yapısı
 
