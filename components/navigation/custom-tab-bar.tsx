@@ -2,7 +2,7 @@
  * CustomTabBar - Floating tab bar with glassmorphism and animations
  */
 
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomTabBarProps } from 'expo-router/js-tabs';
+import { BottomTabBarHeightCallbackContext, BottomTabBarProps } from 'expo-router/js-tabs';
 import { Colors, BorderRadius, Shadows, Spacing, InterFonts, Palette } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -149,9 +149,14 @@ export function CustomTabBar({ state, descriptors, emitter, navigateToTab }: Bot
   const insets = useSafeAreaInsets();
 
   const isDark = colorScheme === 'dark';
+  // The bar floats over the screens; report its real height so screens can inset content.
+  const onHeightChange = useContext(BottomTabBarHeightCallbackContext);
 
   return (
-    <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, Spacing.sm) }]}>
+    <View
+      style={[styles.container, { paddingBottom: Math.max(insets.bottom, Spacing.sm) }]}
+      onLayout={(event) => onHeightChange?.(event.nativeEvent.layout.height)}
+    >
       <View
         style={[
           styles.tabBar,

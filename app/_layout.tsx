@@ -14,16 +14,15 @@ import { ApplicationProvider } from '@ui-kitten/components';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { cancelScheduledTimerNotifications, scheduleTimerNotification } from '@/services/background';
-import { notificationService } from '@/services/notifications';
+import { usePomodoroLifecycle } from '@/hooks/use-pomodoro-lifecycle';
 import { useSync } from '@/hooks/use-sync';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
 
@@ -61,109 +60,8 @@ const AlphaDarkTheme = {
   },
 };
 
-function usePomodoroBackgroundSync() {
-  const appStateRef = useRef(AppState.currentState);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      const previousState = appStateRef.current;
-      appStateRef.current = nextAppState;
-
-      // App coming to foreground
-      if (nextAppState === 'active') {
-        const store = usePomodoroStore.getState();
-        const currentTimer = store.timer;
-
-        if (currentTimer.state === 'running' && currentTimer.startedAt) {
-          // Sync remaining time — catches up all elapsed seconds
-          store.syncTimer({ fromBackground: previousState !== 'active' });
-
-          // Restart the ticking interval if timer is still running after sync
-          if (usePomodoroStore.getState().timer.state === 'running') {
-            store._startTicking();
-          }
-        }
-
-        // Dismiss ongoing notification & cancel scheduled completion notification
-        // (the foreground interval will handle everything from here)
-        notificationService.dismissTimerNotification();
-        cancelScheduledTimerNotifications();
-      } else if (nextAppState === 'background') {
-        // ── App going into background ──
-        const store = usePomodoroStore.getState();
-        const currentTimer = store.timer;
-        const { settings, pomodoroSettings } = useSettingsStore.getState();
-
-        if (currentTimer.state === 'running' && currentTimer.startedAt) {
-          // Stop internal interval to save battery
-          store._stopTicking();
-
-          // Show ongoing notification with countdown
-          if (settings.notificationsEnabled) {
-            notificationService.showTimerNotification(
-              currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-              currentTimer.remainingTime,
-              currentTimer.totalTime,
-              false,
-            );
-          }
-
-          // Schedule exact completion notification using absolute timestamp
-          const completionMs = currentTimer.startedAt
-            + (currentTimer.totalTime * 1000)
-            + ((currentTimer.totalPausedDuration ?? 0) * 1000);
-          scheduleTimerNotification(
-            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-            completionMs,
-            {
-              soundEnabled: settings.soundEnabled,
-              vibrationEnabled: pomodoroSettings.vibrationEnabled,
-              isAbsoluteMs: true,
-            },
-          );
-        } else if (currentTimer.state === 'paused' && settings.notificationsEnabled) {
-          // Show paused state in notification shade
-          notificationService.showTimerNotification(
-            currentTimer.phase as 'focus' | 'short_break' | 'long_break',
-            currentTimer.remainingTime,
-            currentTimer.totalTime,
-            true,
-          );
-        }
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
-}
-
-/**
- * Handles recovery after the app has been killed and restarted.
- * Zustand rehydrates the timer state from AsyncStorage; this hook
- * detects a previously-running timer and syncs it forward.
- */
-function usePomodoroRehydrationSync() {
-  useEffect(() => {
-    const unsubscribe = usePomodoroStore.persist.onFinishHydration((state) => {
-      if (state.timer.state === 'running' && state.timer.startedAt) {
-        // Timer was running when the app was killed — catch up
-        usePomodoroStore.getState().syncTimer({ fromBackground: true });
-
-        // If timer is still running after sync, restart ticking
-        const synced = usePomodoroStore.getState();
-        if (synced.timer.state === 'running') {
-          synced._startTicking();
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-}
-
 export default function RootLayout() {
-  usePomodoroBackgroundSync();
-  usePomodoroRehydrationSync();
+  usePomodoroLifecycle();
   useSync();
 
   const colorScheme = useColorScheme();
@@ -209,25 +107,6 @@ export default function RootLayout() {
     // Generate this week's goals if needed
     useWeeklyGoalsStore.getState().ensureThisWeekGoals();
   }, [initializeCategories]);
-
-  useEffect(() => {
-    // Always initialize notification service for permission check, channel setup, and action callbacks.
-    // This ensures hasPermission is up-to-date and channels are created even if notifications
-    // were disabled at first launch and enabled later.
-    notificationService.initialize().then(() => {
-      // Wire notification action callbacks so pause/resume/stop work from notification shade
-      notificationService.setActionCallbacks({
-        onPause: () => usePomodoroStore.getState().pauseTimer(),
-        onResume: () => usePomodoroStore.getState().resumeTimer(),
-        onStop: () => usePomodoroStore.getState().stopTimer(),
-      });
-
-      // Schedule daily summary notification at 23:00
-      notificationService.scheduleDailySummaryNotification();
-    }).catch((error) => {
-      console.warn('Notification initialization failed:', error);
-    });
-  }, []);
 
   // Achievement celebration — show a brief alert when achievements are unlocked
   const pendingNotifications = useGamificationStore((state) => state.pendingNotifications);

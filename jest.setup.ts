@@ -7,15 +7,37 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-id'),
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  dismissNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  getPresentedNotificationsAsync: jest.fn().mockResolvedValue([]),
+  getAllScheduledNotificationsAsync: jest.fn().mockResolvedValue([]),
   setNotificationHandler: jest.fn(),
-  AndroidNotificationPriority: { HIGH: 'high', DEFAULT: 'default' },
-  SchedulableTriggerInputTypes: { DATE: 'date', DAILY: 'daily' },
+  setNotificationChannelAsync: jest.fn().mockResolvedValue(null),
+  deleteNotificationChannelAsync: jest.fn().mockResolvedValue(undefined),
+  getNotificationChannelAsync: jest.fn().mockResolvedValue(null),
+  setNotificationCategoryAsync: jest.fn().mockResolvedValue(null),
+  deleteNotificationCategoryAsync: jest.fn().mockResolvedValue(true),
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true, canAskAgain: true }),
+  requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true, canAskAgain: true }),
+  getExactAlarmPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true, canAskAgain: true }),
+  requestExactAlarmPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted', granted: true, canAskAgain: true }),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponse: jest.fn(() => null),
+  clearLastNotificationResponse: jest.fn(),
+  DEFAULT_ACTION_IDENTIFIER: 'expo.modules.notifications.actions.DEFAULT',
+  AndroidNotificationPriority: { MIN: 'min', LOW: 'low', DEFAULT: 'default', HIGH: 'high', MAX: 'max' },
+  AndroidImportance: { UNKNOWN: 0, UNSPECIFIED: 1, NONE: 2, MIN: 3, LOW: 4, DEFAULT: 5, HIGH: 6, MAX: 7 },
+  AndroidNotificationVisibility: { UNKNOWN: 0, PUBLIC: 1, PRIVATE: 2, SECRET: 3 },
+  IosAuthorizationStatus: { NOT_DETERMINED: 0, DENIED: 1, AUTHORIZED: 2, PROVISIONAL: 3, EPHEMERAL: 4 },
+  SchedulableTriggerInputTypes: { DATE: 'date', DAILY: 'daily', TIME_INTERVAL: 'timeInterval' },
 }));
 
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
   ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
+  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
 }));
 
 // Mock expo-crypto
@@ -54,19 +76,14 @@ jest.mock('@/services/supabase/client', () => ({
 // Mock notification service
 jest.mock('@/services/notifications', () => ({
   notificationService: {
-    initialize: jest.fn().mockResolvedValue(undefined),
-    showTimerNotification: jest.fn(),
-    dismissTimerNotification: jest.fn(),
-    sendTimerCompleteNotification: jest.fn(),
-    setActionCallbacks: jest.fn(),
-    scheduleDailySummaryNotification: jest.fn(),
+    initialize: jest.fn().mockResolvedValue(true),
+    checkPermission: jest.fn().mockResolvedValue(true),
+    scheduleDailySummaryNotification: jest.fn().mockResolvedValue(undefined),
+    cancelDailySummaryNotification: jest.fn().mockResolvedValue(undefined),
+    syncDailySummary: jest.fn().mockResolvedValue(undefined),
+    cancelNotification: jest.fn().mockResolvedValue(undefined),
+    scheduledTaskDueNotifications: new Map(),
   },
-}));
-
-// Mock background service
-jest.mock('@/services/background', () => ({
-  scheduleTimerNotification: jest.fn().mockResolvedValue(undefined),
-  cancelScheduledTimerNotifications: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock i18n — t() returns the English translation value from en.json

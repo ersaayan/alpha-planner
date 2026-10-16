@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getLevelTitle, getLevelTier } from '@/constants/gamification';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAuthStore, useGamificationStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
+import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDate } from '@/utils/date';
 
 import { SectionHeader } from '@/components/common';
@@ -38,7 +38,8 @@ export default function HomeScreen() {
   const todos = useTodoStore((state) => state.todos);
   const timerState = usePomodoroStore((state) => state.timer.state);
   const timerPhase = usePomodoroStore((state) => state.timer.phase);
-  const remainingTime = usePomodoroStore((state) => state.timer.remainingTime);
+  // Live countdown, derived from the timer's timestamps.
+  const remainingTime = usePomodoroClock((state) => state.remainingSeconds);
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
