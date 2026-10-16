@@ -351,6 +351,22 @@ export default function SettingsScreen() {
             onChange={(checked) => updatePomodoroSettings({ vibrationEnabled: checked })}
           />
         </View>
+
+        <Divider style={styles.divider} />
+
+        <Pressable
+          style={styles.settingItem}
+          onPress={() => router.push('/settings/notification-reliability')}
+          accessibilityRole="button"
+        >
+          <View style={styles.settingInfo}>
+            <Text category="s1">{t('settings.notificationReliability')}</Text>
+            <Text category="c1" style={{ color: colors.textMuted }}>
+              {t('settings.notificationReliabilityDesc')}
+            </Text>
+          </View>
+          <Icon name="chevron-right" fill={colors.textMuted} style={{ width: 20, height: 20 }} />
+        </Pressable>
       </Card>
 
       {/* App Settings */}

@@ -479,6 +479,7 @@
   "reliability.permissionGranted": "İzin verildi",
   "reliability.permissionUndetermined": "Henüz sorulmadı",
   "reliability.refresh": "Tekrar kontrol et",
+  "reliability.send": "Gönder",
   "reliability.testAlert": "Deneme uyarısı gönder",
   "reliability.testAlertBody": "Zamanlayıcı uyarıları çalışıyor.",
   "reliability.testAlertDesc": "10 saniye içinde gelir. Çaldığını görmek için telefonunu kilitle.",

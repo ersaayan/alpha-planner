@@ -479,6 +479,7 @@
   "reliability.permissionGranted": "Allowed",
   "reliability.permissionUndetermined": "Not asked yet",
   "reliability.refresh": "Check again",
+  "reliability.send": "Send",
   "reliability.testAlert": "Send a test alert",
   "reliability.testAlertBody": "Timer alerts are working.",
   "reliability.testAlertDesc": "Arrives in 10 seconds. Lock your phone to check it rings.",
