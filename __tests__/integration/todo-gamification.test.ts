@@ -10,6 +10,7 @@
 import { useGamificationStore } from '@/stores/gamification-store';
 import { useTodoStore } from '@/stores/todo-store';
 import { useSyncStore } from '@/stores/sync-store';
+import { setSyncConfigured } from '../helpers/sync';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
 import type { Todo } from '@/types';
 import { XP_VALUES } from '@/constants/gamification';
@@ -33,9 +34,11 @@ const TODO_INITIAL = {
   filter: {},
 };
 
+// Sync configured with a signed-in user, so changes are queued (see __tests__/helpers/sync.ts)
 const SYNC_INITIAL = {
   pendingOperations: [],
   lastSyncedAt: null,
+  ownerId: 'user-1',
   isSyncing: false,
   lastError: null,
 };
@@ -56,6 +59,14 @@ function addSampleTodo(
     ...overrides,
   });
 }
+
+beforeAll(() => {
+  setSyncConfigured(true);
+});
+
+afterAll(() => {
+  setSyncConfigured(false);
+});
 
 beforeEach(() => {
   useGamificationStore.setState(GAMIFICATION_INITIAL);

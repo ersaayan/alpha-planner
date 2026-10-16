@@ -7,6 +7,8 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync: jest.fn().mockResolvedValue('mock-id'),
   cancelScheduledNotificationAsync: jest.fn().mockResolvedValue(undefined),
+  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  dismissAllNotificationsAsync: jest.fn().mockResolvedValue(undefined),
   setNotificationHandler: jest.fn(),
   AndroidNotificationPriority: { HIGH: 'high', DEFAULT: 'default' },
   SchedulableTriggerInputTypes: { DATE: 'date', DAILY: 'daily' },
@@ -28,27 +30,11 @@ jest.mock('expo-localization', () => ({
   getLocales: () => [{ languageCode: 'en', regionCode: 'US' }],
 }));
 
-// Mock Supabase client
+// Mock Supabase client. Sync is OFF by default, like store builds. A test that needs
+// configured sync sets `isSyncConfigured = true` on this mock (see __tests__/helpers/sync.ts).
 jest.mock('@/services/supabase/client', () => ({
-  supabase: {
-    auth: {
-      signUp: jest.fn(),
-      signInWithPassword: jest.fn(),
-      signOut: jest.fn(),
-      getUser: jest.fn().mockResolvedValue({ data: { user: null } }),
-      onAuthStateChange: jest.fn().mockReturnValue({ data: { subscription: { unsubscribe: jest.fn() } } }),
-    },
-    from: jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      upsert: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      gt: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: null, error: null }),
-    }),
-  },
+  isSyncConfigured: false,
+  supabase: null,
 }));
 
 // Mock notification service

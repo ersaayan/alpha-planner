@@ -7,11 +7,7 @@ export interface UserProfile {
   createdAt: string;
 }
 
-export interface AuthState {
-  user: { id: string; email?: string } | null;
-  profile: UserProfile | null;
-  session: { access_token: string; refresh_token: string } | null;
-  isLoading: boolean;
-  isHydrated: boolean;
-  error: string | null;
+export interface AuthUser {
+  id: string;
+  email?: string;
 }
