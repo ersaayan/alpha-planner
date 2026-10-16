@@ -16,12 +16,12 @@ import {
   type ReconcileResult,
 } from '@/utils/pomodoro-helpers';
 import { generateId } from '@/utils/uuid';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { AppState } from 'react-native';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { useGamificationStore } from './gamification-store';
+import { createPersistOptions } from './persist';
 import { useSettingsStore } from './settings-store';
 import { useTodoStore } from './todo-store';
 
@@ -480,10 +480,11 @@ export const usePomodoroStore = create<PomodoroState>()(
         },
       };
     },
-    {
+    // Shared persistence (stores/persist.ts): no writes before hydration, and unreadable
+    // data is backed up instead of failing hydration (which would block catch-up).
+    createPersistOptions<PomodoroState, PersistedPomodoroState>({
       name: 'pomodoro-storage',
       version: POMODORO_STORE_VERSION,
-      storage: createJSONStorage(() => AsyncStorage),
       // Written only on state changes: the per-second display lives in usePomodoroClock.
       partialize: (state): PersistedPomodoroState => ({
         timer: state.timer,
@@ -491,11 +492,11 @@ export const usePomodoroStore = create<PomodoroState>()(
         currentSession: state.currentSession,
       }),
       migrate: (persisted) => migratePomodoroState(persisted),
-      merge: (persisted, current) =>
-        persisted ? { ...current, ...migratePomodoroState(persisted) } : current,
+      // Sanitize on every load, not only on version changes.
+      normalize: migratePomodoroState,
       // Catch-up does NOT run here: it must wait until the stores it credits have
       // hydrated too (see hooks/use-pomodoro-lifecycle.ts).
-    },
+    }),
   ),
 );
 

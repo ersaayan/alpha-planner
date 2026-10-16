@@ -138,10 +138,15 @@ export interface AppPersistConfig<S, P> {
    * the deep merge with defaults fills them in.
    */
   migrate: (persisted: unknown, fromVersion: number) => unknown;
+  /**
+   * Optional clean-up applied to stored data on every load (not only on version
+   * changes), before the deep merge. Must be idempotent.
+   */
+  normalize?: (persisted: unknown) => unknown;
 }
 
 export function createPersistOptions<S, P>(config: AppPersistConfig<S, P>): PersistOptions<S, P> {
-  const { name, version, partialize, migrate } = config;
+  const { name, version, partialize, migrate, normalize } = config;
   return {
     name,
     version,
@@ -163,7 +168,8 @@ export function createPersistOptions<S, P>(config: AppPersistConfig<S, P>): Pers
       }
     },
     merge: (persisted, current) => {
-      const merged = mergeWithDefaults(current, persisted);
+      const cleaned = normalize && persisted !== undefined ? normalize(persisted) : persisted;
+      const merged = mergeWithDefaults(current, cleaned);
       // From here on the in-memory state contains the stored data, so saving is safe.
       writableStores.add(name);
       return merged;

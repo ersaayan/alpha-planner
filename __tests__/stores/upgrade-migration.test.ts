@@ -244,6 +244,51 @@ describe('upgrading from the previous release', () => {
   });
 });
 
+describe('pomodoro store (shared persistence)', () => {
+  it('a corrupted timer file is backed up instead of blocking hydration', async () => {
+    let app: { disk: Disk; whenStoresHydrated: FreshApp['whenStoresHydrated']; pomodoro: typeof import('@/stores/pomodoro-store').usePomodoroStore } | undefined;
+    jest.isolateModules(() => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      const disk: Disk = AsyncStorage.__INTERNAL_MOCK_STORAGE__;
+      for (const key of Object.keys(disk)) delete disk[key];
+      disk['pomodoro-storage'] = '{"state":{"timer":{"state":"runn';
+      app = {
+        disk,
+        pomodoro: require('@/stores/pomodoro-store').usePomodoroStore,
+        whenStoresHydrated: require('@/stores/hydration').whenStoresHydrated,
+      };
+    });
+    await app!.whenStoresHydrated();
+
+    expect(app!.pomodoro.persist.hasHydrated()).toBe(true);
+    expect(app!.pomodoro.getState().timer.state).toBe('stopped');
+    expect(app!.disk['pomodoro-storage:backup']).toBe('{"state":{"timer":{"state":"runn');
+  });
+
+  it('sanitizes stored timer values on every load, not only on version changes', async () => {
+    let app: { whenStoresHydrated: FreshApp['whenStoresHydrated']; pomodoro: typeof import('@/stores/pomodoro-store').usePomodoroStore } | undefined;
+    jest.isolateModules(() => {
+      const AsyncStorage = require('@react-native-async-storage/async-storage');
+      const disk: Disk = AsyncStorage.__INTERNAL_MOCK_STORAGE__;
+      for (const key of Object.keys(disk)) delete disk[key];
+      const { POMODORO_STORE_VERSION } = require('@/stores/pomodoro-store');
+      disk['pomodoro-storage'] = JSON.stringify({
+        version: POMODORO_STORE_VERSION,
+        state: { timer: { state: 'stopped', phase: 'focus', totalTime: 1500, remainingTime: 99999, totalPausedDuration: -5 }, sessions: [], currentSession: null },
+      });
+      app = {
+        pomodoro: require('@/stores/pomodoro-store').usePomodoroStore,
+        whenStoresHydrated: require('@/stores/hydration').whenStoresHydrated,
+      };
+    });
+    await app!.whenStoresHydrated();
+
+    const { timer } = app!.pomodoro.getState();
+    expect(timer.remainingTime).toBeLessThanOrEqual(timer.totalTime);
+    expect(timer.totalPausedDuration ?? 0).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe('store migrate functions', () => {
   it('todo: normalizes old todos without dropping them', () => {
     const migrated = migrateTodoState({ todos: [{ id: 'a', title: 'Old' }, { title: 'No id' }, 'junk'] }, 0);
