@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in Alpha Planner is not working as expected
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please search the [existing issues](https://github.com/ersaayan/alpha-planner/issues) first.
+
+        **Security problems:** do not report them here. Follow [SECURITY.md](https://github.com/ersaayan/alpha-planner/blob/master/SECURITY.md) instead.
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Phone or tablet model, or the simulator/emulator you used.
+      placeholder: "e.g. iPhone 15, Pixel 8, Samsung Galaxy S23, iOS Simulator"
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "e.g. iOS 26.0, Android 15"
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Shown in Settings, or the commit if you built it from source.
+      placeholder: "e.g. 1.0.0, or commit a1b2c3d"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Pomodoro tab
+        2. Start a 25 minute focus session
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Screenshots or screen recordings help.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: background-state
+    attributes:
+      label: Was the screen off or the app in the background when it happened?
+      description: This matters a lot for timer and notification bugs.
+      options:
+        - No, the app was open and in the foreground
+        - The app was in the background, screen on
+        - The screen was off or the device was locked
+        - The app was force-quit
+        - Not sure
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Notification permission, battery saver, Do Not Disturb, language (Turkish/English), logs, anything else that might help.
