@@ -1,5 +1,6 @@
 import { Icon } from '@/components/icon';
 import { AccountSection } from '@/components/settings/account-section';
+import { DataSection } from '@/components/settings/data-section';
 import Slider from '@react-native-community/slider';
 import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
 import { useState } from 'react';
@@ -637,6 +638,9 @@ export default function SettingsScreen() {
 
       {/* Account (only in builds with sync configured) */}
       <AccountSection />
+
+      {/* Data: export / import (the only backup of a local-first app) */}
+      <DataSection />
 
       {/* Danger Zone */}
       <Text category="s1" style={styles.sectionTitle}>
