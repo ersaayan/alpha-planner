@@ -1,4 +1,5 @@
 import { Icon } from '@/components/icon';
+import { AboutSection } from '@/components/settings/about-section';
 import { AccountSection } from '@/components/settings/account-section';
 import { DataSection } from '@/components/settings/data-section';
 import { categoryName as displayCategoryName } from '@/services/gamification/display';
@@ -19,7 +20,6 @@ import { changeLanguage } from '@/services/i18n/i18n-config';
 import { updateProfile } from '@/services/supabase/auth-service';
 import { isSyncConfigured } from '@/services/supabase/client';
 import { useRouter } from 'expo-router';
-import { getAppVersion } from '@/utils/app-version';
 
 const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] as const;
 
@@ -44,8 +44,6 @@ export default function SettingsScreen() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState('');
   const [categoryColor, setCategoryColor] = useState<string>(CATEGORY_COLORS[0].value);
-
-  const appVersion = getAppVersion();
 
   const formatDuration = (seconds: number) => {
     return t('settings.minutes', { value: Math.floor(seconds / 60) });
@@ -471,14 +469,8 @@ export default function SettingsScreen() {
         </Button>
       </Card>
 
-      {/* Version */}
-      <View style={styles.versionContainer}>
-        <Text category="c1" style={{ color: colors.textMuted }}>
-          {appVersion.build
-            ? t('settings.versionWithBuild', appVersion)
-            : t('settings.version', { version: appVersion.version })}
-        </Text>
-      </View>
+      {/* About: privacy policy, source, license, bug report, version */}
+      <AboutSection />
     </KeyboardAwareScrollView>
   );
 }
@@ -550,10 +542,5 @@ const styles = StyleSheet.create({
   },
   dangerButton: {
     justifyContent: 'flex-start',
-  },
-  versionContainer: {
-    alignItems: 'center',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.lg,
   },
 });
