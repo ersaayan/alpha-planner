@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { runStartupTasks } from '@/services/app/startup-tasks';
 import { changeLanguage } from '@/services/i18n/i18n-config';
 import { whenAlertsSettled } from '@/services/notifications/pomodoro-alerts';
-import { INITIAL_PRESTIGE_STATE } from '@/types';
+import { INITIAL_PRESTIGE_STATE, currentMonthKey } from '@/types';
 import { useAuthStore } from './auth-store';
 import { useCategoryStore } from './category-store';
 import { useDailyQuestsStore } from './daily-quests-store';
@@ -87,7 +87,7 @@ export async function resetAllData(options: ResetAllDataOptions = {}): Promise<v
     {
       ...useGamificationStore.getInitialState(),
       // A fresh store starts in the current season, so no prestige reset fires right away.
-      prestige: { ...INITIAL_PRESTIGE_STATE, currentSeasonStart: new Date().toISOString().slice(0, 7) },
+      prestige: { ...INITIAL_PRESTIGE_STATE, currentSeasonStart: currentMonthKey() },
     },
     true
   );

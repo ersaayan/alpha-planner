@@ -26,6 +26,7 @@ import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 import { DailySummaryModal } from '@/components/dashboard';
+import { SeasonCard } from '@/components/gamification/season-card';
 import { levelTierName, levelTitle } from '@/services/gamification/display';
 import { shouldShowSummary, getDailySummaryData, getMotivationalMessage, markSummaryShown } from '@/services/gamification/daily-summary';
 import type { DailySummaryData } from '@/services/gamification/daily-summary';
@@ -186,6 +187,9 @@ export default function HomeScreen() {
             : t('dashboard.xpToNextLevel', { xp: xpProgress.required - xpProgress.current, level: stats.level + 1 })}
         </Text>
       </AnimatedCard>
+
+      {/* Monthly season (prestige) */}
+      <SeasonCard />
 
       {/* Quick Stats Grid */}
       <View style={styles.statsGrid}>

@@ -4,7 +4,8 @@ import { DAILY_QUEST_ALL_COMPLETE_BONUS, DAILY_QUEST_COUNT, type QuestEvent } fr
 import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, TodoPriority, UserAchievement, UserStats } from '@/types';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
 import { getAchievementProgress, isActiveDay } from '@/services/gamification/achievement-rules';
-import { addDaysToKey, getDateKey } from '@/utils/date';
+import { buildSeasonRecord, summarizeSeason } from '@/services/gamification/season';
+import { addDaysToKey, getDateKey, getMonthKey } from '@/utils/date';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { asRecord, asRecordArray, createPersistOptions } from './persist';
@@ -57,7 +58,14 @@ interface GamificationState {
   getComboStatus: (now?: Date) => ComboStatus;
 
   // Prestige
-  checkPrestigeReset: () => void;
+  /**
+   * Starts a new season when the month has changed: records the finished one with its
+   * rewards, resets the level and season XP, and gives the reward XP as a head start.
+   * Returns the finished season's record, or null when nothing changed.
+   */
+  checkPrestigeReset: (now?: Date) => PrestigeRecord | null;
+  /** The user has seen the summary of the season that ended in `month`. */
+  acknowledgeSeason: (month: string) => void;
 
   // Daily stats
   /** Adds the counters in `updates` to the stats of the day of `at` (default: today). */
@@ -495,40 +503,44 @@ export const useGamificationStore = create<GamificationState>()(
         },
 
         // Prestige
-        checkPrestigeReset: () => {
-          const { prestige, stats } = get();
-          const currentMonth = new Date().toISOString().slice(0, 7); // "2026-04"
+        checkPrestigeReset: (now = new Date()) => {
+          const { prestige, stats, dailyStats } = get();
+          const season = prestige.currentSeasonStart;
+          const currentMonth = getMonthKey(now);
+          // Same season, or the clock was moved back: nothing to do.
+          if (!season || season >= currentMonth) return null;
 
-          if (prestige.currentSeasonStart === currentMonth) return; // Already in current season
+          const summary = summarizeSeason(season, dailyStats, stats);
+          if (stats.totalXp === 0 && summary.activeDays === 0) {
+            // An empty season (e.g. the app was not used): just move on, no prestige.
+            set((state) => ({ prestige: { ...state.prestige, currentSeasonStart: currentMonth } }));
+            return null;
+          }
 
-          // New month — record history and reset
-          const record: PrestigeRecord = {
-            month: prestige.currentSeasonStart,
-            finalLevel: stats.level,
-            totalXp: stats.totalXp,
-            rewards: [], // Will be filled by prestige service in Phase 5
-          };
-
+          const record = buildSeasonRecord(summary);
           set((state) => ({
             prestige: {
+              ...state.prestige,
               count: state.prestige.count + 1,
               currentSeasonStart: currentMonth,
-              history: [...state.prestige.history, record],
+              history: [...state.prestige.history, record].slice(-36),
             },
             stats: {
               ...state.stats,
               level: 1,
               currentXp: 0,
               totalXp: 0,
-              // Keep: totalPomodoros, totalFocusTime, totalTasksCompleted, streak, longestStreak, lastActiveDate
-            },
-            combo: {
-              sessionCombo: 0,
-              dailyComboStreak: 0,
-              lastDailyComboDate: null,
-              lastSessionAt: null,
+              // Kept: totals, lifetime XP, streaks, achievements and combos.
             },
           }));
+          // Season rewards are a head start for the new season.
+          if (record.rewardXp) get().addXp(record.rewardXp, now);
+          get().checkAchievements(now);
+          return record;
+        },
+
+        acknowledgeSeason: (month) => {
+          set((state) => ({ prestige: { ...state.prestige, acknowledgedMonth: month } }));
         },
 
         updateDailyStats: (updates, at) => {
@@ -627,6 +639,9 @@ export function migrateGamificationState(persisted: unknown, fromVersion: number
       )
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const pastSeasonsXp = asRecordArray(prestige.history).reduce((sum, record) => sum + (Number(record.totalXp) || 0), 0);
+    const history = asRecordArray(prestige.history);
+    // Seasons that ended before summaries existed are not shown again.
+    prestige.acknowledgedMonth = typeof history[history.length - 1]?.month === 'string' ? history[history.length - 1].month : null;
     Object.assign(stats, {
       streakLength: Number(stats.currentStreak) || 0,
       activeDays: dailyStats.filter((day) => Number(day.pomodorosCompleted) > 0 || Number(day.tasksCompleted) > 0).length,

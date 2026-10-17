@@ -35,14 +35,14 @@ jest.mock('@/components/pomodoro', () => ({ CircularProgress: ({ children }: any
 
 jest.mock('@/stores', () => ({
   useAuthStore: (sel: any) => sel({ profile: { displayName: 'Fatma' } }),
-  useGamificationStore: (sel: any) => sel({ stats: { level: 5, currentStreak: 3, totalPomodoros: 10, totalXp: 500, currentXp: 200, totalFocusTime: 3600, totalTasksCompleted: 5, longestStreak: 7 }, getXpProgress: () => ({ current: 200, required: 500, percentage: 40 }), combo: { sessionCombo: 0, dailyComboStreak: 0, lastDailyComboDate: null }, prestige: { count: 0, currentSeasonStart: '2026-04', history: [] }, unlockedAchievements: [], isAchievementUnlocked: () => false }),
+  useGamificationStore: (sel: any) => sel({ stats: { level: 5, currentStreak: 3, totalPomodoros: 10, totalXp: 500, currentXp: 200, totalFocusTime: 3600, totalTasksCompleted: 5, longestStreak: 7 }, getXpProgress: () => ({ current: 200, required: 500, percentage: 40 }), combo: { sessionCombo: 0, dailyComboStreak: 0, lastDailyComboDate: null }, prestige: { count: 0, currentSeasonStart: '2026-04', history: [], acknowledgedMonth: null }, dailyStats: [], unlockedAchievements: [], isAchievementUnlocked: () => false }),
   usePomodoroStore: (sel: any) => sel({ timer: { state: 'stopped', phase: 'idle', remainingTime: 1500, totalTime: 1500, sessionsCompleted: 0, linkedTodoId: null, startedAt: null, pausedAt: null, totalPausedDuration: 0, chainIndex: 0, currentSessionId: null }, sessions: [] }),
   usePomodoroClock: (sel: any) => sel({ remainingSeconds: 1500 }),
   useTodoStore: (sel: any) => sel({ todos: [{ id: '1', title: 'Test Task', status: 'pending', priority: 'medium', categoryId: null, subtasks: [], createdAt: '2026-04-05', updatedAt: '2026-04-05', order: 0 }] }),
   useSettingsStore: (sel: any) => sel({ settings: { dateFormat: 'DD/MM/YYYY' } }),
   useCategoryStore: (sel: any) => sel({ categories: [], getCategoryColor: () => '#FF0000' }),
 }));
-jest.mock('@/utils/date', () => ({ formatDate: () => '05/04/2026' }));
+jest.mock('@/utils/date', () => ({ ...jest.requireActual('@/utils/date'), formatDate: () => '05/04/2026' }));
 
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
@@ -104,7 +104,8 @@ describe('Dashboard Screen', () => {
       stats,
       getXpProgress: () => ({ current: 1000, required: 0, percentage: 100, isMaxLevel: true }),
       combo: { sessionCombo: 0, dailyComboStreak: 0, lastDailyComboDate: null },
-      prestige: { count: 0, currentSeasonStart: '2026-04', history: [] },
+      prestige: { count: 0, currentSeasonStart: '2026-04', history: [], acknowledgedMonth: null },
+      dailyStats: [],
       unlockedAchievements: [],
       isAchievementUnlocked: () => false,
     }));
@@ -118,5 +119,11 @@ describe('Dashboard Screen', () => {
     await render(<HomeScreen />);
     expect(screen.queryByText(/Max Level/)).toBeNull();
     expect(screen.getByText('300 XP to Level 6')).toBeTruthy();
+  });
+
+  it('explains the monthly season on the dashboard', async () => {
+    await render(<HomeScreen />);
+    expect(screen.getByText(/season$/)).toBeTruthy();
+    expect(screen.getByText(/Season rewards earned so far: 0 of 6/)).toBeTruthy();
   });
 });

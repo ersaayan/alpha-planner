@@ -31,6 +31,7 @@ const NAVIGATION_ICONS: Record<string, IconEntry> = {
   'checkmark-circle': { pack: 'feather', name: 'check-circle' },
   'checkmark-circle-outline': { pack: 'feather', name: 'check-circle' },
   'checkmark-circle-2': { pack: 'feather', name: 'check-circle' },
+  'radio-button-off': { pack: 'feather', name: 'circle' },
   'checkmark-circle-2-outline': { pack: 'feather', name: 'check-circle' },
   'checkmark-square-2': { pack: 'feather', name: 'check-square' },
   'checkmark-square-2-outline': { pack: 'feather', name: 'check-square' },

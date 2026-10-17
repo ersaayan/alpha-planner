@@ -122,17 +122,27 @@ export interface ComboState {
 
 // --- Prestige ---
 
+/** A finished season (month). */
 export interface PrestigeRecord {
   month: string;
   finalLevel: number;
   totalXp: number;
+  /** Ids of the season rewards earned (see services/gamification/season.ts). */
   rewards: string[];
+  /** XP of those rewards, given as a head start in the next season. */
+  rewardXp?: number;
+  pomodoros?: number;
+  tasks?: number;
+  activeDays?: number;
 }
 
 export interface PrestigeState {
   count: number;
+  /** The current season's month (`yyyy-MM`, local time). */
   currentSeasonStart: string;
   history: PrestigeRecord[];
+  /** The last finished season whose summary the user has seen. */
+  acknowledgedMonth: string | null;
 }
 
 // --- Daily Quests ---
@@ -188,8 +198,14 @@ export const INITIAL_COMBO_STATE: ComboState = {
   lastSessionAt: null,
 };
 
+/** The local month (`yyyy-MM`). Same as utils/date getMonthKey, without importing date-fns here. */
+export function currentMonthKey(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export const INITIAL_PRESTIGE_STATE: PrestigeState = {
   count: 0,
-  currentSeasonStart: new Date().toISOString().slice(0, 7),
+  currentSeasonStart: currentMonthKey(),
   history: [],
+  acknowledgedMonth: null,
 };

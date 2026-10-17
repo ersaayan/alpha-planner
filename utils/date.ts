@@ -30,3 +30,8 @@ export function addDaysToKey(key: string, days: number): string {
   date.setDate(date.getDate() + days);
   return getDateKey(date);
 }
+
+/** The local month (`yyyy-MM`) of `date`: a prestige season. */
+export function getMonthKey(date: Date = new Date()): string {
+  return format(date, 'yyyy-MM');
+}

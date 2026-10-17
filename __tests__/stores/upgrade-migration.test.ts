@@ -316,7 +316,7 @@ describe('store migrate functions', () => {
     // v3 counters start from the stored data.
     expect(migrated.stats).toEqual({ totalXp: 5, streakLength: 0, activeDays: 0, perfectQuestDays: 0, lifetimeXp: 5 });
     expect(migrated.combo).toEqual({});
-    expect(migrated.prestige).toEqual({});
+    expect(migrated.prestige).toEqual({ acknowledgedMonth: null });
   });
 
   it('daily quests and weekly goals: drop malformed entries only', () => {

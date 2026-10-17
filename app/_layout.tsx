@@ -18,6 +18,7 @@ import { Alert } from 'react-native';
 import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
+import { CelebrationHost } from '@/components/gamification/celebration-host';
 import { RootStack } from '@/components/navigation/root-stack';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
@@ -139,6 +140,7 @@ export default function RootLayout() {
       <ApplicationProvider {...eva} theme={evaTheme}>
         <ThemeProvider value={navigationTheme}>
           <RootStack />
+          <CelebrationHost />
           <StatusBar style={isDark ? 'light' : 'dark'} />
         </ThemeProvider>
       </ApplicationProvider>
