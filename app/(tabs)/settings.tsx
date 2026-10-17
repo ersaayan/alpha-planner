@@ -7,11 +7,13 @@ import { OptionPills, SettingSlider, SettingToggle } from '@/components/settings
 import { Button, Card, Divider, Input, Text } from '@ui-kitten/components';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useAuthStore, useCategoryStore, useSettingsStore } from '@/stores';
 import { changeLanguage } from '@/services/i18n/i18n-config';
 import { updateProfile } from '@/services/supabase/auth-service';
@@ -24,6 +26,7 @@ const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] as const;
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -117,11 +120,14 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView
+    // Keyboard-aware: the new-category name field stays above the keyboard.
+    <KeyboardAwareScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={Spacing.lg}
       contentContainerStyle={{
         paddingTop: insets.top + Spacing.md,
-        paddingBottom: insets.bottom + 100,
+        paddingBottom: bottomInset,
       }}
     >
       {/* Header */}
@@ -333,19 +339,6 @@ export default function SettingsScreen() {
           onSelect={(weekStartsOn) => updateSettings({ weekStartsOn })}
         />
 
-        <Divider style={styles.divider} />
-
-        <OptionPills
-          label={t('settings.defaultTaskView')}
-          options={[
-            { value: 'list', label: t('settings.viewList') },
-            { value: 'kanban', label: t('settings.viewKanban') },
-            { value: 'calendar', label: t('settings.viewCalendar') },
-            { value: 'timeline', label: t('settings.viewTimeline') },
-          ]}
-          selected={settings.defaultView}
-          onSelect={(defaultView) => updateSettings({ defaultView })}
-        />
       </Card>
 
       {/* Categories */}
@@ -486,7 +479,7 @@ export default function SettingsScreen() {
             : t('settings.version', { version: appVersion.version })}
         </Text>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

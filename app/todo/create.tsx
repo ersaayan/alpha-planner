@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Text, Button, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -70,18 +71,13 @@ export default function CreateTodoScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+    // Scrolls the focused field above the keyboard (no fixed header offset to guess).
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={Spacing.lg}
     >
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 100,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
       {/* Title */}
       <Input
         label={t('todo.create.taskTitle')}
@@ -214,14 +210,15 @@ export default function CreateTodoScreen() {
       >
         {t('todo.create.createButton')}
       </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
     padding: Spacing.md,
   },
   input: {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View, ScrollView, Pressable, Alert } from 'react-native';
+import { StyleSheet, View, Pressable, Alert } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Text, Button, Card, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -74,7 +75,12 @@ export default function CategorySelectionScreen() {
         },
       ]}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* Keyboard-aware: the custom category name field stays above the keyboard. */}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={Spacing.lg}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text category="h4" accessibilityRole="header">{t('onboarding.categorySelection.title')}</Text>
@@ -179,7 +185,7 @@ export default function CategorySelectionScreen() {
             {t('onboarding.categorySelection.info')}
           </Text>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Bottom Buttons */}
       <View style={styles.bottomButtons}>

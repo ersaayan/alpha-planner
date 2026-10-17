@@ -11,7 +11,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SectionHeader } from '@/components/common';
@@ -158,308 +159,307 @@ export default function TodoDetailScreen() {
   const subtaskProgress = todo.subtasks.length > 0 ? completedSubtasks / todo.subtasks.length : 0;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+    // Scrolls the focused field (title, subtask, rename) above the keyboard.
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={Spacing.lg}
     >
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Status Badge */}
-        <View style={styles.statusRow}>
-          <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
-            <Text category="c1" style={{ color: colors.primary }}>
-              {t(STATUS_LABEL_KEYS[selectedStatus])}
-            </Text>
-          </View>
-          <View style={[styles.priorityBadge, { backgroundColor: selectedPriorityColor + '20' }]}>
-            <View style={[styles.priorityDot, { backgroundColor: selectedPriorityColor }]} />
-            <Text category="c1" style={{ color: selectedPriorityColor }}>
-              {t(PRIORITY_LABEL_KEYS[selectedPriority])}
-            </Text>
-          </View>
+      {/* Status Badge */}
+      <View style={styles.statusRow}>
+        <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
+          <Text category="c1" style={{ color: colors.primary }}>
+            {t(STATUS_LABEL_KEYS[selectedStatus])}
+          </Text>
         </View>
+        <View style={[styles.priorityBadge, { backgroundColor: selectedPriorityColor + '20' }]}>
+          <View style={[styles.priorityDot, { backgroundColor: selectedPriorityColor }]} />
+          <Text category="c1" style={{ color: selectedPriorityColor }}>
+            {t(PRIORITY_LABEL_KEYS[selectedPriority])}
+          </Text>
+        </View>
+      </View>
 
-        {/* Title & Description */}
-        {isEditing ? (
-          <>
-            <Input
-              label={t('todo.create.taskTitle')}
-              value={title}
-              onChangeText={setTitle}
-              style={styles.input}
-              size="large"
-            />
-            <Input
-              label={t('todo.create.description')}
-              value={description}
-              onChangeText={setDescription}
-              style={styles.input}
-              multiline
-              numberOfLines={3}
-            />
-          </>
-        ) : (
-          <View style={styles.detailSection}>
-            <Text category="h5">{todo.title}</Text>
-            {todo.description && (
-              <Text category="p1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-                {todo.description}
-              </Text>
-            )}
-          </View>
-        )}
+      {/* Title & Description */}
+      {isEditing ? (
+        <>
+          <Input
+            label={t('todo.create.taskTitle')}
+            value={title}
+            onChangeText={setTitle}
+            style={styles.input}
+            size="large"
+          />
+          <Input
+            label={t('todo.create.description')}
+            value={description}
+            onChangeText={setDescription}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+          />
+        </>
+      ) : (
+        <View style={styles.detailSection}>
+          <Text category="h5">{todo.title}</Text>
+          {todo.description && (
+            <Text category="p1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
+              {todo.description}
+            </Text>
+          )}
+        </View>
+      )}
 
-        {/* Category & Priority (Edit Mode) */}
-        {isEditing && (
-          <>
-            <CategorySelect
-              label={t('todo.detail.category')}
-              categories={categories}
-              value={categoryId}
-              onChange={setCategoryId}
-              style={styles.input}
-            />
-
-            <Select
-              label={t('todo.detail.priority')}
-              value={t(PRIORITY_LABEL_KEYS[selectedPriority])}
-              selectedIndex={selectedPriorityIndex}
-              onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
-              style={styles.input}
-            >
-              {PRIORITIES.map((priority) => (
-                <SelectItem key={priority} title={t(PRIORITY_LABEL_KEYS[priority])} />
-              ))}
-            </Select>
-
-            <Select
-              label={t('todo.detail.status')}
-              value={t(STATUS_LABEL_KEYS[selectedStatus])}
-              selectedIndex={selectedStatusIndex}
-              onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
-              style={styles.input}
-            >
-              {STATUSES.map((status) => (
-                <SelectItem key={status} title={t(STATUS_LABEL_KEYS[status])} />
-              ))}
-            </Select>
-
-            <DueDateFields
-              label={t('todo.detail.dueDate')}
-              dueDate={due.dueDate}
-              dueTime={due.dueTime}
-              onChange={setDue}
-            />
-
-            <Input
-              label={t('todo.detail.estimatedPomodoros')}
-              placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
-              value={estimatedPomodoros}
-              onChangeText={setEstimatedPomodoros}
-              style={styles.input}
-              keyboardType="number-pad"
-              accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
-            />
-          </>
-        )}
-
-        {/* Info Cards */}
-        {!isEditing && (
-          <View style={styles.infoCards}>
-            {selectedCategory && (
-              <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-                <View style={styles.infoContent}>
-                  <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{categoryName(t, selectedCategory)}</Text>
-                </View>
-              </Card>
-            )}
-            {todo.dueDate && (
-              <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-                <View style={styles.infoContent}>
-                  <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}</Text>
-                </View>
-              </Card>
-            )}
-            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-              <View style={styles.infoContent}>
-                <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                <Text category="s2">
-                  {t('todo.detail.pomodoroCount', { count: todo.pomodoroSessions })}
-                </Text>
-              </View>
-            </Card>
-          </View>
-        )}
-
-        {/* Subtasks */}
-        <View style={styles.section}>
-          <SectionHeader
-            title={t('todo.detail.subtasks')}
-            action={
-              todo.subtasks.length > 0 ? (
-                <Text category="c1" style={{ color: colors.textMuted }}>
-                  {completedSubtasks}/{todo.subtasks.length}
-                </Text>
-              ) : undefined
-            }
+      {/* Category & Priority (Edit Mode) */}
+      {isEditing && (
+        <>
+          <CategorySelect
+            label={t('todo.detail.category')}
+            categories={categories}
+            value={categoryId}
+            onChange={setCategoryId}
+            style={styles.input}
           />
 
-          {todo.subtasks.length > 0 && (
-            <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${subtaskProgress * 100}%`, backgroundColor: colors.primary },
-                ]}
-              />
-            </View>
+          <Select
+            label={t('todo.detail.priority')}
+            value={t(PRIORITY_LABEL_KEYS[selectedPriority])}
+            selectedIndex={selectedPriorityIndex}
+            onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
+            style={styles.input}
+          >
+            {PRIORITIES.map((priority) => (
+              <SelectItem key={priority} title={t(PRIORITY_LABEL_KEYS[priority])} />
+            ))}
+          </Select>
+
+          <Select
+            label={t('todo.detail.status')}
+            value={t(STATUS_LABEL_KEYS[selectedStatus])}
+            selectedIndex={selectedStatusIndex}
+            onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
+            style={styles.input}
+          >
+            {STATUSES.map((status) => (
+              <SelectItem key={status} title={t(STATUS_LABEL_KEYS[status])} />
+            ))}
+          </Select>
+
+          <DueDateFields
+            label={t('todo.detail.dueDate')}
+            dueDate={due.dueDate}
+            dueTime={due.dueTime}
+            onChange={setDue}
+          />
+
+          <Input
+            label={t('todo.detail.estimatedPomodoros')}
+            placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
+            value={estimatedPomodoros}
+            onChangeText={setEstimatedPomodoros}
+            style={styles.input}
+            keyboardType="number-pad"
+            accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
+          />
+        </>
+      )}
+
+      {/* Info Cards */}
+      {!isEditing && (
+        <View style={styles.infoCards}>
+          {selectedCategory && (
+            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+              <View style={styles.infoContent}>
+                <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                <Text category="s2">{categoryName(t, selectedCategory)}</Text>
+              </View>
+            </Card>
           )}
-
-          {todo.subtasks.map((subtask) => (
-            <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
-              <Pressable
-                style={[
-                  styles.checkbox,
-                  {
-                    borderColor: subtask.isCompleted ? colors.primary : colors.textMuted,
-                    backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
-                  },
-                ]}
-                onPress={() => toggleSubtask(id, subtask.id)}
-                hitSlop={11}
-                accessibilityRole="checkbox"
-                accessibilityLabel={subtask.title}
-                accessibilityState={{ checked: subtask.isCompleted }}
-                accessibilityHint={subtask.isCompleted ? t('todo.form.markIncompleteHint') : t('todo.form.markCompleteHint')}
-              >
-                {subtask.isCompleted && (
-                  <Icon name="checkmark-outline" fill={colors.onPrimary} style={styles.checkIcon} />
-                )}
-              </Pressable>
-              {renaming?.id === subtask.id ? (
-                <Input
-                  value={renaming.title}
-                  onChangeText={(title) => setRenaming({ id: subtask.id, title })}
-                  onSubmitEditing={saveRename}
-                  onBlur={saveRename}
-                  autoFocus
-                  style={styles.subtaskText}
-                  accessibilityLabel={t('todo.form.renameSubtask')}
-                />
-              ) : (
-                <Pressable
-                  style={styles.subtaskText}
-                  onPress={() => setRenaming({ id: subtask.id, title: subtask.title })}
-                  accessibilityRole="button"
-                  accessibilityLabel={subtask.title}
-                  accessibilityHint={t('todo.form.renameSubtaskHint')}
-                >
-                  <Text
-                    category="p2"
-                    style={subtask.isCompleted ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}
-                  >
-                    {subtask.title}
-                  </Text>
-                </Pressable>
-              )}
-              <Pressable
-                onPress={() => deleteSubtask(id, subtask.id)}
-                style={styles.subtaskDeleteButton}
-                accessibilityRole="button"
-                accessibilityLabel={t('todo.form.deleteSubtask', { title: subtask.title })}
-              >
-                <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
-              </Pressable>
+          {todo.dueDate && (
+            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+              <View style={styles.infoContent}>
+                <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}</Text>
+              </View>
+            </Card>
+          )}
+          <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+            <View style={styles.infoContent}>
+              <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
+              <Text category="s2">
+                {t('todo.detail.pomodoroCount', { count: todo.pomodoroSessions })}
+              </Text>
             </View>
-          ))}
+          </Card>
+        </View>
+      )}
 
-          <View style={styles.addSubtaskRow}>
-            <Input
-              placeholder={t('todo.detail.addSubtask')}
-              value={newSubtask}
-              onChangeText={setNewSubtask}
-              style={styles.subtaskInput}
-              onSubmitEditing={handleAddSubtask}
-              accessibilityLabel={t('todo.detail.addSubtask')}
-            />
-            <Button
-              size="small"
-              appearance="ghost"
-              accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
-              onPress={handleAddSubtask}
-              disabled={!newSubtask.trim()}
-              accessibilityLabel={t('todo.detail.addSubtask')}
-              style={styles.addSubtaskButton}
+      {/* Subtasks */}
+      <View style={styles.section}>
+        <SectionHeader
+          title={t('todo.detail.subtasks')}
+          action={
+            todo.subtasks.length > 0 ? (
+              <Text category="c1" style={{ color: colors.textMuted }}>
+                {completedSubtasks}/{todo.subtasks.length}
+              </Text>
+            ) : undefined
+          }
+        />
+
+        {todo.subtasks.length > 0 && (
+          <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${subtaskProgress * 100}%`, backgroundColor: colors.primary },
+              ]}
             />
           </View>
-        </View>
+        )}
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          {isEditing ? (
-            <>
-              <Button appearance="ghost" onPress={() => setIsEditing(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button onPress={handleSave} disabled={!title.trim()}>{t('todo.saveChanges')}</Button>
-            </>
-          ) : (
-            <>
-              <Button
-                appearance="outline"
-                accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
-                onPress={() => setIsEditing(true)}
-              >
-                {t('todo.detail.edit')}
-              </Button>
-              {timer.linkedTodoId === id ? (
-                <Button
-                  appearance="ghost"
-                  status="basic"
-                  accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
-                  onPress={handleUnlinkFromPomodoro}
-                >
-                  {t('pomodoro.unlink')}
-                </Button>
-              ) : (
-                <Button
-                  accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
-                  onPress={handleLinkToPomodoro}
-                >
-                  {t('todo.detail.startFocus')}
-                </Button>
+        {todo.subtasks.map((subtask) => (
+          <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
+            <Pressable
+              style={[
+                styles.checkbox,
+                {
+                  borderColor: subtask.isCompleted ? colors.primary : colors.textMuted,
+                  backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
+                },
+              ]}
+              onPress={() => toggleSubtask(id, subtask.id)}
+              hitSlop={11}
+              accessibilityRole="checkbox"
+              accessibilityLabel={subtask.title}
+              accessibilityState={{ checked: subtask.isCompleted }}
+              accessibilityHint={subtask.isCompleted ? t('todo.form.markIncompleteHint') : t('todo.form.markCompleteHint')}
+            >
+              {subtask.isCompleted && (
+                <Icon name="checkmark-outline" fill={colors.onPrimary} style={styles.checkIcon} />
               )}
-            </>
-          )}
-        </View>
+            </Pressable>
+            {renaming?.id === subtask.id ? (
+              <Input
+                value={renaming.title}
+                onChangeText={(title) => setRenaming({ id: subtask.id, title })}
+                onSubmitEditing={saveRename}
+                onBlur={saveRename}
+                autoFocus
+                style={styles.subtaskText}
+                accessibilityLabel={t('todo.form.renameSubtask')}
+              />
+            ) : (
+              <Pressable
+                style={styles.subtaskText}
+                onPress={() => setRenaming({ id: subtask.id, title: subtask.title })}
+                accessibilityRole="button"
+                accessibilityLabel={subtask.title}
+                accessibilityHint={t('todo.form.renameSubtaskHint')}
+              >
+                <Text
+                  category="p2"
+                  style={subtask.isCompleted ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}
+                >
+                  {subtask.title}
+                </Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => deleteSubtask(id, subtask.id)}
+              style={styles.subtaskDeleteButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('todo.form.deleteSubtask', { title: subtask.title })}
+            >
+              <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
+            </Pressable>
+          </View>
+        ))}
 
-        {/* Delete */}
-        <Button
-          appearance="ghost"
-          status="danger"
-          accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
-          onPress={handleDelete}
-          style={styles.deleteButton}
-        >
-          {t('todo.detail.deleteTitle')}
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <View style={styles.addSubtaskRow}>
+          <Input
+            placeholder={t('todo.detail.addSubtask')}
+            value={newSubtask}
+            onChangeText={setNewSubtask}
+            style={styles.subtaskInput}
+            onSubmitEditing={handleAddSubtask}
+            accessibilityLabel={t('todo.detail.addSubtask')}
+          />
+          <Button
+            size="small"
+            appearance="ghost"
+            accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
+            onPress={handleAddSubtask}
+            disabled={!newSubtask.trim()}
+            accessibilityLabel={t('todo.detail.addSubtask')}
+            style={styles.addSubtaskButton}
+          />
+        </View>
+      </View>
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        {isEditing ? (
+          <>
+            <Button appearance="ghost" onPress={() => setIsEditing(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onPress={handleSave} disabled={!title.trim()}>{t('todo.saveChanges')}</Button>
+          </>
+        ) : (
+          <>
+            <Button
+              appearance="outline"
+              accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
+              onPress={() => setIsEditing(true)}
+            >
+              {t('todo.detail.edit')}
+            </Button>
+            {timer.linkedTodoId === id ? (
+              <Button
+                appearance="ghost"
+                status="basic"
+                accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
+                onPress={handleUnlinkFromPomodoro}
+              >
+                {t('pomodoro.unlink')}
+              </Button>
+            ) : (
+              <Button
+                accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
+                onPress={handleLinkToPomodoro}
+              >
+                {t('todo.detail.startFocus')}
+              </Button>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* Delete */}
+      <Button
+        appearance="ghost"
+        status="danger"
+        accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
+        onPress={handleDelete}
+        style={styles.deleteButton}
+      >
+        {t('todo.detail.deleteTitle')}
+      </Button>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
     padding: Spacing.md,
   },
   notFoundContainer: {
+    padding: Spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },

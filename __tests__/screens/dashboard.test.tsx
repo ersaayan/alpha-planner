@@ -61,7 +61,7 @@ jest.mock('@/stores', () => ({
 jest.mock('@/utils/date', () => ({ ...jest.requireActual('@/utils/date'), formatDate: () => '05/04/2026' }));
 
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
 import HomeScreen from '@/app/(tabs)/index';
 
 describe('Dashboard Screen', () => {
@@ -71,6 +71,7 @@ describe('Dashboard Screen', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    jest.requireActual('@/stores/settings-store').useSettingsStore.getState().resetSettings();
   });
 
   it('renders personalized greeting with display name', async () => {
@@ -109,9 +110,20 @@ describe('Dashboard Screen', () => {
     expect(screen.getByText('Start Focus')).toBeTruthy();
   });
 
-  it('renders timer status section', async () => {
+  it('folds and unfolds the quest, goal and season cards (season starts folded)', async () => {
+    const { useSettingsStore } = jest.requireActual('@/stores/settings-store');
     await render(<HomeScreen />);
-    expect(screen.getByText('Quick Actions')).toBeTruthy();
+    expect(screen.queryByText(/Season rewards earned so far/)).toBeNull();
+    expect(screen.getByTestId('season-card-toggle').props.accessibilityState).toEqual({ expanded: false });
+
+    await fireEvent.press(screen.getByTestId('daily-quests-card-toggle'));
+    expect(screen.queryByText('Complete 2 task(s) in Work')).toBeNull();
+    // Folded, the header still says how far along today's quests are.
+    expect(screen.getByText('1/2')).toBeTruthy();
+    expect(useSettingsStore.getState().settings.collapsedDashboardCards).toContain('quests');
+
+    await fireEvent.press(screen.getByTestId('daily-quests-card-toggle'));
+    expect(screen.getByText('Complete 2 task(s) in Work')).toBeTruthy();
   });
 
   it('shows max level only at level 50, never "Infinity XP"', async () => {
@@ -140,6 +152,7 @@ describe('Dashboard Screen', () => {
   it('explains the monthly season on the dashboard', async () => {
     await render(<HomeScreen />);
     expect(screen.getByText(/season$/)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('season-card-toggle'));
     expect(screen.getByText(/Season rewards earned so far: 0 of 6/)).toBeTruthy();
   });
 

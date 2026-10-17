@@ -274,7 +274,9 @@ interface IconProps {
  */
 export function Icon({ name, fill, style, size }: IconProps) {
   const colorScheme = useColorScheme();
-  const { width, height, tintColor, ...layout } = (StyleSheet.flatten(style) ?? {}) as ViewStyle & { tintColor?: ColorValue };
+  const { width, height, tintColor, ...layout } = (StyleSheet.flatten(style as never) ?? {}) as ViewStyle & {
+    tintColor?: ColorValue;
+  };
   const iconSize = size ?? (typeof width === 'number' ? width : undefined) ?? (typeof height === 'number' ? height : undefined) ?? 24;
   const requested = fill ?? tintColor ?? Colors[colorScheme].textMuted;
   // RN's ColorValue also allows null and processed (numeric) colors, which vector icons don't accept

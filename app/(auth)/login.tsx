@@ -12,13 +12,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -54,91 +52,88 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAwareScrollView
+      style={{ backgroundColor: colors.background }}
+      bottomOffset={Spacing.lg}
+      contentContainerStyle={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top + Spacing.xxxl,
+          paddingBottom: insets.bottom + Spacing.xl,
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            paddingTop: insets.top + Spacing.xxxl,
-            paddingBottom: insets.bottom + Spacing.xl,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.header}>
-          <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-            <Icon name="leaf-outline" fill={colors.onPrimary} size={32} />
-          </View>
-          <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
-            {t('auth.signInTitle')}
+      <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.header}>
+        <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
+          <Icon name="leaf-outline" fill={colors.onPrimary} size={32} />
+        </View>
+        <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
+          {t('auth.signInTitle')}
+        </Text>
+        <Text category="s1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
+          {t('auth.signInSubtitle')}
+        </Text>
+      </Animated.View>
+
+      <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.form}>
+        <Input
+          label={t('auth.email')}
+          placeholder={t('auth.emailPlaceholder')}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          style={[styles.input, { backgroundColor: colors.card }]}
+          textStyle={{ color: colors.text }}
+        />
+        <Input
+          label={t('auth.password')}
+          placeholder={t('auth.passwordPlaceholder')}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="password"
+          style={[styles.input, { backgroundColor: colors.card }]}
+          textStyle={{ color: colors.text }}
+        />
+
+        <Pressable
+          onPress={handleSignIn}
+          disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isLoading, busy: isLoading }}
+          style={[
+            styles.button,
+            { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 },
+          ]}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <Text category="s1" style={{ color: colors.onPrimary }}>{t('auth.signIn')}</Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.replace('/(auth)/register' as any)}
+          accessibilityRole="button"
+          style={styles.linkButton}
+        >
+          <Text category="c1" style={{ color: colors.primary }}>
+            {t('auth.noAccount')}
           </Text>
-          <Text category="s1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-            {t('auth.signInSubtitle')}
+        </Pressable>
+
+        <Pressable onPress={closeAuth} style={styles.linkButton} accessibilityRole="button">
+          <Text category="c1" style={{ color: colors.textSecondary }}>
+            {t('auth.notNow')}
           </Text>
-        </Animated.View>
-
-        <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.form}>
-          <Input
-            label={t('auth.email')}
-            placeholder={t('auth.emailPlaceholder')}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            style={[styles.input, { backgroundColor: colors.card }]}
-            textStyle={{ color: colors.text }}
-          />
-          <Input
-            label={t('auth.password')}
-            placeholder={t('auth.passwordPlaceholder')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-            style={[styles.input, { backgroundColor: colors.card }]}
-            textStyle={{ color: colors.text }}
-          />
-
-          <Pressable
-            onPress={handleSignIn}
-            disabled={isLoading}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isLoading, busy: isLoading }}
-            style={[
-              styles.button,
-              { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 },
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text category="s1" style={{ color: colors.onPrimary }}>{t('auth.signIn')}</Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={() => router.replace('/(auth)/register' as any)}
-            accessibilityRole="button"
-            style={styles.linkButton}
-          >
-            <Text category="c1" style={{ color: colors.primary }}>
-              {t('auth.noAccount')}
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={closeAuth} style={styles.linkButton} accessibilityRole="button">
-            <Text category="c1" style={{ color: colors.textSecondary }}>
-              {t('auth.notNow')}
-            </Text>
-          </Pressable>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </Pressable>
+      </Animated.View>
+    </KeyboardAwareScrollView>
   );
 }
 

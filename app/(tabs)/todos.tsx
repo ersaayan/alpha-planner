@@ -11,9 +11,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontSize, InterFonts, Shadows, Spacing } from '@/constants/theme';
-import { TAB_BAR_BOTTOM_PADDING } from '@/constants/defaults';
 import { PRIORITY_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
 import { formatDue, isPastDue } from '@/utils/todo-dates';
@@ -42,6 +42,7 @@ const EMPTY_STATUS_KEYS: Partial<Record<TodoStatus, string>> = {
 export default function TodosScreen() {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -344,7 +345,7 @@ export default function TodosScreen() {
         <FlatList
           data={filteredTodos}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomInset }]}
           renderItem={renderTodoItem}
           showsVerticalScrollIndicator={false}
         />
@@ -450,7 +451,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: TAB_BAR_BOTTOM_PADDING,
   },
   todoCard: {
     marginBottom: Spacing.sm,

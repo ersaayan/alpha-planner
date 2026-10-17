@@ -99,6 +99,8 @@ export function CircularProgress({
     const strokeDashoffset = circumference * (1 - animatedProgress.value);
     return {
       strokeDashoffset,
+      // A round cap still draws a dot at 0%: hide the arc until there is progress.
+      strokeOpacity: animatedProgress.value > 0.001 ? 1 : 0,
     };
   });
 
@@ -140,8 +142,9 @@ export function CircularProgress({
           </LinearGradient>
         </Defs>
 
-        {/* Rotate the group to start from top */}
-        <G rotation="-90" origin={`${center}, ${center}`}>
+        {/* Rotate the group to start from top (an SVG transform string: no web-only
+            transform-origin attribute warning) */}
+        <G transform={`rotate(-90 ${center} ${center})`}>
           {/* Background circle */}
           <Circle
             cx={center}

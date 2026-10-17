@@ -18,6 +18,7 @@ import type { AchievementCategory } from '@/types';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { formatDuration } from '@/services/i18n/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
 
 const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
@@ -44,6 +45,7 @@ export default function StatsScreen() {
   // Decorative loops (glow, shimmer) stop while another tab is shown.
   const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -108,7 +110,7 @@ export default function StatsScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{
         paddingTop: insets.top + Spacing.md,
-        paddingBottom: insets.bottom + 100,
+        paddingBottom: bottomInset,
       }}
       showsVerticalScrollIndicator={false}
     >

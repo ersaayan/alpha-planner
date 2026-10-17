@@ -200,7 +200,7 @@ export default function KanbanScreen() {
               <ScrollView
                 style={styles.columnContent}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.columnScrollContent}
+                contentContainerStyle={[styles.columnScrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
               >
                 {columnTodos.length === 0 ? (
                   <View style={styles.emptyColumn}>

@@ -18,6 +18,7 @@ import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows
 import { priorityColor } from '@/constants/todo-options';
 import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDue } from '@/utils/todo-dates';
 
@@ -36,6 +37,7 @@ import { levelTierName, levelTitle } from '@/services/gamification/display';
 export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -106,7 +108,7 @@ export default function HomeScreen() {
     <>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 100 }}
+      contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: bottomInset }}
       showsVerticalScrollIndicator={false}
     >
       {/* Header with Level Badge */}
@@ -125,6 +127,52 @@ export default function HomeScreen() {
           showGlow={isFocused && stats.level >= 5}
         />
       </View>
+
+      {/* Timer Status Card */}
+      {timerState !== 'stopped' && (
+        <Animated.View style={timerAnimatedStyle}>
+          <AnimatedCard
+            variant="elevated"
+            style={styles.timerCard}
+            contentStyle={styles.timerCardContent}
+            onPress={() => router.push('/(tabs)/pomodoro')}
+          >
+            {/* Glow effect when running */}
+            {timerState === 'running' && (
+              <View
+                style={[
+                  styles.timerGlow,
+                  { backgroundColor: colors.primary },
+                ]}
+              />
+            )}
+
+            <View style={styles.timerInfo}>
+              <View style={[styles.phaseBadge, { backgroundColor: colors.primary + '20' }]}>
+                <Icon
+                  name={timerPhase === 'focus' ? 'bulb' : 'coffee'}
+                  fill={colors.primary}
+                  style={styles.phaseIcon}
+                />
+                <Text style={[styles.phaseText, { color: colors.primary }]}>
+                  {timerPhase === 'focus' ? t('dashboard.focusTime') : t('dashboard.breakTime')}
+                </Text>
+              </View>
+              <Text style={[styles.timerTime, { color: colors.text }]}>
+                {formatTime()}
+              </Text>
+            </View>
+
+            <View style={[styles.timerAction, { backgroundColor: colors.primary }]}>
+              <Icon
+                name={timerState === 'running' ? 'pause' : 'play'}
+                fill={colors.onPrimary}
+                style={styles.timerActionIcon}
+              />
+            </View>
+          </AnimatedCard>
+        </Animated.View>
+      )}
 
       {/* XP Progress Card */}
       <AnimatedCard
@@ -175,9 +223,6 @@ export default function HomeScreen() {
         </Text>
       </AnimatedCard>
 
-      {/* Session and daily combos */}
-      <ComboIndicator />
-
       {/* Quick Stats Grid */}
       <View style={styles.statsGrid}>
         <StatCard
@@ -203,56 +248,28 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Timer Status Card */}
-      {timerState !== 'stopped' && (
-        <Animated.View style={timerAnimatedStyle}>
-          <AnimatedCard
-            variant="elevated"
-            style={styles.timerCard}
-            contentStyle={styles.timerCardContent}
-            onPress={() => router.push('/(tabs)/pomodoro')}
-          >
-            {/* Glow effect when running */}
-            {timerState === 'running' && (
-              <View
-                style={[
-                  styles.timerGlow,
-                  { backgroundColor: colors.primary },
-                ]}
-              />
-            )}
+      {/* Quick actions: the two things people come here to start */}
+      <View style={styles.actionsRow}>
+        <AnimatedButton
+          title={t('dashboard.newTask')}
+          icon="plus"
+          variant="outline"
+          size="md"
+          style={styles.actionButton}
+          onPress={() => router.push('/todo/create')}
+        />
+        <AnimatedButton
+          title={t('dashboard.startFocus')}
+          icon="play"
+          variant="primary"
+          size="md"
+          style={styles.actionButton}
+          onPress={() => router.push('/(tabs)/pomodoro')}
+        />
+      </View>
 
-            <View style={styles.timerInfo}>
-              <View style={[styles.phaseBadge, { backgroundColor: colors.primary + '20' }]}>
-                <Icon
-                  name={timerPhase === 'focus' ? 'bulb' : 'coffee'}
-                  fill={colors.primary}
-                  style={styles.phaseIcon}
-                />
-                <Text style={[styles.phaseText, { color: colors.primary }]}>
-                  {timerPhase === 'focus' ? t('dashboard.focusTime') : t('dashboard.breakTime')}
-                </Text>
-              </View>
-              <Text style={[styles.timerTime, { color: colors.text }]}>
-                {formatTime()}
-              </Text>
-            </View>
-
-            <View style={[styles.timerAction, { backgroundColor: colors.primary }]}>
-              <Icon
-                name={timerState === 'running' ? 'pause' : 'play'}
-                fill={colors.onPrimary}
-                style={styles.timerActionIcon}
-              />
-            </View>
-          </AnimatedCard>
-        </Animated.View>
-      )}
-
-      {/* Today's quests, this week's goals, the monthly season */}
-      <DailyQuestsCard />
-      <WeeklyGoalsCard />
-      <SeasonCard />
+      {/* Session and daily combos */}
+      <ComboIndicator />
 
       {/* Active Tasks Section */}
       <View style={styles.section}>
@@ -348,30 +365,10 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.md }]}>
-          {t('dashboard.quickActions')}
-        </Text>
-        <View style={styles.actionsRow}>
-          <AnimatedButton
-            title={t('dashboard.newTask')}
-            icon="plus"
-            variant="outline"
-            size="md"
-            style={styles.actionButton}
-            onPress={() => router.push('/todo/create')}
-          />
-          <AnimatedButton
-            title={t('dashboard.startFocus')}
-            icon="play"
-            variant="primary"
-            size="md"
-            style={styles.actionButton}
-            onPress={() => router.push('/(tabs)/pomodoro')}
-          />
-        </View>
-      </View>
+      {/* Today's quests, this week's goals and the monthly season fold to one line each */}
+      <DailyQuestsCard />
+      <WeeklyGoalsCard />
+      <SeasonCard />
     </ScrollView>
 
     </>
@@ -571,10 +568,6 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: Spacing.xl,
   },
-  sectionTitle: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.lg,
-  },
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -661,6 +654,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   actionButton: {
     flex: 1,

@@ -13,6 +13,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { ApplicationProvider } from '@ui-kitten/components';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import * as SystemUI from 'expo-system-ui';
 import { useCallback, useEffect } from 'react';
 import 'react-native-reanimated';
@@ -125,13 +126,16 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <ApplicationProvider {...eva} theme={evaTheme}>
-        <ThemeProvider value={navigationTheme}>
-          <RootStack />
-          <CelebrationHost />
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-        </ThemeProvider>
-      </ApplicationProvider>
+      {/* Keyboard insets on both platforms, including Android edge-to-edge (forms use KeyboardAwareScrollView). */}
+      <KeyboardProvider>
+        <ApplicationProvider {...eva} theme={evaTheme}>
+          <ThemeProvider value={navigationTheme}>
+            <RootStack />
+            <CelebrationHost />
+            <StatusBar style={isDark ? 'light' : 'dark'} />
+          </ThemeProvider>
+        </ApplicationProvider>
+      </KeyboardProvider>
     </ErrorBoundary>
   );
 }
