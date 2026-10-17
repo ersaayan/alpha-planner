@@ -78,46 +78,38 @@ jest.mock('@/services/notifications', () => ({
   },
 }));
 
-// Mock i18n — t() returns the English translation value from en.json
+// Mock i18n — t() returns the English translation value from en.json, with i18next's
+// count plurals (`key_one` / `key_other`) and `defaultValue`.
+function mockTranslate(key: string, params?: Record<string, unknown>): string {
+  const en = require('./locales/en.json') as Record<string, string>;
+  const count = params?.count;
+  const plural = typeof count === 'number' ? en[`${key}_${count === 1 ? 'one' : 'other'}`] : undefined;
+  let value = plural ?? en[key] ?? (params && 'defaultValue' in params ? String(params.defaultValue) : key);
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (k !== 'defaultValue') value = value.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
+    });
+  }
+  return value;
+}
+
 jest.mock('react-i18next', () => ({
-  useTranslation: () => {
-    const en = require('./locales/en.json');
-    return {
-      t: (key: string, params?: Record<string, unknown>) => {
-        let value = (en as Record<string, string>)[key] ?? key;
-        if (params) {
-          Object.entries(params).forEach(([k, v]) => {
-            value = value.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
-          });
-        }
-        return value;
-      },
-      i18n: { changeLanguage: jest.fn(), language: 'en' },
-    };
-  },
+  useTranslation: () => ({
+    t: mockTranslate,
+    i18n: { changeLanguage: jest.fn(), language: 'en' },
+  }),
   initReactI18next: { type: '3rdParty', init: jest.fn() },
 }));
 
-jest.mock('@/services/i18n/i18n-config', () => {
-  const en = require('./locales/en.json');
-  return {
-    __esModule: true,
-    default: {
-      t: (key: string, params?: Record<string, unknown>) => {
-        let value = (en as Record<string, string>)[key] ?? key;
-        if (params) {
-          Object.entries(params).forEach(([k, v]) => {
-            value = value.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
-          });
-        }
-        return value;
-      },
-      changeLanguage: jest.fn(),
-      language: 'en',
-    },
+jest.mock('@/services/i18n/i18n-config', () => ({
+  __esModule: true,
+  default: {
+    t: mockTranslate,
     changeLanguage: jest.fn(),
-  };
-});
+    language: 'en',
+  },
+  changeLanguage: jest.fn(),
+}));
 
 // Silence console.warn in tests
 const originalWarn = console.warn;

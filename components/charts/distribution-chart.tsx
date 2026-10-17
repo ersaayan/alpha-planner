@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
@@ -18,10 +19,11 @@ interface DistributionChartProps {
 }
 
 export function DistributionChart({ data, title, formatValue }: DistributionChartProps) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const total = data.reduce((sum, item) => sum + item.value, 0);
+  const total = data.reduce((sum, item) => sum + (Number.isFinite(item.value) && item.value > 0 ? item.value : 0), 0);
 
   if (total === 0) {
     return (
@@ -31,7 +33,7 @@ export function DistributionChart({ data, title, formatValue }: DistributionChar
         </Text>
         <View style={styles.emptyState}>
           <Text category="c1" style={{ color: colors.textMuted }}>
-            No data yet
+            {t('stats.newUser')}
           </Text>
         </View>
       </View>
@@ -40,12 +42,7 @@ export function DistributionChart({ data, title, formatValue }: DistributionChar
 
   const defaultFormat = (value: number) => {
     const minutes = Math.floor(value / 60);
-    if (minutes >= 60) {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      return `${hours}h ${mins}m`;
-    }
-    return `${minutes}m`;
+    return t('summary.hoursMinutes', { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
   };
 
   const format = formatValue ?? defaultFormat;

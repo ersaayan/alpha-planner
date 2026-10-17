@@ -1,25 +1,29 @@
 import { useMemo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, ScrollView } from 'react-native';
 import { Text, Card, Button } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { EmptyState } from '@/components/common';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import {
-  format,
-  isToday,
-  isTomorrow,
-  startOfDay,
-} from 'date-fns';
+import { startOfDay } from 'date-fns';
 
-import { useTodoStore, useCategoryStore } from '@/stores';
+import { useTodoStore, useCategoryStore, useSettingsStore } from '@/stores';
 import type { Todo } from '@/types';
-import { parseDateKey } from '@/utils/date';
-import { getDueDateKey } from '@/utils/todo-dates';
+import { addDaysToKey, getDateKey, parseDateKey } from '@/utils/date';
+import { formatTime, getDueDateKey, isPastDue } from '@/utils/todo-dates';
+import { formatLocalized } from '@/utils/locale';
+import { categoryName } from '@/services/gamification/display';
+
+/** Only tasks still to do belong on the timeline (not completed or archived ones). */
+function isOpen(todo: Todo): boolean {
+  return todo.status === 'pending' || todo.status === 'in_progress';
+}
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface TimelineDay {
+  key: string;
   date: Date;
   label: string;
   todos: Todo[];
@@ -27,6 +31,8 @@ interface TimelineDay {
 }
 
 export default function TimelineScreen() {
+  const { t, i18n } = useTranslation();
+  const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -36,13 +42,13 @@ export default function TimelineScreen() {
   const categories = useCategoryStore((state) => state.categories);
 
   // Track the current date so useMemo recomputes labels/overdue at midnight
-  const [todayKey, setTodayKey] = useState(() => startOfDay(new Date()).toISOString());
+  const [todayKey, setTodayKey] = useState(() => getDateKey());
   useEffect(() => {
     const now = new Date();
     const tomorrow = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
     const msUntilMidnight = tomorrow.getTime() - now.getTime();
     const timer = setTimeout(() => {
-      setTodayKey(startOfDay(new Date()).toISOString());
+      setTodayKey(getDateKey());
     }, msUntilMidnight);
     return () => clearTimeout(timer);
   }, [todayKey]);
@@ -56,66 +62,51 @@ export default function TimelineScreen() {
   const getCategoryName = (categoryId: string | null): string | null => {
     if (!categoryId) return null;
     const category = categories.find((c) => c.id === categoryId);
-    return category?.name ?? null;
+    return category ? categoryName(t, category) : null;
   };
 
-  // Get label for a date
-  const getDateLabel = (date: Date): string => {
-    if (isToday(date)) return 'Today';
-    if (isTomorrow(date)) return 'Tomorrow';
-    return format(date, 'EEEE, MMM d');
-  };
-
-  // Organize todos into timeline days
+  // Organize open todos into timeline days (local due days)
   const timelineDays = useMemo(() => {
-    const todosWithDueDate = todos.filter(
-      (todo) => todo.dueDate && todo.status !== 'completed'
-    );
-
-    // Group by date
     const dateMap = new Map<string, Todo[]>();
-
-    todosWithDueDate.forEach((todo) => {
+    for (const todo of todos) {
+      if (!isOpen(todo)) continue;
       const dateKey = getDueDateKey(todo.dueDate);
-      if (!dateKey) return;
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, []);
-      }
+      if (!dateKey) continue;
+      if (!dateMap.has(dateKey)) dateMap.set(dateKey, []);
       dateMap.get(dateKey)!.push(todo);
-    });
+    }
 
-    // Convert to array and sort by date
-    const days: TimelineDay[] = [];
-    const today = new Date(todayKey);
+    const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+    const label = (key: string) =>
+      key === todayKey
+        ? t('common.today')
+        : key === addDaysToKey(todayKey, 1)
+          ? t('common.tomorrow')
+          : key === addDaysToKey(todayKey, -1)
+            ? t('common.yesterday')
+            : formatLocalized(parseDateKey(key), 'EEEE, d MMMM', i18n.language);
 
-    dateMap.forEach((dayTodos, dateKey) => {
-      const date = parseDateKey(dateKey);
-      days.push({
-        date,
-        label: getDateLabel(date),
-        todos: dayTodos.sort((a, b) => {
-          // Sort by priority then by title
-          const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
-          const aPriority = priorityOrder[a.priority] ?? 2;
-          const bPriority = priorityOrder[b.priority] ?? 2;
-          if (aPriority !== bPriority) return aPriority - bPriority;
-          return a.title.localeCompare(b.title);
-        }),
-        isOverdue: date < today,
-      });
-    });
+    const days: TimelineDay[] = [...dateMap.entries()].map(([key, dayTodos]) => ({
+      key,
+      date: parseDateKey(key),
+      label: label(key),
+      todos: dayTodos.sort((a, b) => {
+        // Timed tasks first by time, then priority, then title
+        if ((a.dueTime ?? '99') !== (b.dueTime ?? '99')) return (a.dueTime ?? '99') < (b.dueTime ?? '99') ? -1 : 1;
+        const aPriority = priorityOrder[a.priority] ?? 2;
+        const bPriority = priorityOrder[b.priority] ?? 2;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+        return a.title.localeCompare(b.title, i18n.language);
+      }),
+      isOverdue: key < todayKey,
+    }));
 
-    // Sort days by date
-    days.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-    return days;
-  }, [todos, todayKey]);
+    return days.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+  }, [todos, todayKey, t, i18n.language]);
 
   // Todos without due date
   const unscheduledTodos = useMemo(() => {
-    return todos.filter(
-      (todo) => !todo.dueDate && todo.status !== 'completed'
-    );
+    return todos.filter((todo) => !todo.dueDate && isOpen(todo));
   }, [todos]);
 
   const handleTodoPress = (todoId: string) => {
@@ -132,14 +123,16 @@ export default function TimelineScreen() {
     }
   };
 
-  const renderTodoCard = (todo: Todo, isOverdue: boolean) => (
+  const renderTodoCard = (todo: Todo, dayIsOverdue: boolean) => {
+    // A task due today at a time that has passed is late too.
+    const isOverdue = dayIsOverdue || isPastDue(todo.dueDate, new Date(), todo.dueTime);
+    return (
     <Card
       key={todo.id}
       style={[styles.todoCard, { backgroundColor: colors.card }]}
       onPress={() => handleTodoPress(todo.id)}
       accessibilityRole="button"
-      accessibilityLabel={`${todo.title}${isOverdue ? ', overdue' : ''}${todo.priority !== 'low' ? `, ${todo.priority} priority` : ''}`}
-      accessibilityHint="Double tap to view task details"
+      accessibilityLabel={isOverdue ? `${todo.title}, ${t('views.overdue')}` : todo.title}
     >
       <View style={styles.cardContent}>
         <View
@@ -164,11 +157,17 @@ export default function TimelineScreen() {
               <View style={styles.overdueBadge}>
                 <Icon name="alert-circle-outline" fill={colors.priorityUrgent} size={12} />
                 <Text category="c2" style={{ color: colors.priorityUrgent, marginLeft: 2 }}>
-                  Overdue
+                  {t('views.overdue')}
                 </Text>
               </View>
             )}
           </View>
+
+          {todo.dueTime ? (
+            <Text category="c2" style={{ color: isOverdue ? colors.priorityUrgent : colors.textMuted }}>
+              {formatTime(todo.dueTime, timeFormat)}
+            </Text>
+          ) : null}
 
           {todo.description && (
             <Text
@@ -217,7 +216,8 @@ export default function TimelineScreen() {
         <Icon name="chevron-right-outline" fill={colors.textMuted} size={16} />
       </View>
     </Card>
-  );
+    );
+  };
 
   return (
     <View
@@ -234,7 +234,7 @@ export default function TimelineScreen() {
           accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
           onPress={() => router.back()}
         />
-        <Text category="h5">Timeline</Text>
+        <Text category="h5">{t('views.timeline')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -247,14 +247,14 @@ export default function TimelineScreen() {
         {timelineDays.length === 0 && unscheduledTodos.length === 0 && (
           <EmptyState
             icon="calendar-outline"
-            title="No upcoming tasks"
-            subtitle="Create a task with a due date to see it here"
+            title={t('views.timelineEmpty')}
+            subtitle={t('views.timelineEmptyHint')}
           />
         )}
 
         {/* Timeline Days */}
         {timelineDays.map((day, dayIndex) => (
-          <View key={day.date.toISOString()} style={styles.timelineDay}>
+          <View key={day.key} style={styles.timelineDay}>
             {/* Timeline Node */}
             <View style={styles.timelineNodeContainer}>
               <View
@@ -263,7 +263,7 @@ export default function TimelineScreen() {
                   {
                     backgroundColor: day.isOverdue
                       ? colors.priorityUrgent
-                      : isToday(day.date)
+                      : day.key === todayKey
                         ? colors.primary
                         : colors.border,
                   },
@@ -281,13 +281,13 @@ export default function TimelineScreen() {
                   category="s1"
                   style={[
                     day.isOverdue && { color: colors.priorityUrgent },
-                    isToday(day.date) && { color: colors.primary },
+                    day.key === todayKey && { color: colors.primary },
                   ]}
                 >
                   {day.label}
                 </Text>
                 <Text category="c2" style={{ color: colors.textMuted }}>
-                  {day.todos.length} task{day.todos.length !== 1 ? 's' : ''}
+                  {t('views.taskCount', { count: day.todos.length })}
                 </Text>
               </View>
 
@@ -304,10 +304,10 @@ export default function TimelineScreen() {
             <View style={styles.unscheduledHeader}>
               <Icon name="inbox-outline" fill={colors.textMuted} size={20} />
               <Text category="s1" style={{ marginLeft: Spacing.sm }}>
-                Unscheduled
+                {t('views.unscheduled')}
               </Text>
               <Text category="c2" style={{ color: colors.textMuted, marginLeft: Spacing.sm }}>
-                {unscheduledTodos.length} task{unscheduledTodos.length !== 1 ? 's' : ''}
+                {t('views.taskCount', { count: unscheduledTodos.length })}
               </Text>
             </View>
 

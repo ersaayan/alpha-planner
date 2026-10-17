@@ -488,7 +488,7 @@ export default function SettingsScreen() {
           </View>
         </View>
         <View style={styles.pillGroup}>
-          {([0, 1] as const).map((day) => (
+          {(['auto', 1, 0] as const).map((day) => (
             <Pressable
               key={day}
               style={[
@@ -501,7 +501,7 @@ export default function SettingsScreen() {
               onPress={() => updateSettings({ weekStartsOn: day })}
             >
               <Text category="c1" style={{ color: settings.weekStartsOn === day ? colors.primary : colors.text }}>
-                {day === 0 ? t('settings.sunday') : t('settings.monday')}
+                {day === 'auto' ? t('settings.weekStartsAuto') : day === 0 ? t('settings.sunday') : t('settings.monday')}
               </Text>
             </Pressable>
           ))}

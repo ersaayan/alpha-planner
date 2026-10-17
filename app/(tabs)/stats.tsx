@@ -1,6 +1,5 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
-import { startOfDay } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -13,7 +12,7 @@ import { getAchievementProgress, type AchievementContext } from '@/services/gami
 import { achievementDescription, achievementName, levelTierName, levelTitle } from '@/services/gamification/display';
 import { effectiveDailyCombo, liveSessionCombo } from '@/constants/combo';
 import { useNow } from '@/hooks/use-now';
-import { getDateKey } from '@/utils/date';
+import { getDateKey, parseDateKey } from '@/utils/date';
 import { formatMonthKey } from '@/utils/locale';
 import type { AchievementCategory } from '@/types';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
@@ -78,62 +77,28 @@ export default function StatsScreen() {
 
   const isNewUser = stats.totalPomodoros === 0 && stats.totalTasksCompleted === 0;
 
-  // Prepare weekly activity data
-  const weeklyActivityData = useMemo(() => {
-    const focusSessions = sessions.filter(
-      (s) => s.phase === 'focus' && s.wasCompleted
-    );
-
-    const dateMap = new Map<string, number>();
-    focusSessions.forEach((session) => {
-      const dateKey = startOfDay(new Date(session.startedAt)).toISOString();
-      dateMap.set(dateKey, (dateMap.get(dateKey) ?? 0) + 1);
-    });
-
-    return Array.from(dateMap.entries()).map(([dateStr, count]) => ({
-      date: new Date(dateStr),
-      value: count,
-    }));
-  }, [sessions]);
+  // Last 7 days, from the daily stats (each pomodoro and task counted once, on its day)
+  const weeklyActivityData = useMemo(
+    () => (dailyStats ?? []).map((day) => ({ date: parseDateKey(day.date), value: day.pomodorosCompleted })),
+    [dailyStats]
+  );
 
   // Prepare focus time distribution
   const timeDistributionData = useMemo(() => {
-    const focusTime = sessions
-      .filter((s) => s.phase === 'focus' && s.wasCompleted)
-      .reduce((sum, s) => sum + s.duration, 0);
-
-    const shortBreakTime = sessions
-      .filter((s) => s.phase === 'short_break' && s.wasCompleted)
-      .reduce((sum, s) => sum + s.duration, 0);
-
-    const longBreakTime = sessions
-      .filter((s) => s.phase === 'long_break' && s.wasCompleted)
-      .reduce((sum, s) => sum + s.duration, 0);
+    const total = (phase: string) =>
+      sessions.filter((s) => s.phase === phase && s.wasCompleted).reduce((sum, s) => sum + s.duration, 0);
 
     return [
-      { label: 'Focus', value: focusTime, color: colors.timerFocus },
-      { label: 'Short Break', value: shortBreakTime, color: colors.timerBreak },
-      { label: 'Long Break', value: longBreakTime, color: '#B5A45E' },
+      { label: t('stats.focus'), value: total('focus'), color: colors.timerFocus },
+      { label: t('stats.shortBreak'), value: total('short_break'), color: colors.timerBreak },
+      { label: t('stats.longBreak'), value: total('long_break'), color: '#B5A45E' },
     ];
-  }, [sessions, colors]);
+  }, [sessions, colors, t]);
 
-  // Prepare weekly tasks data
-  const weeklyTasksData = useMemo(() => {
-    const completedTodos = todos.filter(
-      (t) => t.status === 'completed' && t.completedAt
-    );
-
-    const dateMap = new Map<string, number>();
-    completedTodos.forEach((todo) => {
-      const dateKey = startOfDay(new Date(todo.completedAt!)).toISOString();
-      dateMap.set(dateKey, (dateMap.get(dateKey) ?? 0) + 1);
-    });
-
-    return Array.from(dateMap.entries()).map(([dateStr, count]) => ({
-      date: new Date(dateStr),
-      value: count,
-    }));
-  }, [todos]);
+  const weeklyTasksData = useMemo(
+    () => (dailyStats ?? []).map((day) => ({ date: parseDateKey(day.date), value: day.tasksCompleted })),
+    [dailyStats]
+  );
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -325,8 +290,8 @@ export default function StatsScreen() {
           >
             <WeeklyChart
               data={weeklyActivityData}
-              title="Focus Sessions"
-              valueLabel="sessions"
+              title={t('stats.focusSessions')}
+              valueLabel={t('stats.sessions')}
               barColor={colors.primary}
             />
           </AnimatedCard>
@@ -338,8 +303,8 @@ export default function StatsScreen() {
           >
             <WeeklyChart
               data={weeklyTasksData}
-              title="Tasks Completed"
-              valueLabel="tasks"
+              title={t('stats.tasksCompleted')}
+              valueLabel={t('stats.tasks')}
               barColor={colors.success}
             />
           </AnimatedCard>
@@ -351,7 +316,7 @@ export default function StatsScreen() {
           >
             <DistributionChart
               data={timeDistributionData}
-              title="Time Distribution"
+              title={t('stats.timeDistribution')}
             />
           </AnimatedCard>
         </>

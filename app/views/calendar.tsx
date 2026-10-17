@@ -15,6 +15,7 @@ import {
 } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,17 +24,26 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo } from '@/types';
 import { getDueDateKey } from '@/utils/todo-dates';
+import { formatLocalized, getDateLocale, resolveWeekStart } from '@/utils/locale';
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'todos.statusPending',
+  in_progress: 'todos.statusInProgress',
+  completed: 'todos.statusDone',
+  archived: 'todos.archived',
+};
 
 export default function CalendarScreen() {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-  const weekStartsOn = useSettingsStore((state) => state.settings.weekStartsOn);
+  const weekStartSetting = useSettingsStore((state) => state.settings.weekStartsOn);
+  const weekStartsOn = resolveWeekStart(weekStartSetting, i18n.language);
+  const locale = getDateLocale(i18n.language);
 
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const todos = useTodoStore((state) => state.todos);
@@ -67,7 +77,8 @@ export default function CalendarScreen() {
   const todosByDate = useMemo(() => {
     const map = new Map<string, Todo[]>();
     todos.forEach((todo) => {
-      if (!todo.dueDate) return;
+      // Archived tasks are put away; they do not belong on the calendar.
+      if (!todo.dueDate || todo.status === 'archived') return;
       const dateKey = getDueDateKey(todo.dueDate);
       if (!dateKey) return;
       if (!map.has(dateKey)) {
@@ -91,12 +102,21 @@ export default function CalendarScreen() {
     return todosByDate.get(dateKey) ?? [];
   }, [selectedDate, todosByDate]);
 
+  // Weekday headers in the user's language, starting on the right day.
+  const weekdayLabels = useMemo(() => {
+    const first = startOfWeek(new Date(), { weekStartsOn });
+    return Array.from({ length: 7 }, (_, i) => format(addDays(first, i), 'EEEEEE', { locale }));
+  }, [weekStartsOn, locale]);
+
+  // A day selected in another month is not carried over.
   const handlePrevMonth = () => {
     setCurrentMonth(subMonths(currentMonth, 1));
+    setSelectedDate(null);
   };
 
   const handleNextMonth = () => {
     setCurrentMonth(addMonths(currentMonth, 1));
+    setSelectedDate(null);
   };
 
   const handleDatePress = (date: Date) => {
@@ -122,13 +142,13 @@ export default function CalendarScreen() {
           accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
           onPress={() => router.back()}
         />
-        <Text category="h5">Calendar</Text>
+        <Text category="h5">{t('views.calendar')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Month Navigation */}
       <View style={styles.monthNav}>
-        <Pressable onPress={handlePrevMonth} style={styles.navButton}>
+        <Pressable onPress={handlePrevMonth} style={styles.navButton} accessibilityRole="button" accessibilityLabel={t('views.previousMonth')}>
           <Icon name="arrow-back-outline" fill={colors.text} size={20} />
         </Pressable>
         <Pressable
@@ -137,19 +157,16 @@ export default function CalendarScreen() {
             setSelectedDate(new Date());
           }}
         >
-          <Text category="h6">{format(currentMonth, 'MMMM yyyy')}</Text>
+          <Text category="h6">{formatLocalized(currentMonth, 'LLLL yyyy', i18n.language)}</Text>
         </Pressable>
-        <Pressable onPress={handleNextMonth} style={styles.navButton}>
+        <Pressable onPress={handleNextMonth} style={styles.navButton} accessibilityRole="button" accessibilityLabel={t('views.nextMonth')}>
           <Icon name="arrow-forward-outline" fill={colors.text} size={20} />
         </Pressable>
       </View>
 
       {/* Weekday Headers */}
       <View style={styles.weekdaysRow}>
-        {(weekStartsOn === 1
-          ? [...WEEKDAYS.slice(1), WEEKDAYS[0]]
-          : WEEKDAYS
-        ).map((day) => (
+        {weekdayLabels.map((day) => (
           <View key={day} style={styles.weekdayCell}>
             <Text category="c2" style={{ color: colors.textMuted }}>
               {day}
@@ -159,17 +176,19 @@ export default function CalendarScreen() {
       </View>
 
       {/* Calendar Grid */}
-      <View style={styles.calendarGrid} accessibilityLabel="Calendar days">
+      <View style={styles.calendarGrid} accessibilityLabel={t('views.calendarDays')}>
         {calendarDays.map((day, index) => {
           const dayTodos = getTodosForDate(day);
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isDayToday = isSameDay(day, new Date());
-          const taskCountLabel = dayTodos.length === 0
-            ? 'no tasks'
-            : dayTodos.length === 1
-              ? '1 task'
-              : `${dayTodos.length} tasks`;
+          const dayLabel = [
+            format(day, 'EEEE, d MMMM', { locale }),
+            t('views.taskCount', { count: dayTodos.length }),
+            isDayToday ? t('common.today') : null,
+          ]
+            .filter(Boolean)
+            .join(', ');
 
           return (
             <Pressable
@@ -181,9 +200,8 @@ export default function CalendarScreen() {
               ]}
               onPress={() => handleDatePress(day)}
               accessibilityRole="button"
-              accessibilityLabel={`${format(day, 'EEEE, MMMM d')}, ${taskCountLabel}${isDayToday ? ', today' : ''}${isSelected ? ', selected' : ''}`}
+              accessibilityLabel={dayLabel}
               accessibilityState={{ selected: isSelected ?? false }}
-              accessibilityHint="Double tap to view tasks for this day"
             >
               <Text
                 category="s2"
@@ -224,14 +242,14 @@ export default function CalendarScreen() {
       {selectedDate && (
         <View style={[styles.selectedDateSection, { borderTopColor: colors.separator }]}>
           <Text category="s1" style={{ marginBottom: Spacing.sm }}>
-            {format(selectedDate, 'EEEE, MMMM d')}
+            {format(selectedDate, 'EEEE, d MMMM', { locale })}
           </Text>
 
           <ScrollView style={styles.tasksList} showsVerticalScrollIndicator={false}>
             {selectedDateTodos.length === 0 ? (
               <EmptyState
                 icon="calendar-outline"
-                title="No tasks due on this day"
+                title={t('views.noTasksThisDay')}
               />
             ) : (
               selectedDateTodos.map((todo) => (
@@ -252,7 +270,7 @@ export default function CalendarScreen() {
                         {todo.title}
                       </Text>
                       <Text category="c1" style={{ color: colors.textMuted }}>
-                        {todo.status === 'completed' ? 'Completed' : todo.status.replace('_', ' ')}
+                        {t(STATUS_LABELS[todo.status] ?? 'todos.statusPending')}
                       </Text>
                     </View>
                     <Icon name="chevron-right-outline" fill={colors.textMuted} size={16} />

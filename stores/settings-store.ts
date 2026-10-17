@@ -60,18 +60,25 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     createPersistOptions<SettingsState, Pick<SettingsState, 'settings' | 'pomodoroSettings'>>({
       name: 'settings-storage',
-      version: 1,
+      // v2: weekStartsOn can be 'auto' (the new default).
+      version: 2,
       partialize: (state) => ({ settings: state.settings, pomodoroSettings: state.pomodoroSettings }),
       migrate: migrateSettingsState,
     })
   )
 );
 
-/** v0 (unversioned) and v1 share a shape; the deep merge fills in any missing setting. */
-export function migrateSettingsState(persisted: unknown, _fromVersion: number) {
+/**
+ * v0 (unversioned) and v1 share a shape; the deep merge fills in any missing setting.
+ * v1 → v2: Monday was the default for everyone; it becomes 'auto' (Monday in Turkish,
+ * Sunday in English). An explicit Sunday is kept.
+ */
+export function migrateSettingsState(persisted: unknown, fromVersion: number) {
   const state = asRecord(persisted);
+  const settings = asRecord(state.settings);
+  if (fromVersion < 2 && settings.weekStartsOn === 1) settings.weekStartsOn = 'auto';
   return {
-    settings: asRecord(state.settings),
+    settings,
     pomodoroSettings: asRecord(state.pomodoroSettings),
   };
 }

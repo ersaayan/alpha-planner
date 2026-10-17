@@ -12,6 +12,11 @@ export function getLocaleWeekStart(language: string | undefined): 0 | 1 {
   return (getDateLocale(language).options?.weekStartsOn ?? 0) === 1 ? 1 : 0;
 }
 
+/** The first day of the week: the user's choice, or the language's convention for 'auto'. */
+export function resolveWeekStart(setting: 0 | 1 | 'auto' | undefined, language: string | undefined): 0 | 1 {
+  return setting === 0 || setting === 1 ? setting : getLocaleWeekStart(language);
+}
+
 /** "October 2026" / "Ekim 2026" for a `yyyy-MM` month key. */
 export function formatMonthKey(month: string, language: string | undefined): string {
   return format(parseDateKey(`${month}-01`), 'LLLL yyyy', { locale: getDateLocale(language) });
