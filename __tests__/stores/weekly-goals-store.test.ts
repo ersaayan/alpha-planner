@@ -174,7 +174,7 @@ describe('useWeeklyGoalsStore', () => {
     const goal = useWeeklyGoalsStore.getState().goals.find((g) => g.goalType === 'personal');
     expect(goal?.isCompleted).toBe(true);
     expect(goal?.currentValue).toBe(5);
-    expect(mockAddXp).toHaveBeenCalledWith(PERSONAL_GOAL_XP);
+    expect(mockAddXp).toHaveBeenCalledWith(PERSONAL_GOAL_XP, expect.any(Date));
   });
 
   it('updateGoalProgress: does not exceed target value', () => {

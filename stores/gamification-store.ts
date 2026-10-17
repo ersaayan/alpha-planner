@@ -102,6 +102,21 @@ export function effectiveDailyCombo(combo: ComboState, dateKey: string): number 
   return combo.dailyComboStreak;
 }
 
+/**
+ * Adds to the weekly goals of the week of `at`, then recomputes the streak and
+ * perfect-quest-day goals from the daily stats.
+ */
+function updateWeeklyGoals(at: Date, deltas: [string, number][]): void {
+  try {
+    const { useWeeklyGoalsStore } = require('./weekly-goals-store') as typeof import('./weekly-goals-store');
+    const goals = useWeeklyGoalsStore.getState();
+    for (const [metric, delta] of deltas) goals.updateGoalProgress(metric, delta, at);
+    goals.refreshDerivedGoals(at);
+  } catch (error) {
+    console.warn('[gamification] Weekly goal progress failed', error);
+  }
+}
+
 function emitQuestEvent(event: QuestEvent): void {
   try {
     const { useDailyQuestsStore } = require('./daily-quests-store') as typeof import('./daily-quests-store');
@@ -203,12 +218,10 @@ export const useGamificationStore = create<GamificationState>()(
             pausedMs,
           });
 
-          // Update weekly goal progress
-          try {
-            const { useWeeklyGoalsStore } = require('./weekly-goals-store');
-            useWeeklyGoalsStore.getState().updateGoalProgress('pomodoros', 1);
-            useWeeklyGoalsStore.getState().updateGoalProgress('focus_hours', focusTime / 3600);
-          } catch { /* store not yet initialized */ }
+          updateWeeklyGoals(completionDate, [
+            ['pomodoros', 1],
+            ['focus_hours', focusTime / 3600],
+          ]);
 
           get().checkAchievements(completionDate);
         },
@@ -243,11 +256,7 @@ export const useGamificationStore = create<GamificationState>()(
             wasOverdue: details.wasOverdue ?? false,
           });
 
-          // Update weekly goal progress
-          try {
-            const { useWeeklyGoalsStore } = require('./weekly-goals-store');
-            useWeeklyGoalsStore.getState().updateGoalProgress('tasks', 1);
-          } catch { /* store not yet initialized */ }
+          updateWeeklyGoals(at, [['tasks', 1]]);
 
           get().checkAchievements(at);
         },
@@ -280,6 +289,7 @@ export const useGamificationStore = create<GamificationState>()(
             set((state) => ({
               stats: { ...state.stats, perfectQuestDays: (state.stats.perfectQuestDays ?? 0) + 1 },
             }));
+            updateWeeklyGoals(at, []);
             get().addXp(DAILY_QUEST_ALL_COMPLETE_BONUS, at);
             // All of the day's quests before noon / the last one after 23:00.
             if (at.getHours() < 12) get().unlockAchievement('speed_runner', at);

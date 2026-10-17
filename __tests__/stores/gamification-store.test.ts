@@ -35,6 +35,7 @@ jest.mock('@/stores/weekly-goals-store', () => ({
   useWeeklyGoalsStore: {
     getState: () => ({
       updateGoalProgress: jest.fn(),
+      refreshDerivedGoals: jest.fn(),
     }),
   },
 }));
