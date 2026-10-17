@@ -8,6 +8,8 @@ export interface Subtask {
   isCompleted: boolean;
   order: number;
   createdAt: string;
+  /** When completing this subtask earned XP. Set once, so it never pays twice. */
+  xpAwardedAt?: string | null;
 }
 
 export interface Todo {
@@ -27,6 +29,10 @@ export interface Todo {
   updatedAt: string;
   completedAt: string | null;
   order: number;
+  /** When completing this todo earned XP and counted for stats. Set once, never cleared. */
+  xpAwardedAt?: string | null;
+  /** The open status the todo had when it was completed, restored when it is unchecked. */
+  reopenStatus?: 'pending' | 'in_progress' | null;
 }
 
 export interface TodoFilter {

@@ -1,4 +1,4 @@
-import type { Subtask, Todo, TodoFilter } from '@/types';
+import type { Subtask, Todo, TodoFilter, TodoStatus } from '@/types';
 import { generateId } from '@/utils/uuid';
 import { isPastDue } from '@/utils/todo-dates';
 import { create } from 'zustand';
@@ -34,6 +34,38 @@ interface TodoState {
   // Utility
   getTodoById: (id: string) => Todo | undefined;
   getFilteredTodos: () => Todo[];
+}
+
+function isOpen(status: TodoStatus): status is 'pending' | 'in_progress' {
+  return status === 'pending' || status === 'in_progress';
+}
+
+/**
+ * Moves a todo to `status`. `completedAt` is set on completion and kept when the todo is
+ * archived (or brought back from the archive); reopening clears it. The open status a
+ * todo was completed from is remembered, so unchecking it restores "in progress".
+ */
+function withStatus(todo: Todo, status: TodoStatus, now: string): Todo {
+  if (status === todo.status) return todo;
+  const next: Todo = { ...todo, status };
+  if (status === 'completed') {
+    next.completedAt = todo.status === 'archived' && todo.completedAt ? todo.completedAt : now;
+    if (isOpen(todo.status)) next.reopenStatus = todo.status;
+  } else if (status !== 'archived') {
+    next.completedAt = null;
+  }
+  return next;
+}
+
+/**
+ * Marks a todo that has just become completed as rewarded. Returns true the first time
+ * only: completing, reopening and completing again (or archiving and restoring) never
+ * pays twice.
+ */
+function claimCompletionReward(todo: Todo, now: string): boolean {
+  if (todo.status !== 'completed' || todo.xpAwardedAt) return false;
+  todo.xpAwardedAt = now;
+  return true;
 }
 
 /** What the gamification store needs to know about a completed task. */
@@ -88,59 +120,40 @@ export const useTodoStore = create<TodoState>()(
       },
 
       updateTodo: (id, updates) => {
-        const hasStatusUpdate = typeof updates.status !== 'undefined';
-        let didComplete = false;
         const before = get().todos.find((todo) => todo.id === id);
+        if (!before) return;
+        const now = new Date();
+        const nowIso = now.toISOString();
 
-        set((state) => {
-          const existing = state.todos.find((todo) => todo.id === id);
-          didComplete =
-            updates.status === 'completed' && existing?.status !== 'completed';
+        // completedAt, xpAwardedAt and reopenStatus follow the status; callers never set them.
+        const { status, completedAt: _completedAt, xpAwardedAt: _xpAwardedAt, ...fields } = updates;
+        const updated = withStatus({ ...before, ...fields, updatedAt: nowIso }, status ?? before.status, nowIso);
+        const rewarded = claimCompletionReward(updated, nowIso);
 
-          return {
-            todos: state.todos.map((todo) =>
-              todo.id === id
-                ? {
-                    ...todo,
-                    ...updates,
-                    updatedAt: new Date().toISOString(),
-                    completedAt:
-                      hasStatusUpdate
-                        ? updates.status === 'completed' && todo.status !== 'completed'
-                          ? new Date().toISOString()
-                          : updates.status !== 'completed' && todo.status === 'completed'
-                            ? null
-                            : todo.completedAt
-                        : todo.completedAt,
-                  }
-                : todo
-            ),
-          };
-        });
+        set((state) => ({
+          todos: state.todos.map((todo) => (todo.id === id ? updated : todo)),
+        }));
 
-        const updated = get().todos.find((t) => t.id === id);
-        if (didComplete && before && updated) {
+        if (rewarded) {
           // Overdue is judged on the task as it was before this edit.
           useGamificationStore.getState().incrementTaskCompleted(
-            completionDetails({ ...updated, dueDate: before.dueDate, dueTime: before.dueTime }, new Date())
+            completionDetails({ ...updated, dueDate: before.dueDate, dueTime: before.dueTime }, now)
           );
         }
 
-        if (updated) {
-          useSyncStore.getState().enqueue('todos', 'update', {
-            id: updated.id,
-            title: updated.title,
-            description: updated.description ?? null,
-            status: updated.status,
-            priority: updated.priority,
-            category_id: updated.categoryId ?? null,
-            due_date: updated.dueDate ?? null,
-            estimated_pomodoros: updated.estimatedPomodoros ?? null,
-            pomodoro_sessions: updated.pomodoroSessions,
-            order: updated.order,
-            updated_at: updated.updatedAt,
-          });
-        }
+        useSyncStore.getState().enqueue('todos', 'update', {
+          id: updated.id,
+          title: updated.title,
+          description: updated.description ?? null,
+          status: updated.status,
+          priority: updated.priority,
+          category_id: updated.categoryId ?? null,
+          due_date: updated.dueDate ?? null,
+          estimated_pomodoros: updated.estimatedPomodoros ?? null,
+          pomodoro_sessions: updated.pomodoroSessions,
+          order: updated.order,
+          updated_at: updated.updatedAt,
+        });
       },
 
       deleteTodo: (id) => {
@@ -171,8 +184,8 @@ export const useTodoStore = create<TodoState>()(
         const todo = get().todos.find((t) => t.id === id);
         if (!todo) return;
 
-        // Binary toggle: unchecked → completed, checked → pending
-        const nextStatus = todo.status === 'completed' ? 'pending' : 'completed';
+        // Checked → back to the open status it was completed from; anything else → completed.
+        const nextStatus = todo.status === 'completed' ? (todo.reopenStatus ?? 'pending') : 'completed';
 
         get().updateTodo(id, { status: nextStatus });
       },
@@ -229,80 +242,56 @@ export const useTodoStore = create<TodoState>()(
       toggleSubtask: (todoId, subtaskId) => {
         const todo = get().todos.find((t) => t.id === todoId);
         const subtask = todo?.subtasks.find((s) => s.id === subtaskId);
-        const wasCompleted = subtask?.isCompleted ?? false;
+        if (!todo || !subtask) return;
+
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const nowCompleted = !subtask.isCompleted;
+        const rewardSubtask = nowCompleted && !subtask.xpAwardedAt;
+        const subtasks = todo.subtasks.map((s) =>
+          s.id === subtaskId
+            ? { ...s, isCompleted: nowCompleted, xpAwardedAt: s.xpAwardedAt ?? (nowCompleted ? nowIso : null) }
+            : s
+        );
+
+        // Completing the last subtask completes an open todo; unchecking one reopens it.
+        const allCompleted = subtasks.every((s) => s.isCompleted);
+        let updated: Todo = { ...todo, subtasks, updatedAt: nowIso };
+        if (allCompleted && isOpen(todo.status)) {
+          updated = withStatus(updated, 'completed', nowIso);
+        } else if (!allCompleted && todo.status === 'completed') {
+          updated = withStatus(updated, todo.reopenStatus ?? 'pending', nowIso);
+        }
+        const rewardTodo = claimCompletionReward(updated, nowIso);
 
         set((state) => ({
-          todos: state.todos.map((t) => {
-            if (t.id !== todoId) return t;
-
-            const updatedSubtasks = t.subtasks.map((s) =>
-              s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s
-            );
-
-            // Check if all subtasks are now completed
-            const allCompleted =
-              updatedSubtasks.length > 0 && updatedSubtasks.every((s) => s.isCompleted);
-            const wasAllCompleted =
-              t.subtasks.length > 0 && t.subtasks.every((s) => s.isCompleted);
-
-            const now = new Date().toISOString();
-
-            return {
-              ...t,
-              subtasks: updatedSubtasks,
-              updatedAt: now,
-              // Auto-complete parent when all subtasks done; revert if undoing
-              ...(allCompleted && !wasAllCompleted
-                ? { status: 'completed' as const, completedAt: now }
-                : !allCompleted && wasAllCompleted && t.status === 'completed'
-                  ? { status: 'pending' as const, completedAt: null }
-                  : {}),
-            };
-          }),
+          todos: state.todos.map((t) => (t.id === todoId ? updated : t)),
         }));
 
-        // Award XP when subtask is toggled to completed
-        if (!wasCompleted) {
-          const now = new Date();
-          useGamificationStore.getState().addXp(3); // SUBTASK_COMPLETE XP
-          useGamificationStore.getState().recordSubtaskCompleted(now);
-
-          // Check if this completion triggered parent todo completion
-          const updatedTodo = get().todos.find((t) => t.id === todoId);
-          if (
-            updatedTodo?.status === 'completed' &&
-            todo?.status !== 'completed'
-          ) {
-            useGamificationStore.getState().incrementTaskCompleted(completionDetails(updatedTodo, now));
-          }
-        }
+        const gamification = useGamificationStore.getState();
+        if (rewardSubtask) gamification.recordSubtaskCompleted(now);
+        if (rewardTodo) gamification.incrementTaskCompleted(completionDetails(todo, now));
       },
 
       deleteSubtask: (todoId, subtaskId) => {
-        const todoBefore = get().todos.find((t) => t.id === todoId);
+        const todo = get().todos.find((t) => t.id === todoId);
+        if (!todo) return;
+
+        const nowIso = new Date().toISOString();
+        const subtasks = todo.subtasks.filter((subtask) => subtask.id !== subtaskId);
+        let updated: Todo = { ...todo, subtasks, updatedAt: nowIso };
+        // Deleting the only open subtask finishes the todo.
+        if (subtasks.length > 0 && subtasks.every((s) => s.isCompleted) && isOpen(todo.status)) {
+          updated = withStatus(updated, 'completed', nowIso);
+        }
+        const rewardTodo = claimCompletionReward(updated, nowIso);
 
         set((state) => ({
-          todos: state.todos.map((todo) => {
-            if (todo.id !== todoId) return todo;
-            const remainingSubtasks = todo.subtasks.filter((subtask) => subtask.id !== subtaskId);
-            const allRemainingCompleted =
-              remainingSubtasks.length > 0 && remainingSubtasks.every((s) => s.isCompleted);
-            const now = new Date().toISOString();
-            return {
-              ...todo,
-              subtasks: remainingSubtasks,
-              updatedAt: now,
-              ...(allRemainingCompleted && todo.status !== 'completed'
-                ? { status: 'completed' as const, completedAt: now }
-                : {}),
-            };
-          }),
+          todos: state.todos.map((t) => (t.id === todoId ? updated : t)),
         }));
 
-        // Award gamification credit for auto-completion via subtask deletion
-        const todoAfter = get().todos.find((t) => t.id === todoId);
-        if (todoAfter?.status === 'completed' && todoBefore?.status !== 'completed') {
-          useGamificationStore.getState().incrementTaskCompleted(completionDetails(todoAfter, new Date()));
+        if (rewardTodo) {
+          useGamificationStore.getState().incrementTaskCompleted(completionDetails(todo, new Date(nowIso)));
         }
       },
 
@@ -383,19 +372,38 @@ export const useTodoStore = create<TodoState>()(
     }),
     createPersistOptions<TodoState, Pick<TodoState, 'todos' | 'filter'>>({
       name: 'todo-storage',
-      version: 1,
+      // v2: xpAwardedAt on todos and subtasks (rewards are paid once).
+      version: 2,
       partialize: (state) => ({ todos: state.todos, filter: state.filter }),
       migrate: migrateTodoState,
     })
   )
 );
 
-/** v0 (unversioned) and v1 share a shape; normalize every todo so missing fields never crash a screen. */
-export function migrateTodoState(persisted: unknown, _fromVersion: number) {
+/** Normalizes every todo so missing fields never crash a screen; v1 → v2 see markRewardedV1. */
+export function migrateTodoState(persisted: unknown, fromVersion: number) {
   const state = asRecord(persisted);
+  const todos = asRecordArray(state.todos).map(normalizeTodo);
   return {
-    todos: asRecordArray(state.todos).map(normalizeTodo),
+    todos: fromVersion < 2 ? todos.map(markRewardedV1) : todos,
     filter: asRecord(state.filter),
+  };
+}
+
+/**
+ * Before v2 a todo paid XP every time it was completed. Whatever is completed (or
+ * archived, which only followed completion) has been paid already.
+ */
+function markRewardedV1(todo: Todo): Todo {
+  const done = todo.status === 'completed' || todo.status === 'archived' || Boolean(todo.completedAt);
+  return {
+    ...todo,
+    xpAwardedAt: todo.xpAwardedAt ?? (done ? (todo.completedAt ?? todo.updatedAt) : null),
+    subtasks: todo.subtasks.map((subtask) =>
+      subtask.isCompleted && !subtask.xpAwardedAt
+        ? { ...subtask, xpAwardedAt: subtask.createdAt ?? todo.updatedAt }
+        : subtask
+    ),
   };
 }
 

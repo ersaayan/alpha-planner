@@ -3,7 +3,7 @@ import { calculateComboXp } from '@/constants/combo';
 import { DAILY_QUEST_ALL_COMPLETE_BONUS, type QuestEvent } from '@/constants/daily-quests';
 import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, TodoPriority, UserAchievement, UserStats } from '@/types';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
-import { getDateKey } from '@/utils/date';
+import { addDaysToKey, getDateKey } from '@/utils/date';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { asRecord, asRecordArray, createPersistOptions } from './persist';
@@ -87,6 +87,16 @@ const DAILY_COUNTERS = [
 /** Days of daily stats kept. */
 const DAILY_STATS_LIMIT = 90;
 
+/**
+ * The daily combo streak that still applies on `dateKey`. A combo day keeps its
+ * multiplier until the end of the next day; after a day without one it lapses.
+ */
+export function effectiveDailyCombo(combo: ComboState, dateKey: string): number {
+  const last = combo.lastDailyComboDate;
+  if (!last || last < addDaysToKey(dateKey, -1)) return 0;
+  return combo.dailyComboStreak;
+}
+
 function emitQuestEvent(event: QuestEvent): void {
   try {
     const { useDailyQuestsStore } = require('./daily-quests-store') as typeof import('./daily-quests-store');
@@ -137,8 +147,9 @@ export const useGamificationStore = create<GamificationState>()(
 
         // Apply combo multiplier to pomodoro XP
         const { combo } = get();
-        const xp = calculateComboXp(XP_VALUES.POMODORO_COMPLETE, combo.sessionCombo, combo.dailyComboStreak, true);
-        get().addXp(xp);
+        const dailyCombo = effectiveDailyCombo(combo, getDateKey(completionDate));
+        const xp = calculateComboXp(XP_VALUES.POMODORO_COMPLETE, combo.sessionCombo, dailyCombo, true);
+        get().addXp(xp, completionDate);
         get().updateDailyStats({ pomodorosCompleted: 1, focusTime });
         get().updateStreak();
         get().incrementSessionCombo();
@@ -179,9 +190,9 @@ export const useGamificationStore = create<GamificationState>()(
           },
         }));
 
-        const { combo } = get();
-        const xp = calculateComboXp(XP_VALUES.TASK_COMPLETE, 0, combo.dailyComboStreak, false);
-        get().addXp(xp);
+        const dailyCombo = effectiveDailyCombo(get().combo, getDateKey(at));
+        const xp = calculateComboXp(XP_VALUES.TASK_COMPLETE, 0, dailyCombo, false);
+        get().addXp(xp, at);
         get().updateDailyStats({ tasksCompleted: 1 });
         get().updateStreak();
         get().checkDailyCombo();
@@ -209,6 +220,8 @@ export const useGamificationStore = create<GamificationState>()(
       },
 
       recordSubtaskCompleted: (at = new Date()) => {
+        const dailyCombo = effectiveDailyCombo(get().combo, getDateKey(at));
+        get().addXp(calculateComboXp(XP_VALUES.SUBTASK_COMPLETE, 0, dailyCombo, false), at);
         get().updateDailyStats({ subtasksCompleted: 1 }, at);
         emitQuestEvent({ type: 'subtask_completed', at });
       },

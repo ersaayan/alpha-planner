@@ -159,7 +159,14 @@ describe('upgrading from the previous release', () => {
     expect(settings.pomodoroSettings.focusDuration).toBe(1800);
     expect(settings.pomodoroSettings.shortBreakDuration).toBeGreaterThan(0);
 
-    expect(stores.todos.getState().todos).toEqual([OLD_TODO]);
+    // Intact, plus the v2 reward markers (the completed subtask was already paid for).
+    expect(stores.todos.getState().todos).toEqual([
+      {
+        ...OLD_TODO,
+        xpAwardedAt: null,
+        subtasks: [{ ...OLD_TODO.subtasks[0], xpAwardedAt: OLD_TODO.subtasks[0].createdAt }],
+      },
+    ]);
     expect(stores.categories.getState().categories).toEqual(OLD_CATEGORIES);
 
     const gamification = stores.gamification.getState();

@@ -17,3 +17,16 @@ export function formatDate(date: Date, dateFormat: AppSettings['dateFormat']): s
       return format(date, 'dd/MM/yyyy');
   }
 }
+
+/** The local date of a `yyyy-MM-dd` key (at midnight). */
+export function parseDateKey(key: string): Date {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+/** The key `days` calendar days after (or before, if negative) `key`. DST-safe. */
+export function addDaysToKey(key: string, days: number): string {
+  const date = parseDateKey(key);
+  date.setDate(date.getDate() + days);
+  return getDateKey(date);
+}

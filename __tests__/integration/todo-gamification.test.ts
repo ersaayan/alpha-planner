@@ -165,16 +165,16 @@ describe('Todo -> Gamification integration', () => {
     const subtasks = useTodoStore.getState().todos.find((t) => t.id === todoId)!.subtasks;
     expect(subtasks).toHaveLength(2);
 
-    // Complete the first subtask -> awards SUBTASK XP (3)
+    // Complete the first subtask -> awards SUBTASK XP
     useTodoStore.getState().toggleSubtask(todoId, subtasks[0].id);
     const xpAfterFirst = useGamificationStore.getState().stats.totalXp;
-    expect(xpAfterFirst).toBe(3); // subtask XP = 3
+    expect(xpAfterFirst).toBe(XP_VALUES.SUBTASK_COMPLETE);
 
     // Complete the second subtask -> awards subtask XP AND triggers task completion
     useTodoStore.getState().toggleSubtask(todoId, subtasks[1].id);
     const xpAfterSecond = useGamificationStore.getState().stats.totalXp;
 
-    // Should be: 3 (first subtask) + 3 (second subtask) + task XP (8) + achievement XP (task_starter = 25)
+    // Should be: subtask XP + subtask XP + task XP (8) + achievement XP (task_starter = 25)
     expect(xpAfterSecond).toBeGreaterThan(xpAfterFirst);
     // Parent todo should auto-complete
     const updatedTodo = useTodoStore.getState().todos.find((t) => t.id === todoId);
