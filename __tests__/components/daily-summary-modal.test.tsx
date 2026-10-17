@@ -49,7 +49,7 @@ jest.mock('@/components/animated/animated-button', () => ({
 }));
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
 import { DailySummaryModal } from '@/components/dashboard/daily-summary-modal';
 
 const mockData = {
@@ -105,14 +105,9 @@ describe('DailySummaryModal', () => {
   it('calls onClose when close button pressed', async () => {
     const onClose = jest.fn();
     await render(<DailySummaryModal {...defaultProps} onClose={onClose} />);
-    // The AnimatedButton mock renders a Pressable with its title
     await fireEvent.press(screen.getByText('Close'));
-    // handleClose triggers an animation that calls onClose via runOnJS.
-    // In the mock environment, runOnJS executes synchronously or the
-    // Pressable in the header can be used. The AnimatedButton mock
-    // calls onPress (which is handleClose) directly.
-    // Since reanimated is mocked, the withTiming callback fires immediately.
-    expect(onClose).toHaveBeenCalled();
+    // Closed after the exit animation, by a timer (animation callbacks do not fire everywhere).
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it('is translated, shows the day and the focus change in minutes', async () => {

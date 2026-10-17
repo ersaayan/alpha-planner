@@ -76,6 +76,11 @@ export function AnimatedCounter({
     }
 
     previousValue.value = value;
+
+    // The reaction below may not reach the JS thread on every platform (e.g. the web):
+    // show the final value once the animation is over in any case.
+    const settle = setTimeout(() => updateDisplayText(Math.round(value)), duration + 50);
+    return () => clearTimeout(settle);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [value, duration]);
 

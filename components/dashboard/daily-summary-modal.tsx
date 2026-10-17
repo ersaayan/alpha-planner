@@ -2,7 +2,7 @@
  * DailySummaryModal - End-of-day summary modal with animated stats
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -10,7 +10,6 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
@@ -98,14 +97,18 @@ export function DailySummaryModal({
     transform: [{ translateY: modalTranslateY.value }],
   }));
 
+  const closing = useRef(false);
   const handleClose = () => {
+    if (closing.current) return;
+    closing.current = true;
     backdropOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
     modalTranslateY.set(withTiming(40, { duration: AnimationDuration.fast }));
-    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
-      if (finished) {
-        runOnJS(onClose)();
-      }
-    }));
+    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
+    // Closed by a timer: an animation callback does not fire on every platform.
+    setTimeout(() => {
+      closing.current = false;
+      onClose();
+    }, AnimationDuration.fast + 50);
   };
 
   // --- helpers ---

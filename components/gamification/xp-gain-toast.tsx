@@ -73,6 +73,13 @@ export function XPGainToast({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, duration]);
 
+  // The exit animation's callback does not fire on every platform; a timer hides the toast.
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(onHide, duration + 150);
+    return () => clearTimeout(timer);
+  }, [visible, duration, onHide]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: translateY.value },

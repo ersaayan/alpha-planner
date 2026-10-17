@@ -109,6 +109,14 @@ export function AchievementUnlock({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, autoDismiss, autoDismissDelay]);
 
+  // The exit animation's callback does not fire on every platform (e.g. the web); a timer
+  // makes sure the next celebration in the queue is shown.
+  useEffect(() => {
+    if (!visible || !autoDismiss) return;
+    const timer = setTimeout(onClose, autoDismissDelay + 150);
+    return () => clearTimeout(timer);
+  }, [visible, autoDismiss, autoDismissDelay, onClose]);
+
   const containerStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: translateY.value },
