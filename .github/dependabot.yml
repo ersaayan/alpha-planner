@@ -20,15 +20,48 @@ updates:
           - "eslint-config-expo"
           - "babel-preset-expo"
     ignore:
-      # React and React Native versions are dictated by the Expo SDK.
-      # Upgrade them through an SDK upgrade (`npx expo install --fix`),
-      # not through standalone Dependabot bumps.
+      # Major versions of anything are only taken on purpose, together with an
+      # Expo SDK upgrade (`npx expo install expo@^<next> --fix`), never as
+      # standalone Dependabot bumps.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # Versions of these are dictated by the Expo SDK (`npx expo install --check`
+      # pins them to patch ranges). Only patch updates are proposed.
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "expo-*"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@expo/*"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "jest-expo"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "eslint-config-expo"
+        update-types: ["version-update:semver-minor"]
       - dependency-name: "react"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-minor"]
       - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-minor"]
       - dependency-name: "react-native"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "react-native-*"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@react-native/*"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@react-native-community/*"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@react-native-async-storage/*"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "jest"
+        update-types: ["version-update:semver-minor"]
+      - dependency-name: "@types/jest"
+        update-types: ["version-update:semver-minor"]
+      # The test renderer must match the React version exactly; it moves with
+      # React and @testing-library/react-native, never on its own.
+      - dependency-name: "test-renderer"
 
   - package-ecosystem: github-actions
     directory: /
