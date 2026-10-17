@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icon';
 import { AccountSection } from '@/components/settings/account-section';
 import { DataSection } from '@/components/settings/data-section';
+import { categoryName as displayCategoryName } from '@/services/gamification/display';
 import Slider from '@react-native-community/slider';
 import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
 import { useState } from 'react';
@@ -546,7 +547,7 @@ export default function SettingsScreen() {
           <View key={category.id} style={styles.categoryRow}>
             <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
             <Text category="s1" style={styles.categoryName}>
-              {category.name}
+              {displayCategoryName(t, category)}
             </Text>
             {!category.isDefault && (
               <Pressable onPress={() => handleDeleteCategory(category.id)}>

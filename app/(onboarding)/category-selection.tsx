@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useCategoryStore, useSettingsStore } from '@/stores';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { categoryName } from '@/services/gamification/display';
 
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
@@ -106,7 +107,7 @@ export default function CategorySelectionScreen() {
                     style={styles.icon}
                   />
                 </View>
-                <Text category="s2">{category.name}</Text>
+                <Text category="s2">{categoryName(t, category)}</Text>
                 {isSelected && (
                   <View style={[styles.checkBadge, { backgroundColor: category.color }]}>
                     <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />

@@ -75,7 +75,7 @@ describe('Dashboard Screen', () => {
 
   it('renders personalized greeting with display name', async () => {
     await render(<HomeScreen />);
-    expect(screen.getByText(/Hoşgeldin, Fatma/)).toBeTruthy();
+    expect(screen.getByText(/Welcome, Fatma/)).toBeTruthy();
   });
 
   it('renders level tier and title', async () => {

@@ -107,7 +107,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={[styles.appTitle, { color: colors.text }]}>
-            {profile?.displayName ? `Hoşgeldin, ${profile.displayName}` : 'Alpha Planner'}
+            {profile?.displayName ? t('dashboard.greeting', { name: profile.displayName }) : t('dashboard.greetingDefault')}
           </Text>
           <Text style={[styles.levelSubtitle, { color: colors.textSecondary }]}>
             {levelTierName(t, stats.level)} · {levelTitle(t, stats.level)}
@@ -177,21 +177,21 @@ export default function HomeScreen() {
         <StatCard
           icon="flash"
           value={stats.currentStreak}
-          label="Day Streak"
+          label={t('dashboard.dayStreak')}
           color={GamificationColors.streak}
           onPress={() => router.push('/(tabs)/stats')}
         />
         <StatCard
           icon="checkmark-circle-2"
           value={todayCompleted}
-          label="Done Today"
+          label={t('dashboard.doneToday')}
           color={colors.success}
           onPress={() => router.push('/(tabs)/todos')}
         />
         <StatCard
           icon="clock"
           value={stats.totalPomodoros}
-          label="Pomodoros"
+          label={t('dashboard.pomodoros')}
           color={colors.primary}
           onPress={() => router.push('/(tabs)/pomodoro')}
         />
@@ -224,7 +224,7 @@ export default function HomeScreen() {
                   style={styles.phaseIcon}
                 />
                 <Text style={[styles.phaseText, { color: colors.primary }]}>
-                  {timerPhase === 'focus' ? 'Focus Time' : 'Break Time'}
+                  {timerPhase === 'focus' ? t('dashboard.focusTime') : t('dashboard.breakTime')}
                 </Text>
               </View>
               <Text style={[styles.timerTime, { color: colors.text }]}>
@@ -251,14 +251,14 @@ export default function HomeScreen() {
       {/* Active Tasks Section */}
       <View style={styles.section}>
         <SectionHeader
-          title="Active Tasks"
+          title={t('dashboard.activeTasks')}
           action={
             <Pressable
               onPress={() => router.push('/(tabs)/todos')}
               style={styles.seeAllButton}
             >
               <Text style={[styles.seeAllText, { color: colors.primary }]}>
-                See All
+                {t('dashboard.seeAll')}
               </Text>
               <Icon
                 name="arrow-forward"
@@ -283,13 +283,13 @@ export default function HomeScreen() {
               />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              All caught up!
+              {t('dashboard.allCaughtUp')}
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              You&apos;ve completed all your tasks
+              {t('dashboard.allTasksCompleted')}
             </Text>
             <AnimatedButton
-              title="Add a Task"
+              title={t('dashboard.addTask')}
               icon="plus"
               variant="outline"
               size="sm"
@@ -343,11 +343,11 @@ export default function HomeScreen() {
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.md }]}>
-          Quick Actions
+          {t('dashboard.quickActions')}
         </Text>
         <View style={styles.actionsRow}>
           <AnimatedButton
-            title="New Task"
+            title={t('dashboard.newTask')}
             icon="plus"
             variant="outline"
             size="md"
@@ -355,7 +355,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/todo/create')}
           />
           <AnimatedButton
-            title="Start Focus"
+            title={t('dashboard.startFocus')}
             icon="play"
             variant="primary"
             size="md"

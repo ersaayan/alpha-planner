@@ -270,7 +270,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'clean_slate',
     name: 'Clean Slate',
-    description: 'Clear all pending tasks in one day',
+    description: 'Finish at least 3 tasks in a day and leave none open',
     category: 'tasks',
     icon: 'target-outline',
     xpReward: 300,
@@ -719,7 +719,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'organizer',
     name: 'Organizer',
-    description: 'Create 5 or more categories',
+    description: 'Create 5 categories of your own',
     category: 'category',
     icon: 'briefcase-outline',
     xpReward: 50,
@@ -730,7 +730,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'color_collector',
     name: 'Color Collector',
-    description: 'Use 5 different category colors',
+    description: 'Give your own categories 5 different colors',
     category: 'category',
     icon: 'layers-outline',
     xpReward: 50,
@@ -947,7 +947,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'overachiever',
     name: 'Overachiever',
-    description: 'Complete all daily quests and the weekly goal in one day',
+    description: 'Complete all daily quests and a weekly goal on the same day',
     category: 'special',
     icon: 'bulb-outline',
     xpReward: 400,

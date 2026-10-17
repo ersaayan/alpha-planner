@@ -104,9 +104,9 @@ export default function StatsScreen() {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return t('summary.hoursMinutes', { hours, minutes });
     }
-    return `${minutes}m`;
+    return t('stats.minutesValue', { minutes });
   };
 
   return (
@@ -121,7 +121,7 @@ export default function StatsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Statistics
+          {t('stats.title')}
         </Text>
       </View>
 
@@ -136,21 +136,21 @@ export default function StatsScreen() {
             <Icon name="bar-chart" fill={colors.primary} style={styles.emptyIcon} />
           </View>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Start Your Journey!
+            {t('stats.emptyTitle')}
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-            Complete pomodoro sessions and tasks to see your progress here.
+            {t('stats.emptySubtitle')}
           </Text>
           <View style={styles.emptyActions}>
             <AnimatedButton
-              title="Create Task"
+              title={t('stats.createTask')}
               icon="plus"
               variant="outline"
               size="sm"
               onPress={() => router.push('/todo/create')}
             />
             <AnimatedButton
-              title="Start Focus"
+              title={t('stats.startFocus')}
               icon="play"
               variant="primary"
               size="sm"
@@ -216,26 +216,26 @@ export default function StatsScreen() {
         <StatGridCard
           icon="clock"
           value={stats.totalPomodoros}
-          label="Pomodoros"
+          label={t('stats.pomodoros')}
           color={colors.primary}
         />
         <StatGridCard
           icon="hourglass"
           value={formatTime(stats.totalFocusTime)}
-          label="Focus Time"
+          label={t('stats.focusTime')}
           color={colors.info}
           isString
         />
         <StatGridCard
           icon="checkmark-circle-2"
           value={stats.totalTasksCompleted}
-          label="Tasks Done"
+          label={t('stats.tasksDone')}
           color={colors.success}
         />
         <StatGridCard
           icon="flash"
           value={stats.currentStreak}
-          label="Day Streak"
+          label={t('stats.dayStreak')}
           color={GamificationColors.streak}
         />
       </View>
@@ -253,11 +253,11 @@ export default function StatsScreen() {
             </View>
             <View>
               <Text style={[styles.streakLabel, { color: colors.textMuted }]}>
-                Current Streak
+                {t('stats.currentStreak')}
               </Text>
               <AnimatedCounter
                 value={stats.currentStreak}
-                suffix=" days"
+                suffix={` ${t('stats.days')}`}
                 category="h3"
                 color={colors.text}
               />
@@ -270,10 +270,10 @@ export default function StatsScreen() {
             </View>
             <View>
               <Text style={[styles.streakLabel, { color: colors.textMuted }]}>
-                Best Streak
+                {t('stats.bestStreak')}
               </Text>
               <Text style={[styles.streakValue, { color: colors.text }]}>
-                {stats.longestStreak} days
+                {stats.longestStreak} {t('stats.days')}
               </Text>
             </View>
           </View>

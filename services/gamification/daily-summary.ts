@@ -5,6 +5,7 @@ import { useDailyQuestsStore } from '@/stores/daily-quests-store';
 import { getWeekKey, useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
 import { addDaysToKey, getDateKey, parseDateKey } from '@/utils/date';
 import i18n from '@/services/i18n/i18n-config';
+import { categoryName } from './display';
 import type { DailyStats } from '@/types';
 
 export interface DailySummaryData {
@@ -59,8 +60,8 @@ export function getDailySummaryData(dateKey: string = getDateKey()): DailySummar
     const [catId, time] = [...categoryTime.entries()].sort((a, b) => b[1] - a[1])[0];
     try {
       const { useCategoryStore } = require('@/stores/category-store');
-      const cat = useCategoryStore.getState().categories.find((c: { id: string; name: string }) => c.id === catId);
-      topCategory = cat ? { name: cat.name, time } : null;
+      const cat = useCategoryStore.getState().categories.find((c: { id: string; name: string; isDefault: boolean }) => c.id === catId);
+      topCategory = cat ? { name: categoryName(i18n.t, cat), time } : null;
     } catch {
       topCategory = null;
     }
