@@ -1,22 +1,16 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useIsFocused, useRouter } from 'expo-router';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
+import { Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
+import { useAuthStore, useGamificationStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDue } from '@/utils/todo-dates';
 
 import { SectionHeader } from '@/components/common';
@@ -26,58 +20,29 @@ import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 import { ComboIndicator } from '@/components/gamification/combo-indicator';
+import { TimerStatusCard } from '@/components/dashboard/timer-status-card';
 import { DailyQuestsCard } from '@/components/gamification/daily-quests-card';
 import { SeasonCard } from '@/components/gamification/season-card';
 import { WeeklyGoalsCard } from '@/components/gamification/weekly-goals-card';
 import { levelTierName, levelTitle } from '@/services/gamification/display';
 
 export default function HomeScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
   const todos = useTodoStore((state) => state.todos);
-  const timerState = usePomodoroStore((state) => state.timer.state);
-  const timerPhase = usePomodoroStore((state) => state.timer.phase);
-  // Live countdown, derived from the timer's timestamps.
-  const remainingTime = usePomodoroClock((state) => state.remainingSeconds);
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
   const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
   const profile = useAuthStore((state) => state.profile);
 
-  // Timer pulse animation
-  const timerPulse = useSharedValue(1);
-
-  // Animate timer pulse when running
-  useEffect(() => {
-    if (timerState === 'running') {
-      timerPulse.value = withRepeat(
-        withSequence(
-          withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
-    } else {
-      timerPulse.value = withTiming(1, { duration: 200 });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [timerState]);
-
-  const timerAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: timerPulse.value }],
-  }));
-
-  const formatTime = useCallback(() => {
-    const minutes = Math.floor(remainingTime / 60);
-    const seconds = remainingTime % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }, [remainingTime]);
+  // Decorative loops (timer pulse, level glow, XP shimmer) run only while this tab is visible.
+  const isFocused = useIsFocused();
 
   const pendingTodos = useMemo(
     () => todos.filter((t) => t.status === 'pending' || t.status === 'in_progress'),
@@ -100,7 +65,7 @@ export default function HomeScreen() {
     <>
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + 100 }}
+      contentContainerStyle={{ paddingTop: insets.top + Spacing.md, paddingBottom: bottomInset }}
       showsVerticalScrollIndicator={false}
     >
       {/* Header with Level Badge */}
@@ -116,9 +81,12 @@ export default function HomeScreen() {
         <LevelBadge
           level={stats.level}
           size="sm"
-          showGlow={stats.level >= 5}
+          showGlow={isFocused && stats.level >= 5}
         />
       </View>
+
+      {/* The running timer (the only per-second part of the Dashboard) */}
+      <TimerStatusCard active={isFocused} />
 
       {/* XP Progress Card */}
       <AnimatedCard
@@ -158,7 +126,7 @@ export default function HomeScreen() {
         <AnimatedProgressBar
           progress={xpProgress.percentage / 100}
           height={14}
-          showShimmer={true}
+          showShimmer={isFocused}
           gradientColors={[GamificationColors.progressStart, GamificationColors.progressEnd]}
           backgroundColor={colors.backgroundSecondary}
         />
@@ -168,9 +136,6 @@ export default function HomeScreen() {
             : t('dashboard.xpToNextLevel', { xp: xpProgress.required - xpProgress.current, level: stats.level + 1 })}
         </Text>
       </AnimatedCard>
-
-      {/* Session and daily combos */}
-      <ComboIndicator />
 
       {/* Quick Stats Grid */}
       <View style={styles.statsGrid}>
@@ -197,56 +162,28 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Timer Status Card */}
-      {timerState !== 'stopped' && (
-        <Animated.View style={timerAnimatedStyle}>
-          <AnimatedCard
-            variant="elevated"
-            style={styles.timerCard}
-            contentStyle={styles.timerCardContent}
-            onPress={() => router.push('/(tabs)/pomodoro')}
-          >
-            {/* Glow effect when running */}
-            {timerState === 'running' && (
-              <View
-                style={[
-                  styles.timerGlow,
-                  { backgroundColor: colors.primary },
-                ]}
-              />
-            )}
+      {/* Quick actions: the two things people come here to start */}
+      <View style={styles.actionsRow}>
+        <AnimatedButton
+          title={t('dashboard.newTask')}
+          icon="plus"
+          variant="outline"
+          size="md"
+          style={styles.actionButton}
+          onPress={() => router.push('/todo/create')}
+        />
+        <AnimatedButton
+          title={t('dashboard.startFocus')}
+          icon="play"
+          variant="primary"
+          size="md"
+          style={styles.actionButton}
+          onPress={() => router.push('/(tabs)/pomodoro')}
+        />
+      </View>
 
-            <View style={styles.timerInfo}>
-              <View style={[styles.phaseBadge, { backgroundColor: colors.primary + '20' }]}>
-                <Icon
-                  name={timerPhase === 'focus' ? 'bulb' : 'coffee'}
-                  fill={colors.primary}
-                  style={styles.phaseIcon}
-                />
-                <Text style={[styles.phaseText, { color: colors.primary }]}>
-                  {timerPhase === 'focus' ? t('dashboard.focusTime') : t('dashboard.breakTime')}
-                </Text>
-              </View>
-              <Text style={[styles.timerTime, { color: colors.text }]}>
-                {formatTime()}
-              </Text>
-            </View>
-
-            <View style={[styles.timerAction, { backgroundColor: colors.primary }]}>
-              <Icon
-                name={timerState === 'running' ? 'pause' : 'play'}
-                fill="#fff"
-                style={styles.timerActionIcon}
-              />
-            </View>
-          </AnimatedCard>
-        </Animated.View>
-      )}
-
-      {/* Today's quests, this week's goals, the monthly season */}
-      <DailyQuestsCard />
-      <WeeklyGoalsCard />
-      <SeasonCard />
+      {/* Session and daily combos */}
+      <ComboIndicator />
 
       {/* Active Tasks Section */}
       <View style={styles.section}>
@@ -256,6 +193,8 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => router.push('/(tabs)/todos')}
               style={styles.seeAllButton}
+              hitSlop={12}
+              accessibilityRole="button"
             >
               <Text style={[styles.seeAllText, { color: colors.primary }]}>
                 {t('dashboard.seeAll')}
@@ -305,7 +244,7 @@ export default function HomeScreen() {
                 variant="default"
                 style={styles.todoCard}
                 contentStyle={styles.todoCardContent}
-                accentColor={getPriorityColor(todo.priority, colors)}
+                accentColor={priorityColor(todo.priority, colors)}
                 accentPosition="left"
                 onPress={() => router.push(`/todo/${todo.id}`)}
               >
@@ -324,7 +263,7 @@ export default function HomeScreen() {
                         style={styles.dueDateIcon}
                       />
                       <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
-                        {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
+                        {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}
                       </Text>
                     </View>
                   )}
@@ -340,30 +279,10 @@ export default function HomeScreen() {
         )}
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.md }]}>
-          {t('dashboard.quickActions')}
-        </Text>
-        <View style={styles.actionsRow}>
-          <AnimatedButton
-            title={t('dashboard.newTask')}
-            icon="plus"
-            variant="outline"
-            size="md"
-            style={styles.actionButton}
-            onPress={() => router.push('/todo/create')}
-          />
-          <AnimatedButton
-            title={t('dashboard.startFocus')}
-            icon="play"
-            variant="primary"
-            size="md"
-            style={styles.actionButton}
-            onPress={() => router.push('/(tabs)/pomodoro')}
-          />
-        </View>
-      </View>
+      {/* Today's quests, this week's goals and the monthly season fold to one line each */}
+      <DailyQuestsCard />
+      <WeeklyGoalsCard />
+      <SeasonCard />
     </ScrollView>
 
     </>
@@ -404,21 +323,6 @@ function StatCard({ icon, value, label, color, onPress }: StatCardProps) {
       </Text>
     </AnimatedCard>
   );
-}
-
-// Helper function for priority colors
-function getPriorityColor(priority: string, colors: (typeof Colors)['light'] | (typeof Colors)['dark']) {
-  switch (priority) {
-    case 'urgent':
-      return colors.priorityUrgent;
-    case 'high':
-      return colors.priorityHigh;
-    case 'medium':
-      return colors.priorityMedium;
-    case 'low':
-    default:
-      return colors.priorityLow;
-  }
 }
 
 const styles = StyleSheet.create({
@@ -518,69 +422,8 @@ const styles = StyleSheet.create({
     fontFamily: InterFonts.medium,
     fontSize: FontSize.xs,
   },
-  timerCard: {
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-  },
-  timerCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-  },
-  timerGlow: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    opacity: 0.1,
-  },
-  timerInfo: {
-    flex: 1,
-  },
-  phaseBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    marginBottom: Spacing.sm,
-  },
-  phaseIcon: {
-    width: 14,
-    height: 14,
-    marginRight: 6,
-  },
-  phaseText: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.xs,
-  },
-  timerTime: {
-    fontFamily: InterFonts.light,
-    fontSize: 48,
-    letterSpacing: -1,
-  },
-  timerAction: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.md,
-  },
-  timerActionIcon: {
-    width: 24,
-    height: 24,
-  },
   section: {
     marginBottom: Spacing.xl,
-  },
-  sectionTitle: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.lg,
   },
   seeAllButton: {
     flexDirection: 'row',
@@ -668,6 +511,7 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     gap: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   actionButton: {
     flex: 1,

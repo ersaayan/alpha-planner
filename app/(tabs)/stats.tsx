@@ -1,6 +1,6 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,9 +15,17 @@ import { useNow } from '@/hooks/use-now';
 import { getDateKey, parseDateKey } from '@/utils/date';
 import { formatMonthKey } from '@/utils/locale';
 import type { AchievementCategory } from '@/types';
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
+import { formatDuration } from '@/services/i18n/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+import { SectionHeader } from '@/components/common';
+import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
+import { AnimatedButton } from '@/components/animated/animated-button';
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedCounter } from '@/components/animated/animated-counter';
+import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
   'pomodoro',
@@ -31,16 +39,12 @@ const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
   'special',
 ];
 
-import { SectionHeader } from '@/components/common';
-import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
-import { AnimatedButton } from '@/components/animated/animated-button';
-import { AnimatedCard } from '@/components/animated/animated-card';
-import { AnimatedCounter } from '@/components/animated/animated-counter';
-import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
-
 export default function StatsScreen() {
   const { t, i18n } = useTranslation();
+  // Decorative loops (glow, shimmer) stop while another tab is shown.
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -91,7 +95,7 @@ export default function StatsScreen() {
     return [
       { label: t('stats.focus'), value: total('focus'), color: colors.timerFocus },
       { label: t('stats.shortBreak'), value: total('short_break'), color: colors.timerBreak },
-      { label: t('stats.longBreak'), value: total('long_break'), color: '#B5A45E' },
+      { label: t('stats.longBreak'), value: total('long_break'), color: colors.priorityMedium },
     ];
   }, [sessions, colors, t]);
 
@@ -100,21 +104,12 @@ export default function StatsScreen() {
     [dailyStats]
   );
 
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return t('summary.hoursMinutes', { hours, minutes });
-    }
-    return t('stats.minutesValue', { minutes });
-  };
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{
         paddingTop: insets.top + Spacing.md,
-        paddingBottom: insets.bottom + 100,
+        paddingBottom: bottomInset,
       }}
       showsVerticalScrollIndicator={false}
     >
@@ -170,7 +165,7 @@ export default function StatsScreen() {
           <LevelBadge
             level={stats.level}
             size="md"
-            showGlow={stats.level >= 5}
+            showGlow={isFocused && stats.level >= 5}
           />
           <View style={styles.levelInfo}>
             <Text style={[styles.levelTitle, { color: colors.text }]}>
@@ -183,7 +178,7 @@ export default function StatsScreen() {
           <View style={styles.xpInfo}>
             <View style={[styles.xpBadge, { backgroundColor: GamificationColors.xp + '20' }]}>
               <Icon name="star" fill={GamificationColors.xp} style={styles.xpIcon} />
-              <Text style={[styles.xpValue, { color: GamificationColors.xp }]}>
+              <Text style={[styles.xpValue, { color: colors.xp }]}>
                 {t('stats.totalXpValue', { xp: stats.totalXp })}
               </Text>
             </View>
@@ -204,7 +199,7 @@ export default function StatsScreen() {
           <AnimatedProgressBar
             progress={xpProgress.percentage / 100}
             height={12}
-            showShimmer={true}
+            showShimmer={isFocused}
             gradientColors={[GamificationColors.progressStart, GamificationColors.progressEnd]}
             backgroundColor={colors.backgroundSecondary}
           />
@@ -221,7 +216,7 @@ export default function StatsScreen() {
         />
         <StatGridCard
           icon="hourglass"
-          value={formatTime(stats.totalFocusTime)}
+          value={formatDuration(t, stats.totalFocusTime)}
           label={t('stats.focusTime')}
           color={colors.info}
           isString
@@ -373,11 +368,27 @@ export default function StatsScreen() {
                   const hidden = achievement.isSecret && !unlocked;
                   const progress = !unlocked && !hidden ? getAchievementProgress(achievement, achievementContext) : null;
                   return (
-                    <AnimatedCard
+                    // A plain view, not an animated card: ~80 of these render at once.
+                    <View
                       key={achievement.id}
-                      variant={unlocked ? 'default' : 'outlined'}
-                      style={styles.achievementCard}
-                      contentStyle={styles.achievementCardContent}
+                      style={[
+                        styles.achievementCard,
+                        unlocked
+                          ? [{ backgroundColor: colors.card }, Shadows.sm]
+                          : { borderWidth: 1, borderColor: colors.border },
+                      ]}
+                      // One element per achievement for screen readers, with its state.
+                      accessible
+                      accessibilityLabel={[
+                        hidden ? t('achievements.secret') : achievementName(t, achievement),
+                        t(unlocked ? 'stats.achievementUnlocked' : 'stats.achievementLocked'),
+                        hidden ? t('achievements.secretDesc') : achievementDescription(t, achievement),
+                        progress && progress.target > 1
+                          ? `${Math.min(progress.current, progress.target)} / ${progress.target}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join('. ')}
                     >
                       <AchievementBadge
                         icon={hidden ? 'lock' : achievement.icon}
@@ -402,12 +413,12 @@ export default function StatsScreen() {
                       )}
                       {unlocked && (
                         <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
-                          <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
+                          <Text style={[styles.achievementXpText, { color: colors.xp }]}>
                             {t('gamification.xpEarned', { amount: achievement.xpReward })}
                           </Text>
                         </View>
                       )}
-                    </AnimatedCard>
+                    </View>
                   );
                 })}
               </View>
@@ -704,10 +715,9 @@ const styles = StyleSheet.create({
   achievementCard: {
     width: '47%',
     flexGrow: 1,
-  },
-  achievementCardContent: {
     alignItems: 'center',
     padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
   },
   achievementDescription: {
     fontFamily: InterFonts.regular,

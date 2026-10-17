@@ -1,6 +1,7 @@
 import { Icon } from '@/components/icon';
+import { ScreenHeader } from '@/components/common/screen-header';
 import { EmptyState } from '@/components/common';
-import { Button, Card, Text } from '@ui-kitten/components';
+import { Card, Text } from '@ui-kitten/components';
 import {
   addDays,
   addMonths,
@@ -20,18 +21,12 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { STATUS_LABEL_KEYS } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo } from '@/types';
 import { getDueDateKey } from '@/utils/todo-dates';
 import { formatLocalized, getDateLocale, resolveWeekStart } from '@/utils/locale';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'todos.statusPending',
-  in_progress: 'todos.statusInProgress',
-  completed: 'todos.statusDone',
-  archived: 'todos.archived',
-};
 
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
@@ -134,153 +129,149 @@ export default function CalendarScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Button
-          appearance="ghost"
-          size="small"
-          accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
-          onPress={() => router.back()}
-        />
-        <Text category="h5">{t('views.calendar')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title={t('views.calendar')} />
 
-      {/* Month Navigation */}
-      <View style={styles.monthNav}>
-        <Pressable onPress={handlePrevMonth} style={styles.navButton} accessibilityRole="button" accessibilityLabel={t('views.previousMonth')}>
-          <Icon name="arrow-back-outline" fill={colors.text} size={20} />
-        </Pressable>
-        <Pressable
-          onPress={() => {
-            setCurrentMonth(new Date());
-            setSelectedDate(new Date());
-          }}
-        >
-          <Text category="h6">{formatLocalized(currentMonth, 'LLLL yyyy', i18n.language)}</Text>
-        </Pressable>
-        <Pressable onPress={handleNextMonth} style={styles.navButton} accessibilityRole="button" accessibilityLabel={t('views.nextMonth')}>
-          <Icon name="arrow-forward-outline" fill={colors.text} size={20} />
-        </Pressable>
-      </View>
-
-      {/* Weekday Headers */}
-      <View style={styles.weekdaysRow}>
-        {weekdayLabels.map((day) => (
-          <View key={day} style={styles.weekdayCell}>
-            <Text category="c2" style={{ color: colors.textMuted }}>
-              {day}
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Calendar Grid */}
-      <View style={styles.calendarGrid} accessibilityLabel={t('views.calendarDays')}>
-        {calendarDays.map((day, index) => {
-          const dayTodos = getTodosForDate(day);
-          const isCurrentMonth = isSameMonth(day, currentMonth);
-          const isSelected = selectedDate && isSameDay(day, selectedDate);
-          const isDayToday = isSameDay(day, new Date());
-          const dayLabel = [
-            format(day, 'EEEE, d MMMM', { locale }),
-            t('views.taskCount', { count: dayTodos.length }),
-            isDayToday ? t('common.today') : null,
-          ]
-            .filter(Boolean)
-            .join(', ');
-
-          return (
-            <Pressable
-              key={index}
-              style={[
-                styles.dayCell,
-                !isCurrentMonth && styles.otherMonthDay,
-                isSelected && { backgroundColor: colors.primary + '20' },
-              ]}
-              onPress={() => handleDatePress(day)}
-              accessibilityRole="button"
-              accessibilityLabel={dayLabel}
-              accessibilityState={{ selected: isSelected ?? false }}
-            >
-              <Text
-                category="s2"
-                style={[
-                  { color: isCurrentMonth ? colors.text : colors.textMuted },
-                  isDayToday && { color: colors.primary, fontWeight: 'bold' },
-                  isSelected && { color: colors.primary },
-                ]}
-              >
-                {format(day, 'd')}
-              </Text>
-
-              {/* Todo indicators */}
-              {dayTodos.length > 0 && (
-                <View style={styles.todoIndicators}>
-                  {dayTodos.slice(0, 3).map((todo) => (
-                    <View
-                      key={todo.id}
-                      style={[
-                        styles.todoIndicator,
-                        { backgroundColor: getCategoryColor(todo.categoryId) },
-                      ]}
-                    />
-                  ))}
-                  {dayTodos.length > 3 && (
-                    <Text category="c2" style={{ color: colors.textMuted, fontSize: 8 }}>
-                      +{dayTodos.length - 3}
-                    </Text>
-                  )}
-                </View>
-              )}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* Selected Date Tasks */}
-      {selectedDate && (
-        <View style={[styles.selectedDateSection, { borderTopColor: colors.separator }]}>
-          <Text category="s1" style={{ marginBottom: Spacing.sm }}>
-            {format(selectedDate, 'EEEE, d MMMM', { locale })}
-          </Text>
-
-          <ScrollView style={styles.tasksList} showsVerticalScrollIndicator={false}>
-            {selectedDateTodos.length === 0 ? (
-              <EmptyState
-                icon="calendar-outline"
-                title={t('views.noTasksThisDay')}
-              />
-            ) : (
-              selectedDateTodos.map((todo) => (
-                <Card
-                  key={todo.id}
-                  style={[styles.taskCard, { backgroundColor: colors.card }]}
-                  onPress={() => handleTodoPress(todo.id)}
-                >
-                  <View style={styles.taskContent}>
-                    <View
-                      style={[
-                        styles.taskIndicator,
-                        { backgroundColor: getCategoryColor(todo.categoryId) },
-                      ]}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text category="s2" numberOfLines={1}>
-                        {todo.title}
-                      </Text>
-                      <Text category="c1" style={{ color: colors.textMuted }}>
-                        {t(STATUS_LABELS[todo.status] ?? 'todos.statusPending')}
-                      </Text>
-                    </View>
-                    <Icon name="chevron-right-outline" fill={colors.textMuted} size={16} />
-                  </View>
-                </Card>
-              ))
-            )}
-          </ScrollView>
+      {/* One scroll view for the month and the day's tasks: fits small phones and large text. */}
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}>
+        {/* Month Navigation */}
+        <View style={styles.monthNav}>
+          <Pressable onPress={handlePrevMonth} style={styles.navButton} accessibilityRole="button" accessibilityLabel={t('views.previousMonth')}>
+            <Icon name="arrow-back-outline" fill={colors.text} size={20} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setCurrentMonth(new Date());
+              setSelectedDate(new Date());
+            }}
+            style={styles.monthTitle}
+            accessibilityRole="button"
+            accessibilityHint={t('views.goToTodayHint')}
+          >
+            <Text category="h6">{formatLocalized(currentMonth, 'LLLL yyyy', i18n.language)}</Text>
+          </Pressable>
+          <Pressable onPress={handleNextMonth} style={styles.navButton} accessibilityRole="button" accessibilityLabel={t('views.nextMonth')}>
+            <Icon name="arrow-forward-outline" fill={colors.text} size={20} />
+          </Pressable>
         </View>
-      )}
+
+        {/* Weekday Headers */}
+        <View style={styles.weekdaysRow}>
+          {weekdayLabels.map((day) => (
+            <View key={day} style={styles.weekdayCell}>
+              <Text category="c2" style={{ color: colors.textMuted }}>
+                {day}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Calendar Grid */}
+        <View style={styles.calendarGrid}>
+          {calendarDays.map((day, index) => {
+            const dayTodos = getTodosForDate(day);
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isDayToday = isSameDay(day, new Date());
+            const dayLabel = [
+              format(day, 'EEEE, d MMMM', { locale }),
+              t('views.taskCount', { count: dayTodos.length }),
+              isDayToday ? t('common.today') : null,
+            ]
+              .filter(Boolean)
+              .join(', ');
+
+            return (
+              <Pressable
+                key={index}
+                style={[
+                  styles.dayCell,
+                  !isCurrentMonth && styles.otherMonthDay,
+                  isSelected && { backgroundColor: colors.primary + '20' },
+                ]}
+                onPress={() => handleDatePress(day)}
+                accessibilityRole="button"
+                accessibilityLabel={dayLabel}
+                accessibilityState={{ selected: isSelected ?? false }}
+              >
+                <Text
+                  category="s2"
+                  style={[
+                    { color: isCurrentMonth ? colors.text : colors.textMuted },
+                    isDayToday && { color: colors.primary, fontWeight: 'bold' },
+                    isSelected && { color: colors.primary },
+                  ]}
+                >
+                  {format(day, 'd')}
+                </Text>
+
+                {/* Todo indicators */}
+                {dayTodos.length > 0 && (
+                  <View style={styles.todoIndicators}>
+                    {dayTodos.slice(0, 3).map((todo) => (
+                      <View
+                        key={todo.id}
+                        style={[
+                          styles.todoIndicator,
+                          { backgroundColor: getCategoryColor(todo.categoryId) },
+                        ]}
+                      />
+                    ))}
+                    {dayTodos.length > 3 && (
+                      <Text category="c2" style={{ color: colors.textMuted, fontSize: 8 }}>
+                        +{dayTodos.length - 3}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Selected Date Tasks */}
+        {selectedDate && (
+          <View style={[styles.selectedDateSection, { borderTopColor: colors.separator }]}>
+            <Text category="s1" style={{ marginBottom: Spacing.sm }}>
+              {format(selectedDate, 'EEEE, d MMMM', { locale })}
+            </Text>
+
+            <View>
+              {selectedDateTodos.length === 0 ? (
+                <EmptyState
+                  icon="calendar-outline"
+                  title={t('views.noTasksThisDay')}
+                />
+              ) : (
+                selectedDateTodos.map((todo) => (
+                  <Card
+                    key={todo.id}
+                    style={[styles.taskCard, { backgroundColor: colors.card }]}
+                    onPress={() => handleTodoPress(todo.id)}
+                  >
+                    <View style={styles.taskContent}>
+                      <View
+                        style={[
+                          styles.taskIndicator,
+                          { backgroundColor: getCategoryColor(todo.categoryId) },
+                        ]}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text category="s2" numberOfLines={1}>
+                          {todo.title}
+                        </Text>
+                        <Text category="c1" style={{ color: colors.textMuted }}>
+                          {t(STATUS_LABEL_KEYS[todo.status])}
+                        </Text>
+                      </View>
+                      <Icon name="chevron-right-outline" fill={colors.textMuted} size={16} />
+                    </View>
+                  </Card>
+                ))
+              )}
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -288,13 +279,6 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
   },
   monthNav: {
     flexDirection: 'row',
@@ -304,7 +288,15 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   navButton: {
-    padding: Spacing.sm,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthTitle: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.sm,
   },
   weekdaysRow: {
     flexDirection: 'row',
@@ -343,14 +335,10 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   selectedDateSection: {
-    flex: 1,
     marginTop: Spacing.md,
     paddingHorizontal: Spacing.md,
     borderTopWidth: 1,
     paddingTop: Spacing.md,
-  },
-  tasksList: {
-    flex: 1,
   },
   taskCard: {
     marginBottom: Spacing.sm,

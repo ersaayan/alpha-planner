@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Alpha Planner** · Last updated: 16 October 2026
+**Alpha Planner** · Last updated: 17 October 2026
 
 Alpha Planner is a free, open-source Pomodoro timer and task manager. It is built to be **local-first**: everything you create stays on your device. This policy explains what that means in practice. It applies to the app as published on the Apple App Store and Google Play.
 
@@ -22,6 +22,8 @@ To do its job, the app keeps the following on your device only:
 - your app preferences, such as theme and language.
 
 We never see this data and it is not transmitted anywhere by the app.
+
+If you use **Settings → Data → Export**, the app writes your data to a file and hands it to your phone's share sheet; where that file goes (Files, Drive, a message…) is your choice and is not visible to us. **Import** reads a file you pick and replaces the data on the device.
 
 ## Permissions
 

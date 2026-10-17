@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
@@ -51,11 +50,7 @@ export function XPGainToast({
         withSpring(0, SpringConfig.bouncy),
         withDelay(
           duration - AnimationDuration.medium,
-          withTiming(-100, { duration: AnimationDuration.medium }, (finished) => {
-            if (finished) {
-              runOnJS(onHide)();
-            }
-          })
+          withTiming(-100, { duration: AnimationDuration.medium })
         )
       );
       opacity.value = withSequence(
@@ -70,10 +65,10 @@ export function XPGainToast({
         withSpring(1, SpringConfig.default)
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible, duration]);
+  }, [visible, duration, opacity, scale, translateY]);
 
-  // The exit animation's callback does not fire on every platform; a timer hides the toast.
+  // A JS timer (not an animation callback) hides the toast: it fires on every platform
+  // (Reanimated completion callbacks did not on the web) and only once.
   useEffect(() => {
     if (!visible) return;
     const timer = setTimeout(onHide, duration + 150);
@@ -102,14 +97,14 @@ export function XPGainToast({
         <View style={[styles.iconContainer, { backgroundColor: GamificationColors.xp }]}>
           <Icon
             name="star"
-            fill={Palette.white}
+            fill={Palette.slate}
             style={styles.icon}
           />
         </View>
 
         {/* Content */}
         <View style={styles.content}>
-          <Text style={[styles.amount, { color: GamificationColors.xp }]}>
+          <Text style={[styles.amount, { color: colors.xp }]}>
             {t('gamification.xpEarned', { amount })}
           </Text>
           {reason && (

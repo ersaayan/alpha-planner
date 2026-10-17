@@ -1,5 +1,8 @@
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
+import { StyleSheet, type ColorValue, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 // Map Eva icon names to Feather/MaterialCommunity icons
 type IconEntry = { pack: 'feather' | 'material'; name: string };
@@ -124,6 +127,7 @@ const CATEGORY_ICONS: Record<string, IconEntry> = {
   'briefcase-outline': { pack: 'feather', name: 'briefcase' },
   'shopping-bag-outline': { pack: 'feather', name: 'shopping-bag' },
   'shopping-cart-outline': { pack: 'feather', name: 'shopping-cart' },
+  'scale-outline': { pack: 'material', name: 'scale-balance' },
 };
 
 // Time & calendar
@@ -204,15 +208,30 @@ const MISC_ICONS: Record<string, IconEntry> = {
   'eye-off-outline': { pack: 'feather', name: 'eye-off' },
   'external-link': { pack: 'feather', name: 'external-link' },
   'external-link-outline': { pack: 'feather', name: 'external-link' },
+  'zap': { pack: 'feather', name: 'zap' },
+  'zap-outline': { pack: 'feather', name: 'zap' },
+  'compass': { pack: 'feather', name: 'compass' },
+  'compass-outline': { pack: 'feather', name: 'compass' },
+  'shield': { pack: 'feather', name: 'shield' },
+  'shield-outline': { pack: 'feather', name: 'shield' },
+  'github': { pack: 'feather', name: 'github' },
+  'github-outline': { pack: 'feather', name: 'github' },
+  'code': { pack: 'feather', name: 'code' },
+  'code-outline': { pack: 'feather', name: 'code' },
+  'message-square': { pack: 'feather', name: 'message-square' },
+  'message-square-outline': { pack: 'feather', name: 'message-square' },
 };
 
 // Material icons for ones not in Feather
 const MATERIAL_ICONS: Record<string, IconEntry> = {
   'timer-outline': { pack: 'material', name: 'timer-outline' },
   'target': { pack: 'material', name: 'target' },
+  'target-outline': { pack: 'material', name: 'target' },
+  'trophy': { pack: 'material', name: 'trophy' },
   'trophy-outline': { pack: 'material', name: 'trophy-outline' },
   'medal-outline': { pack: 'material', name: 'medal-outline' },
   'fire': { pack: 'material', name: 'fire' },
+  'fire-outline': { pack: 'material', name: 'fire' },
   'leaf-outline': { pack: 'material', name: 'leaf' },
   'leaf': { pack: 'material', name: 'leaf' },
   'hourglass-outline': { pack: 'material', name: 'timer-sand' },
@@ -231,33 +250,66 @@ const ICON_MAP: Record<string, IconEntry> = {
   ...MATERIAL_ICONS,
 };
 
+/** Whether `name` has an icon (tests check every name used in the app). */
+export function hasIcon(name: string): boolean {
+  return name in ICON_MAP;
+}
+
+const warnedNames = new Set<string>();
+
 interface IconProps {
   name: string;
+  /** Icon color. Defaults to the `tintColor` UI Kitten passes to accessories, then the theme's muted color. */
   fill?: ColorValue;
-  style?: StyleProp<ViewStyle>;
+  /** Size (width/height), margins and, from UI Kitten accessories, `tintColor`. */
+  style?: StyleProp<ViewStyle & { tintColor?: ColorValue }>;
   size?: number;
 }
 
-export function Icon({ name, fill = '#8F9BB3', style, size }: IconProps) {
-  // Extract size from style if provided
-  const styleObj = style as { width?: number; height?: number } | undefined;
-  const iconSize = size || styleObj?.width || styleObj?.height || 24;
+/**
+ * Eva-style icon names rendered with Feather / MaterialCommunityIcons. Works as a
+ * UI Kitten accessory (`accessoryLeft={(props) => <Icon {...props} name="plus" />}`):
+ * it uses the accessory's tint color and margins. Icons are decorative for screen
+ * readers; the control around them carries the label.
+ */
+export function Icon({ name, fill, style, size }: IconProps) {
+  const colorScheme = useColorScheme();
+  const { width, height, tintColor, ...layout } = (StyleSheet.flatten(style as never) ?? {}) as ViewStyle & {
+    tintColor?: ColorValue;
+  };
+  const iconSize = size ?? (typeof width === 'number' ? width : undefined) ?? (typeof height === 'number' ? height : undefined) ?? 24;
+  const requested = fill ?? tintColor ?? Colors[colorScheme].textMuted;
   // RN's ColorValue also allows null and processed (numeric) colors, which vector icons don't accept
-  const color = fill === null || typeof fill === 'number' ? undefined : fill;
+  const color = requested === null || typeof requested === 'number' ? undefined : requested;
+
+  // Margins and positioning from `style`; the glyph itself is sized by `size`.
+  const iconStyle = layout as StyleProp<TextStyle>;
+  const hidden = { accessible: false, accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' } as const;
 
   const mapping = ICON_MAP[name];
-
   if (!mapping) {
-    // Default to Feather with a fallback icon
-    console.warn(`Icon "${name}" not found in mapping, using default`);
-    return <Feather name="circle" size={iconSize} color={color} />;
+    if (__DEV__ && !warnedNames.has(name)) {
+      warnedNames.add(name);
+      console.warn(`Icon "${name}" not found in mapping, using default`);
+    }
+    return <Feather name="circle" size={iconSize} color={color} style={iconStyle} {...hidden} />;
   }
 
   if (mapping.pack === 'feather') {
-    return <Feather name={mapping.name as keyof typeof Feather.glyphMap} size={iconSize} color={color} />;
+    return (
+      <Feather name={mapping.name as keyof typeof Feather.glyphMap} size={iconSize} color={color} style={iconStyle} {...hidden} />
+    );
   }
 
-  return <MaterialCommunityIcons name={mapping.name as keyof typeof MaterialCommunityIcons.glyphMap} size={iconSize} color={color} />;
+  return (
+    <MaterialCommunityIcons
+      name={mapping.name as keyof typeof MaterialCommunityIcons.glyphMap}
+      size={iconSize}
+      color={color}
+      style={iconStyle}
+      {...hidden}
+    />
+  );
 }
 
 export default Icon;

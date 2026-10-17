@@ -111,6 +111,22 @@ describe('migrateSettingsState', () => {
     expect(migrated).toEqual({ settings: { theme: 'dark' }, pomodoroSettings: { focusDuration: 1800 } });
   });
 
+  it('v2 → v3: keeps only known collapsed Dashboard cards', () => {
+    expect(migrateSettingsState({ settings: { theme: 'dark' } }, 2).settings).toEqual({ theme: 'dark' });
+    expect(
+      migrateSettingsState({ settings: { collapsedDashboardCards: ['goals', 'nope', 3] } }, 3).settings.collapsedDashboardCards
+    ).toEqual(['goals']);
+    expect(migrateSettingsState({ settings: { collapsedDashboardCards: 'season' } }, 3).settings).toEqual({});
+  });
+
+  it('toggles a Dashboard card', () => {
+    const before = useSettingsStore.getState().settings.collapsedDashboardCards;
+    useSettingsStore.getState().toggleDashboardCard('quests');
+    expect(useSettingsStore.getState().settings.collapsedDashboardCards).toEqual([...before, 'quests']);
+    useSettingsStore.getState().toggleDashboardCard('quests');
+    expect(useSettingsStore.getState().settings.collapsedDashboardCards).toEqual(before);
+  });
+
   it('tolerates garbage', () => {
     expect(migrateSettingsState(null, 0)).toEqual({ settings: {}, pomodoroSettings: {} });
     expect(migrateSettingsState({ settings: 'x', pomodoroSettings: [1] }, 0)).toEqual({ settings: {}, pomodoroSettings: {} });

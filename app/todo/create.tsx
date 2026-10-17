@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Text, Button, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,14 +13,8 @@ import { enableTaskReminders } from '@/hooks/use-task-reminders';
 import { useTodoStore, useCategoryStore } from '@/stores';
 import type { TodoPriority } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { PRIORITIES, PRIORITY_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-const PRIORITIES: { value: TodoPriority; labelKey: string; color: string }[] = [
-  { value: 'low', labelKey: 'todo.create.priorityLow', color: '#90AB8B' },
-  { value: 'medium', labelKey: 'todo.create.priorityMedium', color: '#B5A45E' },
-  { value: 'high', labelKey: 'todo.create.priorityHigh', color: '#E47F7F' },
-  { value: 'urgent', labelKey: 'todo.create.priorityUrgent', color: '#D85656' },
-];
 
 export default function CreateTodoScreen() {
   const { t } = useTranslation();
@@ -76,18 +71,13 @@ export default function CreateTodoScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+    // Scrolls the focused field above the keyboard (no fixed header offset to guess).
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={Spacing.lg}
     >
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + 100,
-        }}
-        keyboardShouldPersistTaps="handled"
-      >
       {/* Title */}
       <Input
         label={t('todo.create.taskTitle')}
@@ -124,26 +114,27 @@ export default function CreateTodoScreen() {
       <Text category="label" style={[styles.label, { color: colors.textMuted }]}>
         {t('todo.create.priority')}
       </Text>
-      <View style={styles.priorityContainer}>
+      <View style={styles.priorityContainer} accessibilityRole="radiogroup" accessibilityLabel={t('todo.create.priority')}>
         {PRIORITIES.map((option) => {
-          const selected = option.value === priority;
+          const selected = option === priority;
+          const color = priorityColor(option, colors);
           return (
             <Pressable
-              key={option.value}
+              key={option}
               style={[
                 styles.priorityButton,
                 {
-                  backgroundColor: selected ? option.color + '20' : colors.card,
-                  borderColor: selected ? option.color : colors.border,
+                  backgroundColor: selected ? color + '20' : colors.card,
+                  borderColor: selected ? color : colors.border,
                 },
               ]}
-              onPress={() => setPriority(option.value)}
+              onPress={() => setPriority(option)}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ checked: selected }}
             >
-              <View style={[styles.priorityDot, { backgroundColor: option.color }]} />
-              <Text category="c1" style={{ color: selected ? option.color : colors.text }}>
-                {t(option.labelKey)}
+              <View style={[styles.priorityDot, { backgroundColor: color }]} />
+              <Text category="c1" style={{ color: selected ? color : colors.text }}>
+                {t(PRIORITY_LABEL_KEYS[option])}
               </Text>
             </Pressable>
           );
@@ -181,7 +172,7 @@ export default function CreateTodoScreen() {
           </Text>
           <Pressable
             onPress={() => setSubtasks((current) => current.filter((_, i) => i !== index))}
-            hitSlop={8}
+            hitSlop={13}
             accessibilityRole="button"
             accessibilityLabel={t('todo.form.removeSubtask', { title: subtaskTitle })}
           >
@@ -205,6 +196,7 @@ export default function CreateTodoScreen() {
           onPress={addDraftSubtask}
           disabled={!newSubtask.trim()}
           accessibilityLabel={t('todo.detail.addSubtask')}
+          style={styles.addSubtaskButton}
         />
       </View>
 
@@ -218,14 +210,15 @@ export default function CreateTodoScreen() {
       >
         {t('todo.create.createButton')}
       </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
     padding: Spacing.md,
   },
   input: {
@@ -245,6 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
+    minHeight: 44,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -269,6 +263,10 @@ const styles = StyleSheet.create({
   },
   subtaskInput: {
     flex: 1,
+  },
+  addSubtaskButton: {
+    minWidth: 44,
+    minHeight: 44,
   },
   createButton: {
     marginTop: Spacing.lg,

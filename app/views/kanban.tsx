@@ -1,35 +1,32 @@
 import { Icon } from '@/components/icon';
-import { Button, Card, Text } from '@ui-kitten/components';
+import { ScreenHeader } from '@/components/common/screen-header';
+import { Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { STATUSES, STATUS_LABEL_KEYS } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
 import { formatDue } from '@/utils/todo-dates';
 
-const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
-  { status: 'pending', title: 'To Do', color: '#90AB8B' },
-  { status: 'in_progress', title: 'In Progress', color: '#B5A45E' },
-  { status: 'completed', title: 'Done', color: '#5A7868' },
-  { status: 'archived', title: 'Archived', color: '#9E9E9E' },
-];
+const COLUMNS: readonly TodoStatus[] = STATUSES;
 
 export default function KanbanScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const columnTitles: Record<string, string> = {
-    pending: t('todos.statusPending'),
-    in_progress: t('todos.statusInProgress'),
-    completed: t('todos.statusDone'),
-    archived: t('todos.archived'),
+  const columnColors: Record<TodoStatus, string> = {
+    pending: colors.primaryLight,
+    in_progress: colors.priorityMedium,
+    completed: colors.primary,
+    archived: colors.textMuted,
   };
   const { width: screenWidth } = useWindowDimensions();
   const columnWidth = screenWidth * 0.75;
@@ -55,21 +52,21 @@ export default function KanbanScreen() {
   };
 
   const handleMoveLeft = (todo: Todo) => {
-    const currentIndex = COLUMNS.findIndex((c) => c.status === todo.status);
+    const currentIndex = COLUMNS.indexOf(todo.status);
     if (currentIndex > 0) {
-      updateTodo(todo.id, { status: COLUMNS[currentIndex - 1].status });
+      updateTodo(todo.id, { status: COLUMNS[currentIndex - 1] });
     }
   };
 
   const handleMoveRight = (todo: Todo) => {
-    const currentIndex = COLUMNS.findIndex((c) => c.status === todo.status);
+    const currentIndex = COLUMNS.indexOf(todo.status);
     if (currentIndex < COLUMNS.length - 1) {
-      updateTodo(todo.id, { status: COLUMNS[currentIndex + 1].status });
+      updateTodo(todo.id, { status: COLUMNS[currentIndex + 1] });
     }
   };
 
   const renderTodoCard = (todo: Todo) => {
-    const currentIndex = COLUMNS.findIndex((c) => c.status === todo.status);
+    const currentIndex = COLUMNS.indexOf(todo.status);
     const canMoveLeft = currentIndex > 0;
     const canMoveRight = currentIndex < COLUMNS.length - 1;
 
@@ -115,7 +112,7 @@ export default function KanbanScreen() {
             <View style={styles.dueDateBadge}>
               <Icon name="calendar-outline" fill={colors.textMuted} size={12} />
               <Text category="c2" style={{ color: colors.textMuted }}>
-                {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
+                {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}
               </Text>
             </View>
           )}
@@ -127,14 +124,17 @@ export default function KanbanScreen() {
             onPress={() => canMoveLeft && handleMoveLeft(todo)}
             disabled={!canMoveLeft}
             accessibilityRole="button"
-            accessibilityLabel={`Move task to ${currentIndex > 0 ? COLUMNS[currentIndex - 1].title : 'previous column'}`}
+            accessibilityLabel={
+              canMoveLeft
+                ? t('views.moveTaskTo', { title: todo.title, column: t(STATUS_LABEL_KEYS[COLUMNS[currentIndex - 1]]) })
+                : t('views.movePrevious')
+            }
             accessibilityState={{ disabled: !canMoveLeft }}
-            accessibilityHint="Moves task to the previous status column"
           >
             <Icon
               name="arrow-back-outline"
               fill={canMoveLeft ? colors.primary : colors.border}
-              size={16}
+              size={20}
             />
           </Pressable>
           <Pressable
@@ -142,14 +142,17 @@ export default function KanbanScreen() {
             onPress={() => canMoveRight && handleMoveRight(todo)}
             disabled={!canMoveRight}
             accessibilityRole="button"
-            accessibilityLabel={`Move task to ${currentIndex < COLUMNS.length - 1 ? COLUMNS[currentIndex + 1].title : 'next column'}`}
+            accessibilityLabel={
+              canMoveRight
+                ? t('views.moveTaskTo', { title: todo.title, column: t(STATUS_LABEL_KEYS[COLUMNS[currentIndex + 1]]) })
+                : t('views.moveNext')
+            }
             accessibilityState={{ disabled: !canMoveRight }}
-            accessibilityHint="Moves task to the next status column"
           >
             <Icon
               name="arrow-forward-outline"
               fill={canMoveRight ? colors.primary : colors.border}
-              size={16}
+              size={20}
             />
           </Pressable>
         </View>
@@ -164,17 +167,7 @@ export default function KanbanScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Button
-          appearance="ghost"
-          size="small"
-          accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
-          onPress={() => router.back()}
-        />
-        <Text category="h5">{t('views.kanbanBoard')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title={t('views.kanbanBoard')} />
 
       {/* Kanban Columns */}
       <ScrollView
@@ -185,40 +178,43 @@ export default function KanbanScreen() {
         snapToInterval={columnWidth + Spacing.md}
       >
         {COLUMNS.map((column) => {
-          const columnTodos = getTodosByStatus(column.status);
+          const columnTodos = getTodosByStatus(column);
+          const columnColor = columnColors[column];
           return (
             <View
-              key={column.status}
+              key={column}
               style={[styles.column, { width: columnWidth }]}
             >
               {/* Column Header */}
               <View style={styles.columnHeader}>
-                <View style={[styles.columnDot, { backgroundColor: column.color }]} />
-                <Text category="s1">{columnTitles[column.status] ?? column.title}</Text>
-                <View style={[styles.countBadge, { backgroundColor: column.color + '20' }]}>
-                  <Text category="c2" style={{ color: column.color }}>
+                <View style={[styles.columnDot, { backgroundColor: columnColor }]} />
+                <Text category="s1" accessibilityRole="header">
+                  {t(STATUS_LABEL_KEYS[column])}
+                </Text>
+                <View style={[styles.countBadge, { backgroundColor: columnColor + '20' }]}>
+                  <Text category="c2" style={{ color: colors.text }}>
                     {columnTodos.length}
                   </Text>
                 </View>
               </View>
 
-              {/* Column Content */}
-              <ScrollView
+              {/* Column Content (virtualized: a column can hold many tasks) */}
+              <FlatList
                 style={styles.columnContent}
+                data={columnTodos}
+                keyExtractor={(todo) => todo.id}
+                renderItem={({ item }) => renderTodoCard(item)}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.columnScrollContent}
-              >
-                {columnTodos.length === 0 ? (
+                contentContainerStyle={[styles.columnScrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
+                ListEmptyComponent={
                   <View style={styles.emptyColumn}>
                     <Icon name="inbox-outline" fill={colors.textMuted} size={32} />
                     <Text category="c1" style={{ color: colors.textMuted, marginTop: Spacing.sm }}>
-                      {t('dashboard.noActiveTasks')}
+                      {t('views.emptyColumn')}
                     </Text>
                   </View>
-                ) : (
-                  columnTodos.map(renderTodoCard)
-                )}
-              </ScrollView>
+                }
+              />
             </View>
           );
         })}
@@ -230,13 +226,6 @@ export default function KanbanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
   },
   columnsContainer: {
     paddingHorizontal: Spacing.md,
@@ -308,12 +297,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
+    marginTop: Spacing.xs,
     borderTopWidth: 1,
   },
   moveButton: {
-    padding: Spacing.xs,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: BorderRadius.sm,
   },
   moveButtonDisabled: {

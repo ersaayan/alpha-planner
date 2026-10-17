@@ -13,7 +13,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightCallbackContext, BottomTabBarProps } from 'expo-router/js-tabs';
-import { Colors, BorderRadius, Shadows, Spacing, InterFonts, Palette } from '@/constants/theme';
+import { Colors, BorderRadius, Shadows, Spacing, InterFonts } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
@@ -23,19 +23,20 @@ import { useSettingsStore } from '@/stores';
 interface TabIconConfig {
   name: string;
   focusedName: string;
-  label: string;
 }
 
 const TAB_ICONS: Record<string, TabIconConfig> = {
-  index: { name: 'home-outline', focusedName: 'home', label: 'Home' },
-  todos: { name: 'checkmark-square-2-outline', focusedName: 'checkmark-square-2', label: 'Todos' },
-  pomodoro: { name: 'clock-outline', focusedName: 'clock', label: 'Focus' },
-  stats: { name: 'bar-chart-outline', focusedName: 'bar-chart', label: 'Stats' },
-  settings: { name: 'settings-2-outline', focusedName: 'settings-2', label: 'Settings' },
+  index: { name: 'home-outline', focusedName: 'home' },
+  todos: { name: 'checkmark-square-2-outline', focusedName: 'checkmark-square-2' },
+  pomodoro: { name: 'clock-outline', focusedName: 'clock' },
+  stats: { name: 'bar-chart-outline', focusedName: 'bar-chart' },
+  settings: { name: 'settings-2-outline', focusedName: 'settings-2' },
 };
 
 interface TabItemProps {
   routeName: string;
+  /** The translated tab title, read by screen readers (the bar shows icons only). */
+  label: string;
   isFocused: boolean;
   onPress: () => void;
   onLongPress: () => void;
@@ -46,6 +47,7 @@ interface TabItemProps {
 
 function TabItem({
   routeName,
+  label,
   isFocused,
   onPress,
   onLongPress,
@@ -67,8 +69,7 @@ function TabItem({
     indicatorWidth.value = withTiming(isFocused ? 48 : 0, { duration: AnimationDuration.normal });
     indicatorOpacity.value = withTiming(isFocused ? 1 : 0, { duration: AnimationDuration.normal });
     iconScaleValue.value = withSpring(isFocused ? 1.1 : 1, SpringConfig.default);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [isFocused]);
+  }, [isFocused, iconScaleValue, indicatorOpacity, indicatorWidth]);
 
   const handlePressIn = () => {
     scale.value = withSpring(0.9, SpringConfig.snappy);
@@ -107,8 +108,8 @@ function TabItem({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.tabItem}
-      accessibilityRole="button"
-      accessibilityLabel={iconConfig.label}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}
     >
       <Animated.View style={[styles.tabItemInner, animatedStyle]}>
@@ -133,7 +134,7 @@ function TabItem({
         {/* Badge */}
         {badge !== undefined && badge > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.error }]}>
-            <Animated.Text style={styles.badgeText}>
+            <Animated.Text style={[styles.badgeText, { color: colors.onError }]}>
               {badge > 99 ? '99+' : badge}
             </Animated.Text>
           </View>
@@ -183,7 +184,7 @@ export function CustomTabBar({ state, descriptors, emitter, navigateToTab }: Bot
         )}
 
         {/* Tab items */}
-        <View style={styles.tabItems}>
+        <View style={styles.tabItems} accessibilityRole="tablist">
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const isFocused = state.index === index;
@@ -211,6 +212,7 @@ export function CustomTabBar({ state, descriptors, emitter, navigateToTab }: Bot
               <TabItem
                 key={route.key}
                 routeName={route.name}
+                label={options.title ?? route.name}
                 isFocused={isFocused}
                 onPress={onPress}
                 onLongPress={onLongPress}
@@ -283,7 +285,6 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: InterFonts.semibold,
     fontSize: 10,
-    color: Palette.white,
   },
 });
 

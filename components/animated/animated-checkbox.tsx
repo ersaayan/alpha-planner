@@ -29,7 +29,13 @@ interface AnimatedCheckboxProps {
   color?: string;
   disabled?: boolean;
   style?: ViewStyle;
+  /** What is being checked, e.g. the task title (read by screen readers). */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
+
+/** Minimum touch target (Apple HIG / Material: 44pt / 48dp). */
+const MIN_TOUCH_TARGET = 44;
 
 export function AnimatedCheckbox({
   checked,
@@ -38,6 +44,8 @@ export function AnimatedCheckbox({
   color,
   disabled = false,
   style,
+  accessibilityLabel,
+  accessibilityHint,
 }: AnimatedCheckboxProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -71,8 +79,7 @@ export function AnimatedCheckbox({
       );
       checkProgress.value = withTiming(0, { duration: AnimationDuration.fast });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [checked]);
+  }, [checked, checkProgress, scale]);
 
   const handlePress = () => {
     if (disabled) return;
@@ -108,7 +115,8 @@ export function AnimatedCheckbox({
 
     return {
       backgroundColor: backgroundColor > 0.5 ? checkColor : 'transparent',
-      borderColor: checkProgress.value > 0.5 ? checkColor : colors.border,
+      // Unchecked outline: 3:1 against the card (WCAG non-text contrast).
+      borderColor: checkProgress.value > 0.5 ? checkColor : colors.textMuted,
     };
   });
 
@@ -126,8 +134,11 @@ export function AnimatedCheckbox({
       onPress={handlePress}
       disabled={disabled}
       style={style}
+      hitSlop={Math.max(0, (MIN_TOUCH_TARGET - size) / 2)}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
+      accessibilityState={{ checked, disabled }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
     >
       <Animated.View style={[styles.container, { width: size, height: size }, containerStyle]}>
         {/* Ripple effect */}
@@ -165,7 +176,7 @@ export function AnimatedCheckbox({
           >
             <AnimatedPath
               d="M4 12.5L9.5 18L20 6"
-              stroke="#fff"
+              stroke={colors.onPrimary}
               strokeWidth={3}
               strokeLinecap="round"
               strokeLinejoin="round"

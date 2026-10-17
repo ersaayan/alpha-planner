@@ -44,17 +44,3 @@ export function getAuthErrorKey(error: unknown): string {
   if (/already registered|already exists/i.test(message)) return 'auth.errors.emailInUse';
   return 'errors.generic';
 }
-
-/** Maps the English messages from utils/validators to i18n keys. */
-const VALIDATION_TO_KEY: Record<string, string> = {
-  'Email is required': 'errors.emailRequired',
-  'Invalid email': 'errors.emailInvalid',
-  'Password is required': 'errors.passwordRequired',
-  'Password must be at least 6 characters': 'errors.passwordTooShort',
-  'Name is required': 'errors.nameRequired',
-  'Name is too long': 'errors.nameTooLong',
-};
-
-export function getValidationErrorKey(message: string): string {
-  return VALIDATION_TO_KEY[message] ?? 'errors.generic';
-}

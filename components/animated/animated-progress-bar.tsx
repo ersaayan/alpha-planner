@@ -11,11 +11,11 @@ import Animated, {
   withRepeat,
   Easing,
   interpolate,
-  runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { GamificationColors, Palette } from '@/constants/theme';
 import { AnimationEasing, AnimationDuration } from '@/constants/animations';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 
 interface AnimatedProgressBarProps {
   progress: number; // 0 to 1
@@ -24,7 +24,6 @@ interface AnimatedProgressBarProps {
   gradientColors?: [string, string];
   backgroundColor?: string;
   style?: ViewStyle;
-  onFillComplete?: () => void;
 }
 
 export function AnimatedProgressBar({
@@ -34,27 +33,22 @@ export function AnimatedProgressBar({
   gradientColors = [GamificationColors.progressStart, GamificationColors.progressEnd],
   backgroundColor = 'rgba(144, 171, 139, 0.2)',
   style,
-  onFillComplete,
 }: AnimatedProgressBarProps) {
   const animatedProgress = useSharedValue(0);
   const shimmerPosition = useSharedValue(-1);
+  const shimmer = useAmbientMotion(showShimmer);
 
   // Animate progress when value changes
   useEffect(() => {
     animatedProgress.value = withTiming(progress, {
       duration: AnimationDuration.xpFill,
       easing: AnimationEasing.smooth,
-    }, (finished) => {
-      if (finished && progress >= 1 && onFillComplete) {
-        runOnJS(onFillComplete)();
-      }
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [progress]);
+  }, [progress, animatedProgress]);
 
-  // Continuous shimmer animation
+  // Continuous shimmer animation (not with Reduce Motion, not while the screen is hidden)
   useEffect(() => {
-    if (showShimmer && progress > 0) {
+    if (shimmer && progress > 0) {
       shimmerPosition.value = withRepeat(
         withTiming(1, {
           duration: AnimationDuration.shimmer,
@@ -66,9 +60,9 @@ export function AnimatedProgressBar({
     }
     return () => {
       cancelAnimation(shimmerPosition);
+      shimmerPosition.set(-1);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [showShimmer, progress]);
+  }, [shimmer, progress, shimmerPosition]);
 
   const progressStyle = useAnimatedStyle(() => {
     return {

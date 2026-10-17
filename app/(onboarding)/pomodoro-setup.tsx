@@ -56,7 +56,7 @@ export default function PomodoroSetupScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text category="h4">{t('onboarding.pomodoroSetup.title')}</Text>
+          <Text category="h4" accessibilityRole="header">{t('onboarding.pomodoroSetup.title')}</Text>
           <Text category="s1" style={{ color: colors.textSecondary }}>
             {t('onboarding.pomodoroSetup.subtitle')}
           </Text>
@@ -79,6 +79,8 @@ export default function PomodoroSetupScreen() {
             maximumValue={60}
             step={5}
             value={focusDuration}
+            accessibilityLabel={t('onboarding.pomodoroSetup.focusDuration')}
+            accessibilityValue={{ now: focusDuration, text: `${focusDuration} ${t('common.min')}` }}
             onValueChange={(v) => setFocusDuration(Math.round(v))}
             minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={colors.border}
@@ -111,6 +113,8 @@ export default function PomodoroSetupScreen() {
             maximumValue={15}
             step={1}
             value={shortBreak}
+            accessibilityLabel={t('onboarding.pomodoroSetup.shortBreak')}
+            accessibilityValue={{ now: shortBreak, text: `${shortBreak} ${t('common.min')}` }}
             onValueChange={(v) => setShortBreak(Math.round(v))}
             minimumTrackTintColor={colors.secondary}
             maximumTrackTintColor={colors.border}
@@ -143,6 +147,8 @@ export default function PomodoroSetupScreen() {
             maximumValue={30}
             step={5}
             value={longBreak}
+            accessibilityLabel={t('onboarding.pomodoroSetup.longBreak')}
+            accessibilityValue={{ now: longBreak, text: `${longBreak} ${t('common.min')}` }}
             onValueChange={(v) => setLongBreak(Math.round(v))}
             minimumTrackTintColor={colors.accent}
             maximumTrackTintColor={colors.border}
@@ -175,6 +181,8 @@ export default function PomodoroSetupScreen() {
             maximumValue={6}
             step={1}
             value={sessionsUntilLongBreak}
+            accessibilityLabel={t('onboarding.pomodoroSetup.sessionsUntilLongBreak')}
+            accessibilityValue={{ now: sessionsUntilLongBreak, text: String(sessionsUntilLongBreak) }}
             onValueChange={(v) => setSessionsUntilLongBreak(Math.round(v))}
             minimumTrackTintColor={colors.primary}
             maximumTrackTintColor={colors.border}
@@ -199,18 +207,18 @@ export default function PomodoroSetupScreen() {
             {Array.from({ length: sessionsUntilLongBreak }).map((_, i) => (
               <View key={i} style={styles.previewItem}>
                 <View style={[styles.previewDot, { backgroundColor: colors.primary }]} />
-                <Text category="c2">{focusDuration}m</Text>
+                <Text category="c2">{focusDuration} {t('common.min')}</Text>
                 {i < sessionsUntilLongBreak - 1 && (
                   <>
                     <View style={[styles.previewDot, { backgroundColor: colors.secondary }]} />
-                    <Text category="c2">{shortBreak}m</Text>
+                    <Text category="c2">{shortBreak} {t('common.min')}</Text>
                   </>
                 )}
               </View>
             ))}
             <View style={styles.previewItem}>
               <View style={[styles.previewDot, { backgroundColor: colors.accent }]} />
-              <Text category="c2">{longBreak}m</Text>
+              <Text category="c2">{longBreak} {t('common.min')}</Text>
             </View>
           </View>
         </Card>

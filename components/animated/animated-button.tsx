@@ -66,16 +66,16 @@ export function AnimatedButton({
             backgroundColor: colors.primary,
             ...Shadows.sm,
           },
-          text: { color: '#fff' },
-          iconColor: '#fff',
+          text: { color: colors.onPrimary },
+          iconColor: colors.onPrimary,
         };
       case 'secondary':
         return {
           container: {
-            backgroundColor: colors.secondary,
+            backgroundColor: colors.backgroundSecondary,
           },
-          text: { color: colors.text },
-          iconColor: colors.text,
+          text: { color: colors.primary },
+          iconColor: colors.primary,
         };
       case 'outline':
         return {
@@ -101,14 +101,14 @@ export function AnimatedButton({
             backgroundColor: colors.error,
             ...Shadows.sm,
           },
-          text: { color: '#fff' },
-          iconColor: '#fff',
+          text: { color: colors.onError },
+          iconColor: colors.onError,
         };
       default:
         return {
           container: { backgroundColor: colors.primary },
-          text: { color: '#fff' },
-          iconColor: '#fff',
+          text: { color: colors.onPrimary },
+          iconColor: colors.onPrimary,
         };
     }
   };
@@ -165,10 +165,15 @@ export function AnimatedButton({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={pressableProps.accessibilityLabel ?? title}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      // Small buttons draw 36pt but still get a 44pt touch target.
+      hitSlop={Math.max(0, (44 - config.height) / 2)}
       style={[
         styles.button,
         {
-          height: config.height,
+          // minHeight, not height: large accessibility text grows the button instead of clipping.
+          minHeight: config.height,
+          paddingVertical: Spacing.xs,
           paddingHorizontal: config.paddingH,
           borderRadius: config.height / 2, // Pill shape
         },
@@ -195,6 +200,8 @@ export function AnimatedButton({
                 variantStyles.text,
                 { fontSize: config.fontSize },
               ]}
+              maxFontSizeMultiplier={1.6}
+              numberOfLines={2}
             >
               {title}
             </Text>
@@ -203,50 +210,6 @@ export function AnimatedButton({
         </Animated.View>
       )}
     </AnimatedPressable>
-  );
-}
-
-// Floating Action Button variant
-interface FABProps extends Omit<AnimatedButtonProps, 'title' | 'variant' | 'size'> {
-  icon: string;
-  size?: 'sm' | 'md' | 'lg';
-  color?: string;
-}
-
-export function FAB({
-  icon,
-  size = 'md',
-  color,
-  style,
-  ...props
-}: FABProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-
-  const sizeConfig = {
-    sm: { size: 44, icon: 20 },
-    md: { size: 56, icon: 24 },
-    lg: { size: 68, icon: 28 },
-  };
-
-  const config = sizeConfig[size];
-  const bgColor = color || colors.primary;
-
-  return (
-    <AnimatedButton
-      icon={icon}
-      variant="primary"
-      style={{
-        width: config.size,
-        height: config.size,
-        borderRadius: config.size / 2,
-        paddingHorizontal: 0,
-        backgroundColor: bgColor,
-        ...Shadows.lg,
-        ...style,
-      }}
-      {...props}
-    />
   );
 }
 
@@ -263,12 +226,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
   },
   contentReverse: {
     flexDirection: 'row-reverse',
   },
   text: {
     fontFamily: InterFonts.semibold,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   loadingContainer: {
     alignItems: 'center',

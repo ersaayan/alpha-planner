@@ -1,13 +1,13 @@
 import { Text } from '@ui-kitten/components';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { AnimatedButton } from '@/components/animated/animated-button';
-import { AnimatedCard } from '@/components/animated/animated-card';
+import { CollapsibleCard } from '@/components/common/collapsible-card';
 import { PERSONAL_GOAL_XP, WEEKLY_GOAL_ALL_COMPLETE_BONUS, type WeeklyGoalMetric } from '@/constants/weekly-goals';
 import { XP_VALUES } from '@/constants/gamification';
-import { Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
+import { Colors, FontSize, InterFonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNow } from '@/hooks/use-now';
 import { formatGoalValue, goalDescription, goalMetricOf, goalTitle } from '@/services/gamification/display';
@@ -17,7 +17,7 @@ import { getWeekKey } from '@/utils/date';
 import { PersonalGoalEditor } from './personal-goal-editor';
 import { ProgressRow } from './progress-row';
 
-/** This week's goals, and the personal goal the user can set. */
+/** This week's goals, and the personal goal the user can set (folds to its header). */
 export function WeeklyGoalsCard() {
   const { t } = useTranslation();
   const colors = Colors[useColorScheme() ?? 'light'];
@@ -27,19 +27,19 @@ export function WeeklyGoalsCard() {
 
   const weekGoals = useMemo(() => goals.filter((goal) => goal.weekStart === weekKey), [goals, weekKey]);
   const personal = weekGoals.find((goal) => goal.goalType === 'personal');
-  const allDone = weekGoals.length > 0 && weekGoals.every((goal) => goal.isCompleted);
+  const completed = weekGoals.filter((goal) => goal.isCompleted).length;
+  const allDone = weekGoals.length > 0 && completed === weekGoals.length;
 
   return (
-    <AnimatedCard variant="default" style={styles.card} contentStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
-          {t('goals.title')}
-        </Text>
-        <Text style={[styles.count, { color: allDone ? colors.success : colors.textSecondary }]}>
-          {t('quests.progressCount', { completed: weekGoals.filter((g) => g.isCompleted).length, total: weekGoals.length })}
-        </Text>
-      </View>
-
+    <CollapsibleCard
+      id="goals"
+      icon="flag"
+      accent={colors.secondary}
+      title={t('goals.title')}
+      summary={t('quests.progressCount', { completed, total: weekGoals.length })}
+      summaryColor={allDone ? colors.success : undefined}
+      testID="weekly-goals-card"
+    >
       {weekGoals.map((goal) => {
         const metric = goalMetricOf(goal);
         const title = goal.goalType === 'personal' ? `${t('goals.personal')} · ${goalTitle(t, goal)}` : goalTitle(t, goal);
@@ -82,39 +82,16 @@ export function WeeklyGoalsCard() {
           onClose={() => setEditorVisible(false)}
         />
       )}
-    </AnimatedCard>
+    </CollapsibleCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: Spacing.lg,
-  },
-  content: {
-    padding: Spacing.md,
-    gap: Spacing.xs,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  title: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.md,
-  },
-  count: {
-    fontFamily: InterFonts.medium,
-    fontSize: FontSize.sm,
-  },
   footer: {
     fontFamily: InterFonts.regular,
     fontSize: FontSize.xs,
-    marginTop: Spacing.xs,
   },
   button: {
-    marginTop: Spacing.sm,
     alignSelf: 'flex-start',
   },
 });

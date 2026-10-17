@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/stores/settings-store';
 import { INITIAL_PRESTIGE_STATE } from '@/types';
 
 jest.mock('@/components/icon', () => ({ Icon: () => null }));
+jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
 const record = { month: '2026-09', finalLevel: 14, totalXp: 7000, rewards: ['loyal_warrior'], rewardXp: 400, pomodoros: 60, tasks: 20, activeDays: 22 };
 

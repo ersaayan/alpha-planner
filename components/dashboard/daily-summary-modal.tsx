@@ -10,7 +10,6 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
@@ -26,11 +25,10 @@ import {
   Shadows,
   InterFonts,
   FontSize,
-  Typography,
 } from '@/constants/theme';
 import { AnimationDuration, SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { formatDuration } from '@/utils/theme-helpers';
+import { formatDuration } from '@/services/i18n/format';
 
 interface DailySummaryModalProps {
   visible: boolean;
@@ -85,8 +83,7 @@ export function DailySummaryModal({
       modalOpacity.value = 0;
       modalTranslateY.value = 40;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible]);
+  }, [visible, backdropOpacity, modalOpacity, modalTranslateY]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
@@ -133,7 +130,12 @@ export function DailySummaryModal({
       <View style={styles.container}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
         </Animated.View>
 
         {/* Modal content */}
@@ -218,7 +220,7 @@ export function DailySummaryModal({
                 <Icon name="star" fill={GamificationColors.xp} size={20} />
                 <AnimatedCounter
                   value={data.xpEarned}
-                  suffix=" XP"
+                  suffix={` ${t('gamification.xp')}`}
                   category="h3"
                   color={GamificationColors.xp}
                   style={styles.statValue}
@@ -261,7 +263,7 @@ export function DailySummaryModal({
             {data.comboMultiplier > 1 && (
               <View style={[styles.comboBadge, { backgroundColor: GamificationColors.xp + '1A' }]}>
                 <Icon name="flash" fill={GamificationColors.xp} size={18} />
-                <Text style={[styles.comboText, { color: GamificationColors.xp }]}>
+                <Text style={[styles.comboText, { color: colors.xp }]}>
                   {t('summary.combo', { value: data.comboMultiplier })}
                 </Text>
               </View>
@@ -275,7 +277,7 @@ export function DailySummaryModal({
                   {data.topCategory.name}
                 </Text>
                 <Text style={[styles.rowSubtext, { color: colors.textSecondary }]}>
-                  {formatDuration(data.topCategory.time)}
+                  {formatDuration(t, data.topCategory.time)}
                 </Text>
               </View>
             )}

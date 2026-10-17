@@ -15,9 +15,10 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { Colors, GamificationColors, Shadows, InterFonts, FontSize, Palette } from '@/constants/theme';
+import { Colors, GamificationColors, Shadows, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { Icon } from '@/components/icon';
 
 interface LevelBadgeProps {
@@ -44,6 +45,7 @@ export function LevelBadge({
   const ringScale = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
   const glowOpacity = useSharedValue(showGlow ? 0.3 : 0);
+  const pulseGlow = useAmbientMotion(showGlow);
 
   // Size configurations
   const sizeConfig = {
@@ -79,11 +81,10 @@ export function LevelBadge({
         withTiming(0.3, { duration: 600 })
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [isLevelingUp]);
+  }, [isLevelingUp, glowOpacity, ringOpacity, ringScale, scale]);
 
   useEffect(() => {
-    if (showGlow) {
+    if (pulseGlow) {
       glowOpacity.set(withRepeat(
         withSequence(
           withTiming(0.4, { duration: 1500 }),
@@ -96,8 +97,7 @@ export function LevelBadge({
     return () => {
       cancelAnimation(glowOpacity);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [showGlow]);
+  }, [pulseGlow, glowOpacity]);
 
   const badgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -174,7 +174,7 @@ export function LevelBadge({
             styles.levelNumber,
             {
               fontSize: config.font,
-              color: Palette.white,
+              color: colors.onPrimary,
             },
           ]}
         >
@@ -202,83 +202,37 @@ interface AchievementBadgeProps {
   icon: string;
   title: string;
   isUnlocked: boolean;
-  isUnlocking?: boolean;
   rarity?: 'common' | 'rare' | 'epic' | 'legendary';
   size?: 'sm' | 'md' | 'lg';
   style?: ViewStyle;
 }
 
-export function AchievementBadge({
-  icon,
-  title,
-  isUnlocked,
-  isUnlocking = false,
-  rarity = 'common',
-  size = 'md',
-  style,
-}: AchievementBadgeProps) {
+const ACHIEVEMENT_SIZES = {
+  sm: { container: 56, icon: 24, border: 2 },
+  md: { container: 72, icon: 32, border: 3 },
+  lg: { container: 96, icon: 40, border: 4 },
+};
+
+const RARITY_RING = {
+  common: GamificationColors.achievementBronze,
+  rare: GamificationColors.achievementSilver,
+  epic: GamificationColors.achievementGold,
+  legendary: '#9B59B6',
+};
+
+/**
+ * An achievement's medal and title. Static: the Stats screen shows all ~80 of them,
+ * so it uses plain views (the unlock celebration is AchievementUnlock).
+ */
+export function AchievementBadge({ icon, title, isUnlocked, rarity = 'common', size = 'md', style }: AchievementBadgeProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
-  const scale = useSharedValue(1);
-  const rotation = useSharedValue(0);
-  const sparkleOpacity = useSharedValue(0);
-
-  const sizeConfig = {
-    sm: { container: 56, icon: 24, border: 2 },
-    md: { container: 72, icon: 32, border: 3 },
-    lg: { container: 96, icon: 40, border: 4 },
-  };
-
-  const rarityColors = {
-    common: GamificationColors.achievementBronze,
-    rare: GamificationColors.achievementSilver,
-    epic: GamificationColors.achievementGold,
-    legendary: '#9B59B6', // Purple for legendary
-  };
-
-  const config = sizeConfig[size];
-
-  useEffect(() => {
-    if (isUnlocking) {
-      // Unlock animation
-      scale.value = withSequence(
-        withTiming(0, { duration: 100 }),
-        withSpring(1.2, SpringConfig.wobbly),
-        withSpring(1, SpringConfig.default)
-      );
-
-      rotation.value = withSequence(
-        withTiming(-10, { duration: 100 }),
-        withTiming(10, { duration: 100 }),
-        withTiming(-5, { duration: 100 }),
-        withTiming(5, { duration: 100 }),
-        withTiming(0, { duration: 100 })
-      );
-
-      sparkleOpacity.value = withSequence(
-        withTiming(1, { duration: 200 }),
-        withDelay(400, withTiming(0, { duration: 300 }))
-      );
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [isUnlocking]);
-
-  const badgeStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { rotate: `${rotation.value}deg` },
-    ],
-    opacity: isUnlocked ? 1 : 0.4,
-  }));
-
-  const sparkleStyle = useAnimatedStyle(() => ({
-    opacity: sparkleOpacity.value,
-  }));
+  const config = ACHIEVEMENT_SIZES[size];
+  const ring = RARITY_RING[rarity];
 
   return (
     <View style={[styles.achievementContainer, style]}>
-      <Animated.View
+      <View
         style={[
           styles.achievementBadge,
           {
@@ -286,61 +240,21 @@ export function AchievementBadge({
             height: config.container,
             borderRadius: config.container / 2,
             borderWidth: config.border,
-            borderColor: isUnlocked ? rarityColors[rarity] : colors.border,
+            borderColor: isUnlocked ? ring : colors.border,
             backgroundColor: isUnlocked ? colors.card : colors.backgroundSecondary,
           },
           isUnlocked && Shadows.sm,
-          badgeStyle,
         ]}
       >
-        {/* Locked overlay */}
-        {!isUnlocked && (
-          <View style={[styles.lockedOverlay, { borderRadius: config.container / 2 }]}>
-            <Icon
-              name="lock"
-              fill={colors.textMuted}
-              style={{ width: config.icon * 0.6, height: config.icon * 0.6 }}
-            />
-          </View>
-        )}
+        <Icon
+          name={isUnlocked ? icon : 'lock'}
+          fill={isUnlocked ? ring : colors.textMuted}
+          size={isUnlocked ? config.icon : config.icon * 0.6}
+        />
+      </View>
 
-        {/* Icon */}
-        {isUnlocked && (
-          <Icon
-            name={icon}
-            fill={rarityColors[rarity]}
-            style={{ width: config.icon, height: config.icon }}
-          />
-        )}
-
-        {/* Sparkle effects */}
-        <Animated.View style={[styles.sparkles, sparkleStyle]}>
-          {[0, 60, 120, 180, 240, 300].map((angle, i) => (
-            <View
-              key={i}
-              style={[
-                styles.sparkle,
-                {
-                  transform: [
-                    { rotate: `${angle}deg` },
-                    { translateY: -config.container * 0.6 },
-                  ],
-                  backgroundColor: GamificationColors.xp,
-                },
-              ]}
-            />
-          ))}
-        </Animated.View>
-      </Animated.View>
-
-      {/* Title */}
       <Text
-        style={[
-          styles.achievementTitle,
-          {
-            color: isUnlocked ? colors.text : colors.textMuted,
-          },
-        ]}
+        style={[styles.achievementTitle, { color: isUnlocked ? colors.text : colors.textMuted }]}
         numberOfLines={2}
       >
         {title}
@@ -389,23 +303,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  lockedOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sparkles: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sparkle: {
-    position: 'absolute',
-    width: 4,
-    height: 4,
-    borderRadius: 2,
   },
   achievementTitle: {
     fontFamily: InterFonts.medium,

@@ -1,4 +1,5 @@
 import { Datepicker } from '@ui-kitten/components';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -6,8 +7,10 @@ import { TimeField } from '@/components/common/time-field';
 import { Icon } from '@/components/icon';
 import { Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { createDateService } from '@/services/i18n/date-service';
 import { useSettingsStore } from '@/stores';
 import { getDateKey, parseDateKey } from '@/utils/date';
+import { resolveWeekStart } from '@/utils/locale';
 
 interface DueDateFieldsProps {
   /** `yyyy-MM-dd` or null. */
@@ -20,9 +23,16 @@ interface DueDateFieldsProps {
 
 /** Optional due date (clearable) and, once a date is set, an optional due time. */
 export function DueDateFields({ dueDate, dueTime, onChange, label }: DueDateFieldsProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const colors = Colors[useColorScheme() ?? 'light'];
   const use24Hour = useSettingsStore((state) => state.settings.timeFormat) !== '12h';
+  const weekStartSetting = useSettingsStore((state) => state.settings.weekStartsOn);
+  const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const weekStartsOn = resolveWeekStart(weekStartSetting, i18n.language);
+  const dateService = useMemo(
+    () => createDateService(i18n.language, weekStartsOn, dateFormat),
+    [i18n.language, weekStartsOn, dateFormat]
+  );
   const date = dueDate ? parseDateKey(dueDate) : null;
   const today = parseDateKey(getDateKey());
 
@@ -33,6 +43,7 @@ export function DueDateFields({ dueDate, dueTime, onChange, label }: DueDateFiel
           label={label}
           placeholder={t('todo.create.dueDatePlaceholder')}
           date={date}
+          dateService={dateService}
           onSelect={(selected) => {
             if (selected) onChange({ dueDate: getDateKey(selected), dueTime });
           }}

@@ -1,5 +1,7 @@
+import { format } from 'date-fns';
 import type { AppSettings } from '@/types';
 import { formatDate, getDateKey, parseDateKey } from './date';
+import { getDateLocale } from './locale';
 
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -67,23 +69,27 @@ export function isPastDue(
   return dueAt !== null && at.getTime() > dueAt.getTime();
 }
 
-/** "14/10/2026" or "14/10/2026 09:30" (or "9:30 AM") following the user's formats. */
+/**
+ * "14/10/2026" or "14/10/2026 09:30" (or "9:30 PM" / "9:30 ÖS") following the user's
+ * formats and the app language.
+ */
 export function formatDue(
   dueDate: string | null | undefined,
   dueTime: string | null | undefined,
   dateFormat: AppSettings['dateFormat'],
-  timeFormat: AppSettings['timeFormat'] = '24h'
+  timeFormat: AppSettings['timeFormat'] = '24h',
+  language?: string
 ): string {
   const key = getDueDateKey(dueDate);
   if (!key) return '';
   const day = formatDate(parseDateKey(key), dateFormat);
   const time = normalizeDueTime(dueTime);
-  return time ? `${day} ${formatTime(time, timeFormat)}` : day;
+  return time ? `${day} ${formatTime(time, timeFormat, language)}` : day;
 }
 
-export function formatTime(time: string, timeFormat: AppSettings['timeFormat'] = '24h'): string {
+/** An `HH:mm` time as shown to the user: unchanged for 24h, "9:30 PM" (or "9:30 ÖS") for 12h. */
+export function formatTime(time: string, timeFormat: AppSettings['timeFormat'] = '24h', language?: string): string {
   if (timeFormat !== '12h') return time;
   const [hours, minutes] = time.split(':').map(Number);
-  const suffix = hours < 12 ? 'AM' : 'PM';
-  return `${hours % 12 === 0 ? 12 : hours % 12}:${String(minutes).padStart(2, '0')} ${suffix}`;
+  return format(new Date(2000, 0, 1, hours, minutes), 'h:mm a', { locale: getDateLocale(language) });
 }

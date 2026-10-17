@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { isSyncConfigured } from '@/services/supabase/client';
 import { useSettingsStore } from '@/stores/settings-store';
 
@@ -17,10 +18,12 @@ import { useSettingsStore } from '@/stores/settings-store';
  * the default `hasCompletedOnboarding: false` would route a returning user to onboarding.
  */
 export function RootStack() {
+  const { t } = useTranslation();
   const hasCompletedOnboarding = useSettingsStore((state) => state.settings.hasCompletedOnboarding);
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    // 'minimal': the iOS back button shows only the chevron, never a route name like "(tabs)".
+    <Stack screenOptions={{ headerShown: false, headerBackButtonDisplayMode: 'minimal' }}>
       {/* Explicit redirects: the default fallback ("/(onboarding)") has no index route. */}
       <Stack.Protected guard={!hasCompletedOnboarding} redirectTo="/">
         <Stack.Screen name="(onboarding)" />
@@ -28,20 +31,8 @@ export function RootStack() {
 
       <Stack.Protected guard={hasCompletedOnboarding} redirectTo="/welcome">
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="todo/[id]"
-          options={{
-            headerShown: true,
-            title: 'Todo Details',
-          }}
-        />
-        <Stack.Screen
-          name="todo/create"
-          options={{
-            headerShown: true,
-            title: 'New Todo',
-          }}
-        />
+        <Stack.Screen name="todo/[id]" options={{ headerShown: true, title: t('todo.detail.title') }} />
+        <Stack.Screen name="todo/create" options={{ headerShown: true, title: t('todo.create.title') }} />
         <Stack.Screen name="views/kanban" options={{ headerShown: false }} />
         <Stack.Screen name="views/calendar" options={{ headerShown: false }} />
         <Stack.Screen name="views/timeline" options={{ headerShown: false }} />

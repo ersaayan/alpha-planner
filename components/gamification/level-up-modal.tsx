@@ -2,7 +2,7 @@
  * LevelUpModal - Celebration modal for level advancement
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Modal, useWindowDimensions, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -13,7 +13,6 @@ import Animated, {
   withDelay,
   withRepeat,
   Easing,
-  runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
@@ -21,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { Icon } from '@/components/icon';
 import { LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
@@ -48,6 +48,7 @@ export function LevelUpModal({
   const modalOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(30);
   const confettiRotation = useSharedValue(0);
+  const ambient = useAmbientMotion();
 
   useEffect(() => {
     if (visible) {
@@ -67,12 +68,14 @@ export function LevelUpModal({
         withSpring(0, SpringConfig.bouncy)
       );
 
-      // Confetti rotation
-      confettiRotation.value = withRepeat(
-        withTiming(360, { duration: 3000, easing: Easing.linear }),
-        -1,
-        false
-      );
+      // Confetti rotation (decorative: not with Reduce Motion)
+      if (ambient) {
+        confettiRotation.value = withRepeat(
+          withTiming(360, { duration: 3000, easing: Easing.linear }),
+          -1,
+          false
+        );
+      }
     } else {
       // Reset animations
       backdropOpacity.value = 0;
@@ -84,8 +87,7 @@ export function LevelUpModal({
     return () => {
       cancelAnimation(confettiRotation);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible]);
+  }, [visible, ambient, backdropOpacity, confettiRotation, modalOpacity, modalScale, titleTranslateY]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
@@ -105,14 +107,19 @@ export function LevelUpModal({
     transform: [{ rotate: `${confettiRotation.value}deg` }],
   }));
 
+  const closing = useRef(false);
   const handleClose = () => {
+    if (closing.current) return;
+    closing.current = true;
     backdropOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
     modalScale.set(withTiming(0.8, { duration: AnimationDuration.fast }));
-    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
-      if (finished) {
-        runOnJS(onClose)();
-      }
-    }));
+    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
+    // Closed by a timer after the exit animation: completion callbacks do not fire on
+    // every platform (the button did nothing on the web).
+    setTimeout(() => {
+      closing.current = false;
+      onClose();
+    }, AnimationDuration.fast + 50);
   };
 
   if (!visible) return null;
@@ -122,7 +129,12 @@ export function LevelUpModal({
       <View style={styles.container}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
         </Animated.View>
 
         {/* Confetti particles */}
@@ -196,7 +208,7 @@ export function LevelUpModal({
             <Text style={[styles.congratsText, { color: colors.textSecondary }]}>
               {t('gamification.congratulations')}
             </Text>
-            <Text style={[styles.levelUpText, { color: GamificationColors.xp }]}>
+            <Text style={[styles.levelUpText, { color: colors.xp }]}>
               {t('gamification.levelUp')}
             </Text>
             <Text style={[styles.levelTitle, { color: colors.text }]}>

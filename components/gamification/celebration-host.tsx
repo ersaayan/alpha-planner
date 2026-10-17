@@ -38,7 +38,6 @@ export function CelebrationHost() {
   const summary = useMemo(
     () => (summaryDate ? { date: summaryDate, data: getDailySummaryData(summaryDate) } : null),
     // Computed once per day shown; it must not change while the user reads it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [summaryDate]
   );
   const hasCompletedOnboarding = useSettingsStore((state) => state.settings.hasCompletedOnboarding);

@@ -16,6 +16,7 @@ import { Platform } from 'react-native';
 
 import i18n from '@/services/i18n/i18n-config';
 import type { PomodoroPhase, PomodoroSettings, PomodoroTimerState } from '@/types';
+import { getDateLocale } from '@/utils/locale';
 import {
   ALERT_CHAIN_LIMIT,
   formatClock,
@@ -230,7 +231,7 @@ function phaseLabel(phase: PomodoroPhase): string {
 }
 
 function clockTime(ms: number, use24HourClock: boolean): string {
-  return format(new Date(ms), use24HourClock ? 'HH:mm' : 'h:mm a');
+  return format(new Date(ms), use24HourClock ? 'HH:mm' : 'h:mm a', { locale: getDateLocale(i18n.language) });
 }
 
 function phaseEndText(alert: PlannedAlert, snapshot: AlertSnapshot): { title: string; body: string } {

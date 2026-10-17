@@ -156,6 +156,7 @@ describe('upgrading from the previous release', () => {
     expect(settings.settings.language).toBe('tr');
     // Fields the old data did not have get their defaults
     expect(settings.settings.timeFormat).toBe('24h');
+    expect(settings.settings.collapsedDashboardCards).toEqual(['season']);
     expect(settings.pomodoroSettings.focusDuration).toBe(1800);
     expect(settings.pomodoroSettings.shortBreakDuration).toBeGreaterThan(0);
 
@@ -180,6 +181,27 @@ describe('upgrading from the previous release', () => {
     expect(stores.quests.getState().quests).toHaveLength(1);
     expect(stores.goals.getState().goals).toHaveLength(1);
     expect(stores.auth.getState().lastUserId).toBe('user-1');
+  });
+
+  it('settings v2 (the wave-2 shape) gains the Dashboard card setting and keeps the rest', async () => {
+    const v2Settings = {
+      version: 2,
+      state: {
+        settings: { hasCompletedOnboarding: true, theme: 'light', weekStartsOn: 0, dateFormat: 'YYYY-MM-DD', language: 'en' },
+        pomodoroSettings: { focusDuration: 3000 },
+      },
+    };
+    const { stores, whenStoresHydrated, disk } = coldStart({ ...PREVIOUS_RELEASE_STORAGE, 'settings-storage': v2Settings });
+    await whenStoresHydrated();
+
+    const { settings, pomodoroSettings } = stores.settings.getState();
+    expect(settings).toMatchObject({ ...v2Settings.state.settings, collapsedDashboardCards: ['season'] });
+    expect(pomodoroSettings.focusDuration).toBe(3000);
+
+    stores.settings.getState().toggleDashboardCard('goals');
+    await Promise.resolve();
+    expect(stored(disk, 'settings-storage').version).toBe(3);
+    expect(stored(disk, 'settings-storage').state.settings.collapsedDashboardCards).toEqual(['season', 'goals']);
   });
 
   it('removes the duplicated auth tokens and ownerless sync operations from disk', async () => {

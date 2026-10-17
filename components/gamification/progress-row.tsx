@@ -1,8 +1,9 @@
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface ProgressRowProps {
@@ -20,10 +21,14 @@ interface ProgressRowProps {
 /** One quest or goal: check mark, text, a thin progress bar and its reward. */
 export function ProgressRow({ title, description, valueLabel, progress, done, rewardLabel, testID }: ProgressRowProps) {
   const colors = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
+  const spoken = [done ? t('common.completed') : null, title, description, valueLabel, rewardLabel]
+    .filter(Boolean)
+    .join('. ');
   const percent = `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%` as const;
 
   return (
-    <View style={styles.row} testID={testID} accessible accessibilityLabel={`${title}. ${description}. ${valueLabel}`}>
+    <View style={styles.row} testID={testID} accessible accessibilityLabel={spoken}>
       <Icon
         name={done ? 'checkmark-circle-2' : 'radio-button-off'}
         fill={done ? colors.success : colors.textMuted}
@@ -35,12 +40,12 @@ export function ProgressRow({ title, description, valueLabel, progress, done, re
             {title}
           </Text>
           {rewardLabel ? (
-            <Text style={[styles.reward, { color: GamificationColors.levelBadge }]}>{rewardLabel}</Text>
+            <Text style={[styles.reward, { color: colors.xp }]}>{rewardLabel}</Text>
           ) : null}
         </View>
         <Text style={[styles.description, { color: colors.textMuted }]}>{description}</Text>
         <View style={styles.barRow}>
-          <View style={[styles.track, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={[styles.track, { backgroundColor: colors.border }]}>
             <View style={[styles.fill, { width: percent, backgroundColor: done ? colors.success : colors.primary }]} />
           </View>
           <Text style={[styles.value, { color: colors.textSecondary }]}>{valueLabel}</Text>

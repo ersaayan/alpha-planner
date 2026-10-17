@@ -169,21 +169,6 @@ export const AnimationPresets = {
   },
 } as const;
 
-// Gesture thresholds
-export const GestureThresholds = {
-  // Swipe distance to trigger action
-  swipeThreshold: 80,
-
-  // Velocity threshold for quick swipes
-  swipeVelocity: 500,
-
-  // Long press duration
-  longPressDuration: 500,
-
-  // Pull to refresh distance
-  pullToRefresh: 100,
-} as const;
-
 // Shared value helper types
 export type AnimationConfig = {
   duration?: number;

@@ -11,8 +11,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontSize, InterFonts, Shadows, Spacing } from '@/constants/theme';
-import { TAB_BAR_BOTTOM_PADDING } from '@/constants/defaults';
+import { PRIORITY_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
 import { formatDue, isPastDue } from '@/utils/todo-dates';
@@ -32,15 +33,16 @@ const STATUS_TABS: { labelKey: string; value: TodoStatus | 'all' }[] = [
   { labelKey: 'todos.statusDone', value: 'completed' },
 ];
 
-const EMPTY_STATUS_KEYS: Record<string, string> = {
-  pending: 'todos.pending',
-  in_progress: 'todos.inProgress',
-  completed: 'todos.completed',
+const EMPTY_STATUS_KEYS: Partial<Record<TodoStatus, string>> = {
+  pending: 'todos.emptyPending',
+  in_progress: 'todos.emptyInProgress',
+  completed: 'todos.emptyCompleted',
 };
 
 export default function TodosScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const bottomInset = useTabBarInset();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -81,19 +83,6 @@ export default function TodosScreen() {
     return categoryName(t, categories.find((c) => c.id === categoryId));
   }, [categories, t]);
 
-  const getPriorityColor = useCallback((priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return colors.priorityUrgent;
-      case 'high':
-        return colors.priorityHigh;
-      case 'medium':
-        return colors.priorityMedium;
-      default:
-        return colors.priorityLow;
-    }
-  }, [colors]);
-
   const handleTodoPress = useCallback((todoId: string) => {
     router.push(`/todo/${todoId}`);
   }, [router]);
@@ -107,90 +96,97 @@ export default function TodosScreen() {
         variant="default"
         style={styles.todoCard}
         contentStyle={styles.todoCardContent}
-        accentColor={getPriorityColor(item.priority)}
+        accentColor={priorityColor(item.priority, colors)}
         accentPosition="left"
-        onPress={() => handleTodoPress(item.id)}
       >
         <View style={styles.todoItem}>
-          {/* Checkbox */}
+          {/* Checkbox: its own control, next to (not inside) the row that opens the task */}
           <AnimatedCheckbox
             checked={item.status === 'completed'}
             onToggle={() => toggleTodoStatus(item.id)}
             size={22}
             color={colors.primary}
+            accessibilityLabel={item.title}
+            accessibilityHint={t(item.status === 'completed' ? 'todo.form.markIncompleteHint' : 'todo.form.markCompleteHint')}
           />
 
-          {/* Content */}
-          <View style={styles.todoContent}>
-            <Text
-              style={[
-                styles.todoTitle,
-                { color: colors.text },
-                item.status === 'completed' && styles.completedText,
-              ]}
-              numberOfLines={1}
-            >
-              {item.title}
-            </Text>
+          {/* Content: opens the task */}
+          <Pressable
+            style={({ pressed }) => [styles.todoContent, pressed && styles.pressed]}
+            onPress={() => handleTodoPress(item.id)}
+            accessibilityRole="button"
+            accessibilityHint={t('todos.openTaskHint')}
+          >
+            <View style={styles.todoText}>
+              <Text
+                style={[
+                  styles.todoTitle,
+                  { color: colors.text },
+                  item.status === 'completed' && styles.completedText,
+                ]}
+                numberOfLines={1}
+              >
+                {item.title}
+              </Text>
 
-            <View style={styles.todoMeta}>
-              {/* Category chip */}
-              {item.categoryId && (
-                <View
-                  style={[
-                    styles.categoryChip,
-                    { backgroundColor: getCategoryColor(item.categoryId) + '20' },
-                  ]}
-                >
+              <View style={styles.todoMeta}>
+                {/* Category chip */}
+                {item.categoryId && (
                   <View
                     style={[
-                      styles.categoryDot,
-                      { backgroundColor: getCategoryColor(item.categoryId) },
-                    ]}
-                  />
-                  <Text style={[styles.categoryText, { color: getCategoryColor(item.categoryId) }]}>
-                    {getCategoryName(item.categoryId) ?? ''}
-                  </Text>
-                </View>
-              )}
-
-              {/* Due date */}
-              {item.dueDate && (
-                <View style={styles.dueDateContainer}>
-                  <Icon name={item.dueTime ? 'clock' : 'calendar'} fill={colors.textMuted} style={styles.metaIcon} />
-                  <Text
-                    style={[
-                      styles.dueDateText,
-                      {
-                        color:
-                          (item.status === 'pending' || item.status === 'in_progress') && isPastDue(item.dueDate, new Date(), item.dueTime)
-                            ? colors.error
-                            : colors.textMuted,
-                      },
+                      styles.categoryChip,
+                      { backgroundColor: getCategoryColor(item.categoryId) + '20' },
                     ]}
                   >
-                    {formatDue(item.dueDate, item.dueTime, dateFormat, timeFormat)}
-                  </Text>
-                </View>
-              )}
+                    <View
+                      style={[
+                        styles.categoryDot,
+                        { backgroundColor: getCategoryColor(item.categoryId) },
+                      ]}
+                    />
+                    <Text style={[styles.categoryText, { color: colors.text }]}>
+                      {getCategoryName(item.categoryId) ?? ''}
+                    </Text>
+                  </View>
+                )}
 
-              {/* Subtask count */}
-              {item.subtasks.length > 0 && (
-                <View style={styles.subtaskContainer}>
-                  <Icon name="layers" fill={colors.textMuted} style={styles.metaIcon} />
-                  <Text style={[styles.subtaskText, { color: colors.textMuted }]}>
-                    {item.subtasks.filter((s) => s.isCompleted).length}/{item.subtasks.length}
-                  </Text>
-                </View>
-              )}
+                {/* Due date */}
+                {item.dueDate && (
+                  <View style={styles.dueDateContainer}>
+                    <Icon name={item.dueTime ? 'clock' : 'calendar'} fill={colors.textMuted} style={styles.metaIcon} />
+                    <Text
+                      style={[
+                        styles.dueDateText,
+                        {
+                          color:
+                            (item.status === 'pending' || item.status === 'in_progress') && isPastDue(item.dueDate, new Date(), item.dueTime)
+                              ? colors.error
+                              : colors.textMuted,
+                        },
+                      ]}
+                    >
+                      {formatDue(item.dueDate, item.dueTime, dateFormat, timeFormat, i18n.language)}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Subtask count */}
+                {item.subtasks.length > 0 && (
+                  <View style={styles.subtaskContainer}>
+                    <Icon name="layers" fill={colors.textMuted} style={styles.metaIcon} />
+                    <Text style={[styles.subtaskText, { color: colors.textMuted }]}>
+                      {item.subtasks.filter((s) => s.isCompleted).length}/{item.subtasks.length}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
-
-          <Icon name="chevron-right" fill={colors.textMuted} style={styles.chevron} />
+            <Icon name="chevron-right" fill={colors.textMuted} style={styles.chevron} />
+          </Pressable>
         </View>
       </AnimatedCard>
     </Animated.View>
-  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, getPriorityColor, handleTodoPress, dateFormat, timeFormat]);
+  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, handleTodoPress, dateFormat, timeFormat, i18n.language, t]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -202,6 +198,7 @@ export default function TodosScreen() {
           <View style={styles.viewToggle}>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
+              hitSlop={6}
               onPress={() => router.push('/views/kanban')}
               accessibilityRole="button"
               accessibilityLabel={t('todos.kanbanView')}
@@ -210,6 +207,7 @@ export default function TodosScreen() {
             </Pressable>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
+              hitSlop={6}
               onPress={() => router.push('/views/calendar')}
               accessibilityRole="button"
               accessibilityLabel={t('todos.calendarView')}
@@ -218,6 +216,7 @@ export default function TodosScreen() {
             </Pressable>
             <Pressable
               style={[styles.viewButton, { backgroundColor: colors.card }]}
+              hitSlop={6}
               onPress={() => router.push('/views/timeline')}
               accessibilityRole="button"
               accessibilityLabel={t('todos.timelineView')}
@@ -247,13 +246,13 @@ export default function TodosScreen() {
           accessibilityLabel={t('common.search')}
         />
         {searchQuery.length > 0 && (
-          <Pressable onPress={() => setSearchQuery('')} accessibilityRole="button" accessibilityLabel={t('todos.clearSearch')}>
+          <Pressable onPress={() => setSearchQuery('')} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('todos.clearSearch')}>
             <Icon name="close-circle" fill={colors.textMuted} style={styles.clearIcon} />
           </Pressable>
         )}
         <Pressable
           onPress={() => setFilterVisible(true)}
-          hitSlop={8}
+          hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={t('todos.filterTitle')}
           testID="todo-filter-button"
@@ -267,7 +266,7 @@ export default function TodosScreen() {
           <Text style={[styles.activeFiltersText, { color: colors.textSecondary }]} numberOfLines={1}>
             {[
               filter.categoryId ? getCategoryName(filter.categoryId) : null,
-              ...(filter.priority ?? []).map((p) => t(`todo.create.priority${p.charAt(0).toUpperCase()}${p.slice(1)}`)),
+              ...(filter.priority ?? []).map((p) => t(PRIORITY_LABEL_KEYS[p])),
               sortBy !== 'manual' ? t(`todos.sort.${sortBy}`) : null,
             ]
               .filter(Boolean)
@@ -278,6 +277,7 @@ export default function TodosScreen() {
               clearFilter();
               setSortBy('manual');
             }}
+            hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel={t('todos.clearFilters')}
           >
@@ -289,7 +289,7 @@ export default function TodosScreen() {
 
       {/* Status Tabs - Pill style */}
       <View style={styles.tabsContainer}>
-        <View style={[styles.tabsBackground, { backgroundColor: colors.backgroundSecondary }]}>
+        <View style={[styles.tabsBackground, { backgroundColor: colors.backgroundSecondary }]} accessibilityRole="tablist">
           {STATUS_TABS.map((tab) => {
             const isActive = activeTab === tab.value;
             return (
@@ -300,6 +300,8 @@ export default function TodosScreen() {
                   isActive && [styles.activeTab, { backgroundColor: colors.card }],
                 ]}
                 onPress={() => setActiveTab(tab.value)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isActive }}
               >
                 <Text
                   style={[
@@ -324,7 +326,7 @@ export default function TodosScreen() {
             searchQuery || filtersActive
               ? t('todos.emptySearch')
               : activeTab !== 'all'
-                ? t('todos.emptyFiltered', { status: t(EMPTY_STATUS_KEYS[activeTab] ?? 'todos.pending') })
+                ? t(EMPTY_STATUS_KEYS[activeTab] ?? 'todos.emptyPending')
                 : t('todos.emptyDefault')
           }
           action={
@@ -343,7 +345,7 @@ export default function TodosScreen() {
         <FlatList
           data={filteredTodos}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomInset }]}
           renderItem={renderTodoItem}
           showsVerticalScrollIndicator={false}
         />
@@ -434,6 +436,8 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    minHeight: 40,
+    justifyContent: 'center',
     paddingVertical: Spacing.sm,
     alignItems: 'center',
     borderRadius: BorderRadius.md,
@@ -447,7 +451,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: TAB_BAR_BOTTOM_PADDING,
   },
   todoCard: {
     marginBottom: Spacing.sm,
@@ -463,7 +466,15 @@ const styles = StyleSheet.create({
   },
   todoContent: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginLeft: Spacing.md,
+  },
+  todoText: {
+    flex: 1,
+  },
+  pressed: {
+    opacity: 0.6,
   },
   todoTitle: {
     fontFamily: InterFonts.medium,

@@ -11,6 +11,3 @@ export const DEFAULT_CATEGORY_IDS = {
   shopping: 'dc000001-0000-0000-0000-000000000005',
 } as const;
 
-// Tab bar layout constant
-export const TAB_BAR_HEIGHT = 85;
-export const TAB_BAR_BOTTOM_PADDING = 100;

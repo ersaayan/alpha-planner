@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18n, { changeLanguage as switchLanguage, use as addPlugin } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'expo-localization';
 
@@ -18,8 +18,7 @@ export function resolveLanguage(setting: LanguageSetting | undefined): 'tr' | 'e
 
 // Starts in the device language; the saved setting is applied once the settings
 // store has hydrated (see hooks/use-app-bootstrap.ts).
-i18n
-  .use(initReactI18next)
+addPlugin(initReactI18next)
   .init({
     resources: {
       tr: { translation: tr },
@@ -41,6 +40,6 @@ export default i18n;
 export function changeLanguage(lang: LanguageSetting): void {
   const resolved = resolveLanguage(lang);
   if (i18n.language !== resolved) {
-    void i18n.changeLanguage(resolved);
+    void switchLanguage(resolved);
   }
 }

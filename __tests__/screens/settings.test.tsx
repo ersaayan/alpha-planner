@@ -22,14 +22,13 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }), useLocalSearchParams: () => ({}) }));
 
 jest.mock('@/components/animated/animated-badge', () => ({ LevelBadge: () => null, AchievementBadge: () => null }));
-jest.mock('@/components/animated/animated-button', () => ({ AnimatedButton: ({ title, onPress }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={onPress}><Text>{title}</Text></Pressable>; }, FAB: () => null }));
+jest.mock('@/components/animated/animated-button', () => ({ AnimatedButton: ({ title, onPress }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={onPress}><Text>{title}</Text></Pressable>; } }));
 jest.mock('@/components/animated/animated-card', () => ({ AnimatedCard: ({ children }: any) => { const { View } = require('react-native'); return <View>{children}</View>; } }));
-jest.mock('@/components/animated/animated-counter', () => ({ AnimatedCounter: ({ value }: any) => { const { Text } = require('react-native'); return <Text>{value}</Text>; }, XPCounter: () => null, StreakCounter: () => null }));
+jest.mock('@/components/animated/animated-counter', () => ({ AnimatedCounter: ({ value }: any) => { const { Text } = require('react-native'); return <Text>{value}</Text>; } }));
 jest.mock('@/components/animated/animated-progress-bar', () => ({ AnimatedProgressBar: () => null }));
 jest.mock('@/components/animated/animated-checkbox', () => ({ AnimatedCheckbox: ({ checked, onToggle }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={() => onToggle?.(!checked)}><Text>{checked ? '☑' : '☐'}</Text></Pressable>; } }));
-jest.mock('@/components/common', () => ({ SectionHeader: ({ title }: any) => { const { Text } = require('react-native'); return <Text>{title}</Text>; }, EmptyState: ({ title }: any) => { const { Text } = require('react-native'); return <Text>{title}</Text>; }, SyncStatus: () => null }));
+jest.mock('@/components/common', () => ({ SectionHeader: ({ title }: any) => { const { Text } = require('react-native'); return <Text>{title}</Text>; }, EmptyState: ({ title }: any) => { const { Text } = require('react-native'); return <Text>{title}</Text>; } }));
 jest.mock('@/components/charts', () => ({ WeeklyChart: () => null, DistributionChart: () => null }));
-jest.mock('@/components/dashboard', () => ({ DailySummaryModal: () => null }));
 jest.mock('@/services/gamification/daily-summary', () => ({ shouldShowSummary: () => false, getDailySummaryData: jest.fn(), getMotivationalMessage: jest.fn(), markSummaryShown: jest.fn() }));
 jest.mock('@/components/pomodoro', () => ({ CircularProgress: ({ children }: any) => { const { View } = require('react-native'); return <View>{children}</View>; } }));
 
@@ -104,9 +103,18 @@ describe('Settings Screen', () => {
   it('renders Notifications section', async () => {
     await render(<SettingsScreen />);
     expect(screen.getByText('Notifications')).toBeTruthy();
-    expect(screen.getByText('Enable Notifications')).toBeTruthy();
-    expect(screen.getByText('Sound')).toBeTruthy();
-    expect(screen.getByText('Vibration')).toBeTruthy();
+    // The switches carry the row titles (the visible text is not read twice).
+    expect(screen.getByRole('switch', { name: 'Enable Notifications' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Sound' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Vibration' })).toBeTruthy();
+  });
+
+  it('gives every switch, slider and option an accessible name or checked state', async () => {
+    await render(<SettingsScreen />);
+    for (const toggle of screen.getAllByRole('switch')) {
+      expect(toggle.props.accessibilityLabel).toBeTruthy();
+    }
+    expect(screen.getByRole('radio', { name: 'Dark' }).props.accessibilityState).toEqual({ checked: false });
   });
 
   it('renders Appearance section', async () => {

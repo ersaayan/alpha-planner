@@ -1,6 +1,7 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Text } from '@ui-kitten/components';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
@@ -33,6 +34,7 @@ function dateFromTime(time: string | null, fallback: string): Date {
  */
 export function TimeField({ label, value, onChange, use24Hour, placeholder, clearLabel, defaultTime = '09:00' }: TimeFieldProps) {
   const colors = Colors[useColorScheme() ?? 'light'];
+  const { i18n } = useTranslation();
   const [draft, setDraft] = useState(value ?? '');
 
   const openAndroidPicker = () => {
@@ -88,7 +90,7 @@ export function TimeField({ label, value, onChange, use24Hour, placeholder, clea
       >
         <Icon name="clock-outline" fill={colors.textMuted} style={styles.icon} />
         <Text style={[styles.value, { color: value ? colors.text : colors.textMuted }]}>
-          {value ? formatTime(value, use24Hour ? '24h' : '12h') : placeholder}
+          {value ? formatTime(value, use24Hour ? '24h' : '12h', i18n.language) : placeholder}
         </Text>
       </Pressable>
     );

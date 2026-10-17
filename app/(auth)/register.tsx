@@ -2,7 +2,7 @@ import { Icon } from '@/components/icon';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCloseAuth, useFinishSignIn } from '@/hooks/use-finish-sign-in';
-import { getAuthErrorKey, getValidationErrorKey } from '@/services/supabase/auth-errors';
+import { getAuthErrorKey } from '@/services/supabase/auth-errors';
 import { useAuthStore } from '@/stores/auth-store';
 import { validateDisplayName, validateEmail, validatePassword } from '@/utils/validators';
 import { Input, Text } from '@ui-kitten/components';
@@ -12,13 +12,11 @@ import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,11 +39,11 @@ export default function RegisterScreen() {
     const trimmedName = displayName.trim();
     const trimmedEmail = email.trim();
     const nameError = validateDisplayName(trimmedName);
-    if (nameError) { Alert.alert(t('common.error'), t(getValidationErrorKey(nameError))); return; }
+    if (nameError) { Alert.alert(t('common.error'), t(nameError)); return; }
     const emailError = validateEmail(trimmedEmail);
-    if (emailError) { Alert.alert(t('common.error'), t(getValidationErrorKey(emailError))); return; }
+    if (emailError) { Alert.alert(t('common.error'), t(emailError)); return; }
     const passwordError = validatePassword(password);
-    if (passwordError) { Alert.alert(t('common.error'), t(getValidationErrorKey(passwordError))); return; }
+    if (passwordError) { Alert.alert(t('common.error'), t(passwordError)); return; }
 
     let result;
     try {
@@ -65,98 +63,98 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAwareScrollView
+      style={{ backgroundColor: colors.background }}
+      bottomOffset={Spacing.lg}
+      contentContainerStyle={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top + Spacing.xxxl,
+          paddingBottom: insets.bottom + Spacing.xl,
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            paddingTop: insets.top + Spacing.xxxl,
-            paddingBottom: insets.bottom + Spacing.xl,
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.header}>
-          <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-            <Icon name="leaf-outline" fill="#fff" size={32} />
-          </View>
-          <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
-            {t('auth.joinTitle')}
+      <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.header}>
+        <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
+          <Icon name="leaf-outline" fill={colors.onPrimary} size={32} />
+        </View>
+        <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
+          {t('auth.joinTitle')}
+        </Text>
+        <Text category="s1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
+          {t('auth.joinSubtitle')}
+        </Text>
+      </Animated.View>
+
+      <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.form}>
+        <Input
+          label={t('auth.name')}
+          placeholder={t('auth.namePlaceholder')}
+          value={displayName}
+          onChangeText={setDisplayName}
+          autoCapitalize="words"
+          autoComplete="name"
+          style={[styles.input, { backgroundColor: colors.card }]}
+          textStyle={{ color: colors.text }}
+        />
+        <Input
+          label={t('auth.email')}
+          placeholder={t('auth.emailPlaceholder')}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          style={[styles.input, { backgroundColor: colors.card }]}
+          textStyle={{ color: colors.text }}
+        />
+        <Input
+          label={t('auth.password')}
+          placeholder={t('auth.passwordPlaceholder')}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="new-password"
+          style={[styles.input, { backgroundColor: colors.card }]}
+          textStyle={{ color: colors.text }}
+        />
+
+        <Pressable
+          onPress={handleSignUp}
+          disabled={isLoading}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isLoading, busy: isLoading }}
+          style={[
+            styles.button,
+            { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 },
+          ]}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={colors.onPrimary} />
+          ) : (
+            <Text category="s1" style={{ color: colors.onPrimary }}>{t('auth.createAccount')}</Text>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={() => router.replace('/(auth)/login' as any)}
+          accessibilityRole="button"
+          style={styles.linkButton}
+        >
+          <Text category="c1" style={{ color: colors.primary }}>
+            {t('auth.hasAccount')}
           </Text>
-          <Text category="s1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-            {t('auth.joinSubtitle')}
+        </Pressable>
+
+        <Pressable onPress={closeAuth} style={styles.linkButton} accessibilityRole="button">
+          <Text category="c1" style={{ color: colors.textSecondary }}>
+            {t('auth.notNow')}
           </Text>
-        </Animated.View>
-
-        <Animated.View entering={FadeInUp.delay(400).duration(600)} style={styles.form}>
-          <Input
-            label={t('auth.name')}
-            placeholder={t('auth.namePlaceholder')}
-            value={displayName}
-            onChangeText={setDisplayName}
-            autoCapitalize="words"
-            autoComplete="name"
-            style={[styles.input, { backgroundColor: colors.card }]}
-            textStyle={{ color: colors.text }}
-          />
-          <Input
-            label={t('auth.email')}
-            placeholder={t('auth.emailPlaceholder')}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            style={[styles.input, { backgroundColor: colors.card }]}
-            textStyle={{ color: colors.text }}
-          />
-          <Input
-            label={t('auth.password')}
-            placeholder={t('auth.passwordPlaceholder')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="new-password"
-            style={[styles.input, { backgroundColor: colors.card }]}
-            textStyle={{ color: colors.text }}
-          />
-
-          <Pressable
-            onPress={handleSignUp}
-            disabled={isLoading}
-            style={[
-              styles.button,
-              { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 },
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text category="s1" style={{ color: '#fff' }}>{t('auth.createAccount')}</Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            onPress={() => router.replace('/(auth)/login' as any)}
-            style={styles.linkButton}
-          >
-            <Text category="c1" style={{ color: colors.primary }}>
-              {t('auth.hasAccount')}
-            </Text>
-          </Pressable>
-
-          <Pressable onPress={closeAuth} style={styles.linkButton} accessibilityRole="button">
-            <Text category="c1" style={{ color: colors.textSecondary }}>
-              {t('auth.notNow')}
-            </Text>
-          </Pressable>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </Pressable>
+      </Animated.View>
+    </KeyboardAwareScrollView>
   );
 }
 

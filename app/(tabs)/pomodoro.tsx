@@ -5,6 +5,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useIsFocused } from "expo-router";
 import { BottomTabBarHeightContext } from "expo-router/js-tabs";
 import { useContext, useEffect, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   AccessibilityInfo,
@@ -50,11 +51,26 @@ import {
   useSettingsStore,
   useTodoStore,
 } from "@/stores";
+import type { PomodoroPhase } from "@/types";
 import { formatClock } from "@/utils/pomodoro-helpers";
 
 const KEEP_AWAKE_TAG = "pomodoro-timer";
 const MIN_CIRCLE = 150;
 const MAX_CIRCLE = 320;
+
+/** The phase's name ("Focus Time", "Short Break", …). */
+function phaseLabel(t: TFunction, phase: PomodoroPhase): string {
+  switch (phase) {
+    case "focus":
+      return t("pomodoro.focusTime");
+    case "short_break":
+      return t("pomodoro.shortBreak");
+    case "long_break":
+      return t("pomodoro.longBreak");
+    default:
+      return t("pomodoro.readyToFocus");
+  }
+}
 
 // Ask for notification permission at most once per app session from the Start button.
 let askedForPermissionThisSession = false;
@@ -74,7 +90,7 @@ function confirmAsync(title: string, message: string, cancel: string, ok: string
 }
 
 export default function PomodoroScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useContext(BottomTabBarHeightContext);
   const colorScheme = useColorScheme();
@@ -123,19 +139,6 @@ export default function PomodoroScreen() {
     };
   }, [keepScreenAwake, isFocused, isRunning]);
 
-  function phaseLabel(phase: typeof timerPhase) {
-    switch (phase) {
-      case "focus":
-        return t("pomodoro.focusTime");
-      case "short_break":
-        return t("pomodoro.shortBreak");
-      case "long_break":
-        return t("pomodoro.longBreak");
-      default:
-        return t("pomodoro.readyToFocus");
-    }
-  }
-
   const sessionDotScale = useSharedValue(1);
 
   // Announce phase changes for screen readers and bounce the current session dot.
@@ -145,7 +148,7 @@ export default function PomodoroScreen() {
     const completedPhase = prevPhaseRef.current;
     if (completedPhase !== timerPhase && prevTimerStateRef.current === "running") {
       AccessibilityInfo.announceForAccessibility(
-        t("pomodoro.phaseComplete", { phase: phaseLabel(completedPhase) }),
+        t("pomodoro.phaseComplete", { phase: phaseLabel(t, completedPhase) }),
       );
       sessionDotScale.set(
         withSequence(withSpring(1.3, SpringConfig.bouncy), withSpring(1, SpringConfig.default)),
@@ -153,8 +156,8 @@ export default function PomodoroScreen() {
     }
     prevPhaseRef.current = timerPhase;
     prevTimerStateRef.current = timerState;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only phase/state transitions matter
-  }, [timerPhase, timerState]);
+    // Runs again when `t` changes (language switch): harmless, the refs already match.
+  }, [timerPhase, timerState, t, sessionDotScale]);
 
   const phaseColor =
     timerPhase === "focus"
@@ -281,7 +284,9 @@ export default function PomodoroScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t("pomodoro.title")}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]} accessibilityRole="header">
+          {t("pomodoro.title")}
+        </Text>
         <View style={[styles.sessionBadge, { backgroundColor: colors.primary + "20" }]}>
           <Icon name="flag" fill={colors.primary} style={styles.sessionIcon} />
           <Text style={[styles.sessionText, { color: colors.primary }]}>
@@ -300,6 +305,7 @@ export default function PomodoroScreen() {
           <Pressable
             onPress={banner.onPress}
             style={[styles.bannerButton, { borderColor: colors.warning }]}
+            hitSlop={4}
             accessibilityRole="button"
           >
             <Text style={[styles.bannerButtonText, { color: colors.text }]}>{banner.action}</Text>
@@ -317,18 +323,22 @@ export default function PomodoroScreen() {
           secondaryColor={phaseSecondaryColor}
           backgroundColor={colors.border}
           showGlow={isRunning}
-          isRunning={isRunning}
+          // The pulse is decorative: pause it while another tab is shown.
+          isRunning={isRunning && isFocused}
         >
           <View style={styles.timerContent}>
             <View style={[styles.phaseBadge, { backgroundColor: phaseColor + "20" }]}>
               <Icon name={phaseIcon} fill={phaseColor} style={styles.phaseIcon} />
-              <Text style={[styles.phaseLabel, { color: phaseColor }]}>
-                {phaseLabel(timerPhase)}
+              <Text style={[styles.phaseLabel, { color: phaseColor }]} maxFontSizeMultiplier={1.3}>
+                {/* Upper-cased for the app language (CSS-style uppercase would use the device locale: "I" for Turkish "i") */}
+                {phaseLabel(t, timerPhase).toLocaleUpperCase(i18n.language)}
               </Text>
             </View>
 
             <Text
               style={[styles.timeText, { color: colors.text, fontSize: timeFontSize }]}
+              // Already sized from the circle; larger text would overflow it.
+              maxFontSizeMultiplier={1}
               accessibilityLabel={t("pomodoro.timeRemaining", { time: timeText })}
             >
               {timeText}
@@ -338,7 +348,14 @@ export default function PomodoroScreen() {
       </View>
 
       {/* Session dots */}
-      <View style={styles.sessionDots}>
+      <View
+        style={styles.sessionDots}
+        accessible
+        accessibilityLabel={t("pomodoro.sessionProgress", {
+          current: cycleSessionIndex + 1,
+          total: sessionsUntilLongBreak,
+        })}
+      >
         {Array.from({ length: sessionsUntilLongBreak }).map((_, i) => (
           <Animated.View
             key={i}
@@ -352,7 +369,7 @@ export default function PomodoroScreen() {
               },
             ]}
           >
-            {i < cycleSessionIndex && <Icon name="checkmark" fill="#fff" style={styles.dotCheck} />}
+            {i < cycleSessionIndex && <Icon name="checkmark" fill={colors.onPrimary} style={styles.dotCheck} />}
           </Animated.View>
         ))}
       </View>
@@ -425,6 +442,7 @@ export default function PomodoroScreen() {
           <Pressable
             style={[styles.unlinkButton, { backgroundColor: colors.backgroundSecondary }]}
             onPress={() => linkTodo(null)}
+            hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel={t("pomodoro.unlinkTask")}
           >
@@ -487,6 +505,8 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
   bannerButton: {
+    minHeight: 36,
+    justifyContent: "center",
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
@@ -523,7 +543,6 @@ const styles = StyleSheet.create({
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.xs,
     letterSpacing: 0.5,
-    textTransform: "uppercase",
   },
   timeText: {
     fontFamily: InterFonts.light,
@@ -561,6 +580,7 @@ const styles = StyleSheet.create({
   skipButton: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 44,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
   },
@@ -611,6 +631,7 @@ const styles = StyleSheet.create({
   unlinkButton: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 36,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,

@@ -6,12 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-Work towards the first public release, 1.0.0.
+## [1.0.0] - (release date, draft)
+
+The first public release: a local-first Pomodoro timer, task manager and gamification app for iPhone and Android, in English and Turkish.
 
 ### Added
 
+- Settings → About: links to the privacy policy, the source code, the MIT license and the bug report form, and the installed version and build number.
+- Foldable Dashboard cards for daily quests, weekly goals and the season (the fold is remembered; the season starts folded), and a Dashboard ordered by what you act on first.
+- A date picker in the app language with the chosen first day of the week and date format.
+- Release documents: [store checklist](docs/release/STORE_CHECKLIST.md) and [store listing drafts](docs/release/store-listing.md).
 - Local-first operation: no account or login is required, and all data stays on the device.
-- Turkish and English translations covering every user-facing string, with a test that enforces identical keys in both locale files.
+- Turkish and English translations covering every user-facing string, with tests that enforce identical keys in both locale files and no hard-coded text in the UI.
 - Open-source project files: MIT [LICENSE](LICENSE), English and Turkish READMEs, [CONTRIBUTING](CONTRIBUTING.md), [CODE_OF_CONDUCT](CODE_OF_CONDUCT.md), [SECURITY](SECURITY.md), [PRIVACY](PRIVACY.md) policy, [ASSETS](ASSETS.md) provenance table and [architecture notes](docs/ARCHITECTURE.md).
 - GitHub Actions CI (type-check, lint, tests), issue forms, a pull request template and Dependabot configuration.
 - `.env.example` documenting the optional Supabase variables.
@@ -29,7 +35,14 @@ Work towards the first public release, 1.0.0.
 
 ### Changed
 
-- Upgraded to Expo SDK 58.
+- Upgraded to Expo SDK 58 (with its latest patch releases) and Jest 30.
+- Every screen is translated, including tab and screen titles, kanban, validation messages and screen-reader labels; a test scans the source for hard-coded text. 12-hour times use the app language (ÖÖ/ÖS in Turkish); durations are translated.
+- Accessibility: every control has a label and its checked/selected/expanded state; the task list's checkbox is its own control; touch targets are at least 44 pt; large text grows buttons instead of clipping them and long screens scroll; endless animations stop with Reduce Motion.
+- Colors meet WCAG AA contrast in light and dark mode (muted text, primary buttons, priority, warning and gamification colors were too faint); the error screen and the system background follow the theme.
+- Forms keep the focused field above the keyboard on both platforms, and screens respect the safe areas and the floating tab bar.
+- Faster: the Dashboard no longer re-renders every second while the timer runs, counters no longer re-render on every animation frame, long lists (kanban columns, timeline) are virtualized and the achievement grid is lighter.
+- Icons follow the color of the button they sit in, keep their margins, and the ones that showed a placeholder circle are mapped.
+- The wave-2 sheets and cards (filters, personal goal, combo, season summary, data) have a consistent, polished look in both themes.
 - Pomodoro timer: remaining time is derived from wall-clock timestamps, and end-of-phase alerts are scheduled up front as local notifications so they fire reliably with the screen off or the app in the background.
 - Cloud sync is optional and enabled only when both `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_KEY` are set. Without them the app no longer crashes at start, shows no account UI and queues nothing.
 - Navigation uses guarded routes: first launch goes straight to onboarding and then the app, deep links and back gestures cannot skip or re-enter onboarding, and onboarding's Back buttons work.
@@ -48,8 +61,14 @@ Work towards the first public release, 1.0.0.
 - The timeline lists only open tasks; the calendar, timeline and charts use Turkish or English month and weekday names; the weekly charts say "last 7 days".
 - Achievement names, level titles, tiers, quests, goals, season rewards, the daily summary and default category names are translated.
 
+### Fixed
+
+- A chosen week start (Monday or Sunday) went back to "Automatic" after every restart.
+- The level-up dialog and celebrations close reliably (no dependency on animation callbacks).
+
 ### Removed
 
+- The "Default task view" setting, which had no effect.
 - iPad (tablet) support for the first release.
 - The `scripts/reset-project.js` leftover from the Expo project template, which deleted source directories.
 - IDE and AI-assistant files (`.idea/`, `.superpowers/`, `.agents/`, `.claude/`, `skills-lock.json`, `.vscode/settings.json`) and internal planning documents from version control. They remain in git history.
@@ -62,4 +81,5 @@ Work towards the first public release, 1.0.0.
 - A focus-time-per-task chart.
 - Sign in with Apple / Google (OAuth) for the optional sync.
 
-[Unreleased]: https://github.com/ersaayan/alpha-planner/commits/master
+[Unreleased]: https://github.com/ersaayan/alpha-planner/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/ersaayan/alpha-planner/releases/tag/v1.0.0

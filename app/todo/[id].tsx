@@ -9,9 +9,10 @@ import {
   Text,
 } from '@ui-kitten/components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SectionHeader } from '@/components/common';
@@ -20,46 +21,42 @@ import { DueDateFields } from '@/components/todos/due-date-fields';
 import { enableTaskReminders } from '@/hooks/use-task-reminders';
 import { categoryName } from '@/services/gamification/display';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { PRIORITIES, PRIORITY_LABEL_KEYS, STATUSES, STATUS_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
-import type { TodoPriority, TodoStatus } from '@/types';
+import type { Category, Todo, TodoPriority, TodoStatus } from '@/types';
 import { formatDue, getDueDateKey } from '@/utils/todo-dates';
 
-const PRIORITIES: { value: TodoPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Low', color: '#90AB8B' },
-  { value: 'medium', label: 'Medium', color: '#B5A45E' },
-  { value: 'high', label: 'High', color: '#E47F7F' },
-  { value: 'urgent', label: 'Urgent', color: '#D85656' },
-];
+interface Draft {
+  title: string;
+  description: string;
+  categoryId: string | null;
+  priority: TodoPriority;
+  status: TodoStatus;
+  due: { dueDate: string | null; dueTime: string | null };
+  estimatedPomodoros: string;
+}
 
-const STATUSES: { value: TodoStatus; label: string }[] = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
-];
+/** The edit form's starting values (a category that no longer exists is dropped). */
+function draftFrom(todo: Todo, categories: Category[]): Draft {
+  return {
+    title: todo.title,
+    description: todo.description ?? '',
+    categoryId: categories.some((c) => c.id === todo.categoryId) ? todo.categoryId : null,
+    priority: todo.priority,
+    status: todo.status,
+    due: { dueDate: getDueDateKey(todo.dueDate), dueTime: todo.dueTime ?? null },
+    estimatedPomodoros: todo.estimatedPomodoros?.toString() ?? '',
+  };
+}
 
 export default function TodoDetailScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
-  const priorityLabels: Record<string, string> = {
-    low: t('todo.create.priorityLow'),
-    medium: t('todo.create.priorityMedium'),
-    high: t('todo.create.priorityHigh'),
-    urgent: t('todo.create.priorityUrgent'),
-  };
-
-  const statusLabels: Record<string, string> = {
-    pending: t('todos.statusPending'),
-    in_progress: t('todos.statusInProgress'),
-    completed: t('todos.statusDone'),
-    archived: t('todos.archived'),
-  };
 
   const todo = useTodoStore((state) => state.getTodoById(id));
   const updateTodo = useTodoStore((state) => state.updateTodo);
@@ -70,41 +67,19 @@ export default function TodoDetailScreen() {
   const deleteSubtask = useTodoStore((state) => state.deleteSubtask);
   const categories = useCategoryStore((state) => state.categories);
   const linkTodo = usePomodoroStore((state) => state.linkTodo);
-  const timer = usePomodoroStore((state) => state.timer);
+  // Only the linked task matters here (the timer object changes on every start/pause).
+  const linkedTodoId = usePomodoroStore((state) => state.timer.linkedTodoId);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
   const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [selectedPriorityIndex, setSelectedPriorityIndex] = useState<IndexPath>(new IndexPath(1));
-  const [selectedStatusIndex, setSelectedStatusIndex] = useState<IndexPath>(new IndexPath(0));
-  const [due, setDue] = useState<{ dueDate: string | null; dueTime: string | null }>({ dueDate: null, dueTime: null });
-  const [estimatedPomodoros, setEstimatedPomodoros] = useState('');
+  // The edit form's values, created when editing starts (null while viewing). The view
+  // reads the stored todo directly, so nothing has to be mirrored into state.
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [newSubtask, setNewSubtask] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
   // The subtask being renamed, with its draft title.
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
-
-  useEffect(() => {
-    if (!todo) return;
-    // Don't reset form if user is currently editing
-    if (isEditing) return;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors the stored todo while not editing
-    setTitle(todo.title);
-    setDescription(todo.description || '');
-    setDue({ dueDate: getDueDateKey(todo.dueDate), dueTime: todo.dueTime ?? null });
-    setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
-    setCategoryId(categories.some((c) => c.id === todo.categoryId) ? todo.categoryId : null);
-
-    const priorityIndex = PRIORITIES.findIndex((p) => p.value === todo.priority);
-    setSelectedPriorityIndex(new IndexPath(priorityIndex >= 0 ? priorityIndex : 1));
-
-    const statusIndex = STATUSES.findIndex((s) => s.value === todo.status);
-    setSelectedStatusIndex(new IndexPath(statusIndex >= 0 ? statusIndex : 0));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally syncing form on specific field changes only
-  }, [todo?.id, todo?.updatedAt, isEditing, categories]);
+  const isEditing = draft !== null;
+  const edit = (patch: Partial<Draft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
 
   if (!todo) {
     return (
@@ -122,29 +97,30 @@ export default function TodoDetailScreen() {
     );
   }
 
-  const selectedCategory = categories.find((c) => c.id === categoryId) ?? null;
-  const selectedPriority = PRIORITIES[selectedPriorityIndex.row];
-  const selectedStatus = STATUSES[selectedStatusIndex.row];
+  const selectedPriority = draft?.priority ?? todo.priority;
+  const selectedStatus = draft?.status ?? todo.status;
+  const selectedCategory = categories.find((c) => c.id === (draft ? draft.categoryId : todo.categoryId)) ?? null;
+  const selectedPriorityColor = priorityColor(selectedPriority, colors);
 
   const handleSave = () => {
-    if (!title.trim()) return;
+    if (!draft || !draft.title.trim()) return;
 
-    const parsedPomodoros = parseInt(estimatedPomodoros, 10);
+    const parsedPomodoros = parseInt(draft.estimatedPomodoros, 10);
     const estimatedPomodorosValue =
       Number.isFinite(parsedPomodoros) && parsedPomodoros > 0 ? parsedPomodoros : null;
 
     updateTodo(id, {
-      title: title.trim(),
-      description: description.trim() || null,
-      dueDate: due.dueDate,
-      dueTime: due.dueTime,
-      categoryId,
-      priority: selectedPriority.value,
-      status: selectedStatus.value,
+      title: draft.title.trim(),
+      description: draft.description.trim() || null,
+      dueDate: draft.due.dueDate,
+      dueTime: draft.due.dueTime,
+      categoryId: draft.categoryId,
+      priority: draft.priority,
+      status: draft.status,
       estimatedPomodoros: estimatedPomodorosValue,
     });
-    if (due.dueTime && due.dueTime !== todo.dueTime) void enableTaskReminders();
-    setIsEditing(false);
+    if (draft.due.dueTime && draft.due.dueTime !== todo.dueTime) void enableTaskReminders();
+    setDraft(null);
   };
 
   const saveRename = () => {
@@ -185,303 +161,307 @@ export default function TodoDetailScreen() {
   const subtaskProgress = todo.subtasks.length > 0 ? completedSubtasks / todo.subtasks.length : 0;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={100}
+    // Scrolls the focused field (title, subtask, rename) above the keyboard.
+    <KeyboardAwareScrollView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}
+      keyboardShouldPersistTaps="handled"
+      bottomOffset={Spacing.lg}
     >
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Status Badge */}
-        <View style={styles.statusRow}>
-          <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
-            <Text category="c1" style={{ color: colors.primary }}>
-              {statusLabels[selectedStatus.value] ?? selectedStatus.label}
-            </Text>
-          </View>
-          <View style={[styles.priorityBadge, { backgroundColor: selectedPriority.color + '20' }]}>
-            <View style={[styles.priorityDot, { backgroundColor: selectedPriority.color }]} />
-            <Text category="c1" style={{ color: selectedPriority.color }}>
-              {priorityLabels[selectedPriority.value] ?? selectedPriority.label}
-            </Text>
-          </View>
+      {/* Status Badge */}
+      <View style={styles.statusRow}>
+        <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
+          <Text category="c1" style={{ color: colors.primary }}>
+            {t(STATUS_LABEL_KEYS[selectedStatus])}
+          </Text>
         </View>
+        <View style={[styles.priorityBadge, { backgroundColor: selectedPriorityColor + '20' }]}>
+          <View style={[styles.priorityDot, { backgroundColor: selectedPriorityColor }]} />
+          <Text category="c1" style={{ color: selectedPriorityColor }}>
+            {t(PRIORITY_LABEL_KEYS[selectedPriority])}
+          </Text>
+        </View>
+      </View>
 
-        {/* Title & Description */}
-        {isEditing ? (
-          <>
-            <Input
-              label={t('todo.create.taskTitle')}
-              value={title}
-              onChangeText={setTitle}
-              style={styles.input}
-              size="large"
-            />
-            <Input
-              label={t('todo.create.description')}
-              value={description}
-              onChangeText={setDescription}
-              style={styles.input}
-              multiline
-              numberOfLines={3}
-            />
-          </>
-        ) : (
-          <View style={styles.detailSection}>
-            <Text category="h5">{todo.title}</Text>
-            {todo.description && (
-              <Text category="p1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
-                {todo.description}
-              </Text>
-            )}
-          </View>
-        )}
+      {/* Title & Description */}
+      {draft ? (
+        <>
+          <Input
+            label={t('todo.create.taskTitle')}
+            value={draft.title}
+            onChangeText={(value) => edit({ title: value })}
+            style={styles.input}
+            size="large"
+          />
+          <Input
+            label={t('todo.create.description')}
+            value={draft.description}
+            onChangeText={(value) => edit({ description: value })}
+            style={styles.input}
+            multiline
+            numberOfLines={3}
+          />
+        </>
+      ) : (
+        <View style={styles.detailSection}>
+          <Text category="h5">{todo.title}</Text>
+          {todo.description && (
+            <Text category="p1" style={{ color: colors.textSecondary, marginTop: Spacing.xs }}>
+              {todo.description}
+            </Text>
+          )}
+        </View>
+      )}
 
-        {/* Category & Priority (Edit Mode) */}
-        {isEditing && (
-          <>
-            <CategorySelect
-              label={t('todo.detail.category')}
-              categories={categories}
-              value={categoryId}
-              onChange={setCategoryId}
-              style={styles.input}
-            />
-
-            <Select
-              label={t('todo.detail.priority')}
-              value={priorityLabels[selectedPriority.value] ?? selectedPriority.label}
-              selectedIndex={selectedPriorityIndex}
-              onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
-              style={styles.input}
-            >
-              {PRIORITIES.map((priority) => (
-                <SelectItem key={priority.value} title={priorityLabels[priority.value] ?? priority.label} />
-              ))}
-            </Select>
-
-            <Select
-              label={t('todo.detail.status')}
-              value={statusLabels[selectedStatus.value] ?? selectedStatus.label}
-              selectedIndex={selectedStatusIndex}
-              onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
-              style={styles.input}
-            >
-              {STATUSES.map((status) => (
-                <SelectItem key={status.value} title={statusLabels[status.value] ?? status.label} />
-              ))}
-            </Select>
-
-            <DueDateFields
-              label={t('todo.detail.dueDate')}
-              dueDate={due.dueDate}
-              dueTime={due.dueTime}
-              onChange={setDue}
-            />
-
-            <Input
-              label={t('todo.detail.estimatedPomodoros')}
-              placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
-              value={estimatedPomodoros}
-              onChangeText={setEstimatedPomodoros}
-              style={styles.input}
-              keyboardType="number-pad"
-              accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
-            />
-          </>
-        )}
-
-        {/* Info Cards */}
-        {!isEditing && (
-          <View style={styles.infoCards}>
-            {selectedCategory && (
-              <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-                <View style={styles.infoContent}>
-                  <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{categoryName(t, selectedCategory)}</Text>
-                </View>
-              </Card>
-            )}
-            {todo.dueDate && (
-              <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-                <View style={styles.infoContent}>
-                  <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}</Text>
-                </View>
-              </Card>
-            )}
-            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
-              <View style={styles.infoContent}>
-                <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                <Text category="s2">
-                  {todo.pomodoroSessions} {t('stats.pomodoros').toLowerCase()}
-                </Text>
-              </View>
-            </Card>
-          </View>
-        )}
-
-        {/* Subtasks */}
-        <View style={styles.section}>
-          <SectionHeader
-            title={t('todo.detail.subtasks')}
-            action={
-              todo.subtasks.length > 0 ? (
-                <Text category="c1" style={{ color: colors.textMuted }}>
-                  {completedSubtasks}/{todo.subtasks.length}
-                </Text>
-              ) : undefined
-            }
+      {/* Category & Priority (Edit Mode) */}
+      {draft && (
+        <>
+          <CategorySelect
+            label={t('todo.detail.category')}
+            categories={categories}
+            value={draft.categoryId}
+            onChange={(value) => edit({ categoryId: value })}
+            style={styles.input}
           />
 
-          {todo.subtasks.length > 0 && (
-            <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${subtaskProgress * 100}%`, backgroundColor: colors.primary },
-                ]}
-              />
-            </View>
+          <Select
+            label={t('todo.detail.priority')}
+            value={t(PRIORITY_LABEL_KEYS[selectedPriority])}
+            selectedIndex={new IndexPath(PRIORITIES.indexOf(draft.priority))}
+            onSelect={(index) => edit({ priority: PRIORITIES[(index as IndexPath).row] })}
+            style={styles.input}
+          >
+            {PRIORITIES.map((priority) => (
+              <SelectItem key={priority} title={t(PRIORITY_LABEL_KEYS[priority])} />
+            ))}
+          </Select>
+
+          <Select
+            label={t('todo.detail.status')}
+            value={t(STATUS_LABEL_KEYS[selectedStatus])}
+            selectedIndex={new IndexPath(STATUSES.indexOf(draft.status))}
+            onSelect={(index) => edit({ status: STATUSES[(index as IndexPath).row] })}
+            style={styles.input}
+          >
+            {STATUSES.map((status) => (
+              <SelectItem key={status} title={t(STATUS_LABEL_KEYS[status])} />
+            ))}
+          </Select>
+
+          <DueDateFields
+            label={t('todo.detail.dueDate')}
+            dueDate={draft.due.dueDate}
+            dueTime={draft.due.dueTime}
+            onChange={(value) => edit({ due: value })}
+          />
+
+          <Input
+            label={t('todo.detail.estimatedPomodoros')}
+            placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
+            value={draft.estimatedPomodoros}
+            onChangeText={(value) => edit({ estimatedPomodoros: value })}
+            style={styles.input}
+            keyboardType="number-pad"
+            accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
+          />
+        </>
+      )}
+
+      {/* Info Cards */}
+      {!isEditing && (
+        <View style={styles.infoCards}>
+          {selectedCategory && (
+            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+              <View style={styles.infoContent}>
+                <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                <Text category="s2">{categoryName(t, selectedCategory)}</Text>
+              </View>
+            </Card>
           )}
-
-          {todo.subtasks.map((subtask) => (
-            <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
-              <Pressable
-                style={[
-                  styles.checkbox,
-                  {
-                    borderColor: subtask.isCompleted ? colors.primary : colors.border,
-                    backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
-                  },
-                ]}
-                onPress={() => toggleSubtask(id, subtask.id)}
-                accessibilityRole="checkbox"
-                accessibilityLabel={subtask.title}
-                accessibilityState={{ checked: subtask.isCompleted }}
-                accessibilityHint={subtask.isCompleted ? t('todo.form.markIncompleteHint') : t('todo.form.markCompleteHint')}
-              >
-                {subtask.isCompleted && (
-                  <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
-                )}
-              </Pressable>
-              {renaming?.id === subtask.id ? (
-                <Input
-                  value={renaming.title}
-                  onChangeText={(title) => setRenaming({ id: subtask.id, title })}
-                  onSubmitEditing={saveRename}
-                  onBlur={saveRename}
-                  autoFocus
-                  style={styles.subtaskText}
-                  accessibilityLabel={t('todo.form.renameSubtask')}
-                />
-              ) : (
-                <Pressable
-                  style={styles.subtaskText}
-                  onPress={() => setRenaming({ id: subtask.id, title: subtask.title })}
-                  accessibilityRole="button"
-                  accessibilityLabel={subtask.title}
-                  accessibilityHint={t('todo.form.renameSubtaskHint')}
-                >
-                  <Text
-                    category="p2"
-                    style={subtask.isCompleted ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}
-                  >
-                    {subtask.title}
-                  </Text>
-                </Pressable>
-              )}
-              <Pressable
-                onPress={() => deleteSubtask(id, subtask.id)}
-                accessibilityRole="button"
-                accessibilityLabel={t('todo.form.deleteSubtask', { title: subtask.title })}
-              >
-                <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
-              </Pressable>
+          {todo.dueDate && (
+            <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+              <View style={styles.infoContent}>
+                <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
+                <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}</Text>
+              </View>
+            </Card>
+          )}
+          <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
+            <View style={styles.infoContent}>
+              <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
+              <Text category="s2">
+                {t('todo.detail.pomodoroCount', { count: todo.pomodoroSessions })}
+              </Text>
             </View>
-          ))}
+          </Card>
+        </View>
+      )}
 
-          <View style={styles.addSubtaskRow}>
-            <Input
-              placeholder={t('todo.detail.addSubtask')}
-              value={newSubtask}
-              onChangeText={setNewSubtask}
-              style={styles.subtaskInput}
-              onSubmitEditing={handleAddSubtask}
-            />
-            <Button
-              size="small"
-              appearance="ghost"
-              accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
-              onPress={handleAddSubtask}
-              disabled={!newSubtask.trim()}
+      {/* Subtasks */}
+      <View style={styles.section}>
+        <SectionHeader
+          title={t('todo.detail.subtasks')}
+          action={
+            todo.subtasks.length > 0 ? (
+              <Text category="c1" style={{ color: colors.textMuted }}>
+                {completedSubtasks}/{todo.subtasks.length}
+              </Text>
+            ) : undefined
+          }
+        />
+
+        {todo.subtasks.length > 0 && (
+          <View style={[styles.progressBar, { backgroundColor: colors.separator }]}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${subtaskProgress * 100}%`, backgroundColor: colors.primary },
+              ]}
             />
           </View>
-        </View>
+        )}
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          {isEditing ? (
-            <>
-              <Button appearance="ghost" onPress={() => setIsEditing(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button onPress={handleSave} disabled={!title.trim()}>{t('todo.saveChanges')}</Button>
-            </>
-          ) : (
-            <>
-              <Button
-                appearance="outline"
-                accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
-                onPress={() => setIsEditing(true)}
-              >
-                {t('todo.detail.edit')}
-              </Button>
-              {timer.linkedTodoId === id ? (
-                <Button
-                  appearance="ghost"
-                  status="basic"
-                  accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
-                  onPress={handleUnlinkFromPomodoro}
-                >
-                  {t('pomodoro.unlink')}
-                </Button>
-              ) : (
-                <Button
-                  accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
-                  onPress={handleLinkToPomodoro}
-                >
-                  {t('todo.detail.startFocus')}
-                </Button>
+        {todo.subtasks.map((subtask) => (
+          <View key={subtask.id} style={styles.subtaskItem} accessibilityRole="none">
+            <Pressable
+              style={[
+                styles.checkbox,
+                {
+                  borderColor: subtask.isCompleted ? colors.primary : colors.textMuted,
+                  backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
+                },
+              ]}
+              onPress={() => toggleSubtask(id, subtask.id)}
+              hitSlop={11}
+              accessibilityRole="checkbox"
+              accessibilityLabel={subtask.title}
+              accessibilityState={{ checked: subtask.isCompleted }}
+              accessibilityHint={subtask.isCompleted ? t('todo.form.markIncompleteHint') : t('todo.form.markCompleteHint')}
+            >
+              {subtask.isCompleted && (
+                <Icon name="checkmark-outline" fill={colors.onPrimary} style={styles.checkIcon} />
               )}
-            </>
-          )}
-        </View>
+            </Pressable>
+            {renaming?.id === subtask.id ? (
+              <Input
+                value={renaming.title}
+                onChangeText={(title) => setRenaming({ id: subtask.id, title })}
+                onSubmitEditing={saveRename}
+                onBlur={saveRename}
+                autoFocus
+                style={styles.subtaskText}
+                accessibilityLabel={t('todo.form.renameSubtask')}
+              />
+            ) : (
+              <Pressable
+                style={styles.subtaskText}
+                onPress={() => setRenaming({ id: subtask.id, title: subtask.title })}
+                accessibilityRole="button"
+                accessibilityLabel={subtask.title}
+                accessibilityHint={t('todo.form.renameSubtaskHint')}
+              >
+                <Text
+                  category="p2"
+                  style={subtask.isCompleted ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}
+                >
+                  {subtask.title}
+                </Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={() => deleteSubtask(id, subtask.id)}
+              style={styles.subtaskDeleteButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('todo.form.deleteSubtask', { title: subtask.title })}
+            >
+              <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
+            </Pressable>
+          </View>
+        ))}
 
-        {/* Delete */}
-        <Button
-          appearance="ghost"
-          status="danger"
-          accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
-          onPress={handleDelete}
-          style={styles.deleteButton}
-        >
-          {t('todo.detail.deleteTitle')}
-        </Button>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <View style={styles.addSubtaskRow}>
+          <Input
+            placeholder={t('todo.detail.addSubtask')}
+            value={newSubtask}
+            onChangeText={setNewSubtask}
+            style={styles.subtaskInput}
+            onSubmitEditing={handleAddSubtask}
+            accessibilityLabel={t('todo.detail.addSubtask')}
+          />
+          <Button
+            size="small"
+            appearance="ghost"
+            accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
+            onPress={handleAddSubtask}
+            disabled={!newSubtask.trim()}
+            accessibilityLabel={t('todo.detail.addSubtask')}
+            style={styles.addSubtaskButton}
+          />
+        </View>
+      </View>
+
+      {/* Actions */}
+      <View style={styles.actions}>
+        {isEditing ? (
+          <>
+            <Button appearance="ghost" onPress={() => setDraft(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onPress={handleSave} disabled={!draft.title.trim()}>{t('todo.saveChanges')}</Button>
+          </>
+        ) : (
+          <>
+            <Button
+              appearance="outline"
+              accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
+              onPress={() => setDraft(draftFrom(todo, categories))}
+            >
+              {t('todo.detail.edit')}
+            </Button>
+            {linkedTodoId === id ? (
+              <Button
+                appearance="ghost"
+                status="basic"
+                accessoryLeft={(props) => <Icon {...props} name="close-outline" />}
+                onPress={handleUnlinkFromPomodoro}
+              >
+                {t('pomodoro.unlink')}
+              </Button>
+            ) : (
+              <Button
+                accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
+                onPress={handleLinkToPomodoro}
+              >
+                {t('todo.detail.startFocus')}
+              </Button>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* Delete */}
+      <Button
+        appearance="ghost"
+        status="danger"
+        accessoryLeft={(props) => <Icon {...props} name="trash-2-outline" />}
+        onPress={handleDelete}
+        style={styles.deleteButton}
+      >
+        {t('todo.detail.deleteTitle')}
+      </Button>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
     padding: Spacing.md,
   },
   notFoundContainer: {
+    padding: Spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -548,7 +528,7 @@ const styles = StyleSheet.create({
   subtaskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xxs,
     gap: Spacing.sm,
   },
   checkbox: {
@@ -566,9 +546,19 @@ const styles = StyleSheet.create({
   subtaskText: {
     flex: 1,
   },
+  subtaskDeleteButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   deleteIcon: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
+  },
+  addSubtaskButton: {
+    minWidth: 44,
+    minHeight: 44,
   },
   addSubtaskRow: {
     flexDirection: 'row',

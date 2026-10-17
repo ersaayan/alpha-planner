@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
@@ -58,6 +57,13 @@ export function AchievementUnlock({
     epic: GamificationColors.achievementGold,
     legendary: '#9B59B6',
   };
+  // Readable versions for text on the card.
+  const rarityTextColors = {
+    common: colors.rarityCommon,
+    rare: colors.rarityRare,
+    epic: colors.rarityEpic,
+    legendary: colors.rarityLegendary,
+  };
 
   const { t } = useTranslation();
   const rarityLabels = {
@@ -86,11 +92,7 @@ export function AchievementUnlock({
           withSpring(0, SpringConfig.bouncy),
           withDelay(
             hideDelay,
-            withTiming(200, { duration: AnimationDuration.medium }, (finished) => {
-              if (finished) {
-                runOnJS(onClose)();
-              }
-            })
+            withTiming(200, { duration: AnimationDuration.medium })
           )
         );
         opacity.value = withSequence(
@@ -106,11 +108,10 @@ export function AchievementUnlock({
         opacity.value = withTiming(1, { duration: AnimationDuration.fast });
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible, autoDismiss, autoDismissDelay]);
+  }, [visible, autoDismiss, autoDismissDelay, badgeScale, opacity, scale, translateY]);
 
-  // The exit animation's callback does not fire on every platform (e.g. the web); a timer
-  // makes sure the next celebration in the queue is shown.
+  // A JS timer (not an animation callback) closes it, so the next celebration in the
+  // queue is shown on every platform (completion callbacks did not fire on the web).
   useEffect(() => {
     if (!visible || !autoDismiss) return;
     const timer = setTimeout(onClose, autoDismissDelay + 150);
@@ -132,7 +133,13 @@ export function AchievementUnlock({
   if (!visible) return null;
 
   return (
-    <Pressable style={styles.overlay} onPress={onClose}>
+    <Pressable
+      style={styles.overlay}
+      onPress={onClose}
+      accessibilityRole="button"
+      accessibilityHint={t('common.tapToClose')}
+      accessibilityLiveRegion="polite"
+    >
       <Animated.View
         style={[
           styles.container,
@@ -151,7 +158,7 @@ export function AchievementUnlock({
             fill={rarityColors[rarity]}
             style={styles.unlockIcon}
           />
-          <Text style={[styles.headerText, { color: rarityColors[rarity] }]}>
+          <Text style={[styles.headerText, { color: rarityTextColors[rarity] }]}>
             {t('gamification.achievementUnlocked')}
           </Text>
         </View>
@@ -181,7 +188,7 @@ export function AchievementUnlock({
           {/* Rarity and XP */}
           <View style={styles.rewardsRow}>
             <View style={[styles.rarityBadge, { backgroundColor: rarityColors[rarity] + '20' }]}>
-              <Text style={[styles.rarityText, { color: rarityColors[rarity] }]}>
+              <Text style={[styles.rarityText, { color: rarityTextColors[rarity] }]}>
                 {rarityLabels[rarity]}
               </Text>
             </View>
@@ -191,7 +198,7 @@ export function AchievementUnlock({
                 fill={GamificationColors.xp}
                 style={styles.xpIcon}
               />
-              <Text style={[styles.xpText, { color: GamificationColors.xp }]}>
+              <Text style={[styles.xpText, { color: colors.xp }]}>
                 {t('gamification.xpEarned', { amount: xpReward })}
               </Text>
             </View>

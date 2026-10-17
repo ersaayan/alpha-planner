@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AnimatedButton } from '@/components/animated/animated-button';
-import { AnimatedCard } from '@/components/animated/animated-card';
+import { CollapsibleCard } from '@/components/common/collapsible-card';
 import { SheetModal } from '@/components/common/sheet-modal';
 import { Icon } from '@/components/icon';
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNow } from '@/hooks/use-now';
 import { SEASON_REWARDS, getSeasonEnd, summarizeSeason } from '@/services/gamification/season';
@@ -17,7 +17,8 @@ import { formatLocalized, formatMonthKey } from '@/utils/locale';
 
 /**
  * The current monthly season: when it ends, the prestige count, and the season rewards
- * with what each one asks for. Explains that the level starts again every month.
+ * with what each one asks for. The info button explains that the level starts again
+ * every month. Folded by default (see DEFAULT_APP_SETTINGS).
  */
 export function SeasonCard() {
   const { t, i18n } = useTranslation();
@@ -39,39 +40,56 @@ export function SeasonCard() {
   const lastDay = new Date(getSeasonEnd(now).getTime() - 1);
 
   return (
-    <AnimatedCard variant="default" style={styles.card} contentStyle={styles.content} testID="season-card">
-      <View style={styles.header}>
-        <View style={[styles.iconBubble, { backgroundColor: GamificationColors.achievementGold + '25' }]}>
-          <Icon name="award" fill={GamificationColors.levelBadge} style={styles.icon} />
-        </View>
-        <View style={styles.headerText}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {t('season.current', { month: formatMonthKey(month, i18n.language) })}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            {t('season.endsOn', { date: formatLocalized(lastDay, 'd MMMM', i18n.language) })}
-          </Text>
-        </View>
+    <CollapsibleCard
+      id="season"
+      icon="award"
+      accent={colors.xp}
+      title={t('season.current', { month: formatMonthKey(month, i18n.language) })}
+      subtitle={t('season.endsOn', { date: formatLocalized(lastDay, 'd MMMM', i18n.language) })}
+      summary={`${earnedCount}/${rewards.length}`}
+      testID="season-card"
+      accessory={
+        <Pressable
+          onPress={() => setInfoVisible(true)}
+          style={styles.infoButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('season.infoTitle')}
+        >
+          <Icon name="info-outline" fill={colors.textMuted} size={20} />
+        </Pressable>
+      }
+    >
+      <View style={styles.statusRow}>
+        <Text style={[styles.rewardsLine, { color: colors.textSecondary }]}>
+          {t('season.rewardsProgress', { earned: earnedCount, total: rewards.length })}
+        </Text>
         {prestige.count > 0 && (
-          <View style={[styles.badge, { backgroundColor: GamificationColors.xp + '30' }]}>
-            <Text style={[styles.badgeText, { color: GamificationColors.levelBadge }]}>
+          <View style={[styles.badge, { backgroundColor: colors.xp + '20' }]}>
+            <Text style={[styles.badgeText, { color: colors.xp }]}>
               {t('gamification.prestigeLevel', { count: prestige.count })}
             </Text>
           </View>
         )}
-        <Pressable
-          onPress={() => setInfoVisible(true)}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel={t('season.infoTitle')}
-        >
-          <Icon name="info-outline" fill={colors.textMuted} style={styles.infoIcon} />
-        </Pressable>
       </View>
 
-      <Text style={[styles.rewardsLine, { color: colors.textSecondary }]}>
-        {t('season.rewardsProgress', { earned: earnedCount, total: rewards.length })}
-      </Text>
+      {rewards.map(({ reward, earned }) => (
+        <View
+          key={reward.id}
+          style={styles.rewardRow}
+          accessible
+          accessibilityLabel={[earned ? t('common.completed') : null, t(reward.hintKey), t('gamification.xpEarned', { amount: reward.xp })]
+            .filter(Boolean)
+            .join('. ')}
+        >
+          <Icon
+            name={earned ? 'checkmark-circle-2' : 'radio-button-off'}
+            fill={earned ? colors.success : colors.textMuted}
+            size={18}
+          />
+          <Text style={[styles.rewardText, { color: colors.text }]}>{t(reward.hintKey)}</Text>
+          <Text style={[styles.rewardXp, { color: colors.xp }]}>{t('gamification.xpEarned', { amount: reward.xp })}</Text>
+        </View>
+      ))}
 
       <SheetModal
         visible={infoVisible}
@@ -80,59 +98,28 @@ export function SeasonCard() {
         footer={<AnimatedButton title={t('common.ok')} size="sm" onPress={() => setInfoVisible(false)} />}
       >
         <Text style={[styles.body, { color: colors.text }]}>{t('season.infoBody')}</Text>
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('season.rewardsTitle')}</Text>
-        {rewards.map(({ reward, earned }) => (
-          <View key={reward.id} style={styles.rewardRow}>
-            <Icon
-              name={earned ? 'checkmark-circle-2' : 'radio-button-off'}
-              fill={earned ? colors.success : colors.textMuted}
-              style={styles.rewardIcon}
-            />
-            <Text style={[styles.rewardText, { color: colors.text }]}>{t(reward.hintKey)}</Text>
-            <Text style={[styles.rewardXp, { color: GamificationColors.levelBadge }]}>
-              {t('gamification.xpEarned', { amount: reward.xp })}
-            </Text>
-          </View>
-        ))}
       </SheetModal>
-    </AnimatedCard>
+    </CollapsibleCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: Spacing.lg,
-  },
-  content: {
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  iconBubble: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  infoButton: {
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    width: 20,
-    height: 20,
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
-  headerText: {
+  rewardsLine: {
     flex: 1,
-  },
-  title: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.md,
-  },
-  subtitle: {
     fontFamily: InterFonts.regular,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
   },
   badge: {
     paddingHorizontal: Spacing.sm,
@@ -143,32 +130,10 @@ const styles = StyleSheet.create({
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.xs,
   },
-  infoIcon: {
-    width: 20,
-    height: 20,
-  },
-  rewardsLine: {
-    fontFamily: InterFonts.regular,
-    fontSize: FontSize.sm,
-  },
-  body: {
-    fontFamily: InterFonts.regular,
-    fontSize: FontSize.sm,
-    lineHeight: FontSize.sm * 1.5,
-  },
-  sectionLabel: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.sm,
-    marginTop: Spacing.sm,
-  },
   rewardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-  },
-  rewardIcon: {
-    width: 18,
-    height: 18,
   },
   rewardText: {
     flex: 1,
@@ -178,5 +143,10 @@ const styles = StyleSheet.create({
   rewardXp: {
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.xs,
+  },
+  body: {
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.sm,
+    lineHeight: FontSize.sm * 1.5,
   },
 });

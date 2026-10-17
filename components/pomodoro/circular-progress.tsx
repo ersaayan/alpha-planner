@@ -12,6 +12,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { GamificationColors, Shadows } from '@/constants/theme';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedView = Animated.View;
@@ -43,6 +44,7 @@ export function CircularProgress({
   const gradientId = `progressGradient-${instanceId}`;
 
   const animatedProgress = useSharedValue(0);
+  const pulse = useAmbientMotion(isRunning);
   const pulseScale = useSharedValue(1);
   const glowOpacity = useSharedValue(showGlow ? 0.3 : 0);
 
@@ -60,12 +62,11 @@ export function CircularProgress({
       duration: 500,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [progress]);
+  }, [progress, animatedProgress]);
 
-  // Pulse animation when timer is running
+  // Pulse animation when timer is running (not with Reduce Motion)
   useEffect(() => {
-    if (isRunning) {
+    if (pulse) {
       pulseScale.value = withRepeat(
         withSequence(
           withTiming(1.02, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
@@ -90,13 +91,14 @@ export function CircularProgress({
       cancelAnimation(pulseScale);
       cancelAnimation(glowOpacity);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [isRunning, showGlow]);
+  }, [pulse, showGlow, glowOpacity, pulseScale]);
 
   const animatedProps = useAnimatedProps(() => {
     const strokeDashoffset = circumference * (1 - animatedProgress.value);
     return {
       strokeDashoffset,
+      // A round cap still draws a dot at 0%: hide the arc until there is progress.
+      strokeOpacity: animatedProgress.value > 0.001 ? 1 : 0,
     };
   });
 
@@ -138,8 +140,9 @@ export function CircularProgress({
           </LinearGradient>
         </Defs>
 
-        {/* Rotate the group to start from top */}
-        <G rotation="-90" origin={`${center}, ${center}`}>
+        {/* Rotate the group to start from top (an SVG transform string: no web-only
+            transform-origin attribute warning) */}
+        <G transform={`rotate(-90 ${center} ${center})`}>
           {/* Background circle */}
           <Circle
             cx={center}

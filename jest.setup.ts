@@ -33,6 +33,9 @@ jest.mock('expo-notifications', () => ({
   SchedulableTriggerInputTypes: { DATE: 'date', DAILY: 'daily', TIME_INTERVAL: 'timeInterval' },
 }));
 
+// Keyboard controller: its JS mock (KeyboardAwareScrollView renders a ScrollView)
+jest.mock('react-native-keyboard-controller', () => require('react-native-keyboard-controller/jest'));
+
 // Mock expo-haptics
 jest.mock('expo-haptics', () => ({
   impactAsync: jest.fn(),

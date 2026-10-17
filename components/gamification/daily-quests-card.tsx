@@ -1,11 +1,11 @@
 import { Text } from '@ui-kitten/components';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { AnimatedCard } from '@/components/animated/animated-card';
+import { CollapsibleCard } from '@/components/common/collapsible-card';
 import { DAILY_QUEST_ALL_COMPLETE_BONUS } from '@/constants/daily-quests';
-import { Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
+import { Colors, FontSize, InterFonts } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNow } from '@/hooks/use-now';
 import { questDescription, questTitle } from '@/services/gamification/display';
@@ -14,7 +14,7 @@ import { getDateKey } from '@/utils/date';
 
 import { ProgressRow } from './progress-row';
 
-/** Today's daily quests with their progress. */
+/** Today's daily quests with their progress (folds to "Daily quests · 1/3"). */
 export function DailyQuestsCard() {
   const { t } = useTranslation();
   const colors = Colors[useColorScheme() ?? 'light'];
@@ -28,15 +28,15 @@ export function DailyQuestsCard() {
   const allDone = completed === todayQuests.length;
 
   return (
-    <AnimatedCard variant="default" style={styles.card} contentStyle={styles.content}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
-          {t('quests.title')}
-        </Text>
-        <Text style={[styles.count, { color: allDone ? colors.success : colors.textSecondary }]}>
-          {t('quests.progressCount', { completed, total: todayQuests.length })}
-        </Text>
-      </View>
+    <CollapsibleCard
+      id="quests"
+      icon="target"
+      accent={colors.primary}
+      title={t('quests.title')}
+      summary={t('quests.progressCount', { completed, total: todayQuests.length })}
+      summaryColor={allDone ? colors.success : undefined}
+      testID="daily-quests-card"
+    >
       {todayQuests.map((quest) => (
         <ProgressRow
           key={quest.id}
@@ -52,35 +52,13 @@ export function DailyQuestsCard() {
       <Text style={[styles.footer, { color: allDone ? colors.success : colors.textMuted }]}>
         {allDone ? t('quests.allComplete') : t('quests.bonusHint', { xp: DAILY_QUEST_ALL_COMPLETE_BONUS })}
       </Text>
-    </AnimatedCard>
+    </CollapsibleCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    marginBottom: Spacing.lg,
-  },
-  content: {
-    padding: Spacing.md,
-    gap: Spacing.xs,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.xs,
-  },
-  title: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.md,
-  },
-  count: {
-    fontFamily: InterFonts.medium,
-    fontSize: FontSize.sm,
-  },
   footer: {
     fontFamily: InterFonts.regular,
     fontSize: FontSize.xs,
-    marginTop: Spacing.xs,
   },
 });

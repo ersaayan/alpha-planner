@@ -13,14 +13,14 @@ The app is **local-first**: it works with no account and no network. Everything 
 | Folder | Contents |
 |--------|----------|
 | `app/` | Screens and navigation. File-based routes for Expo Router: tabs (dashboard, Pomodoro, tasks, stats, settings), onboarding, task create/detail, the kanban / calendar / timeline views, the optional sign-in modal and `+not-found`. |
-| `components/` | Reusable UI: animated primitives, charts, gamification modals and toasts, the circular timer, navigation (including the guarded root stack), the optional sync account card. |
+| `components/` | Reusable UI: common building blocks (screen header, sheet modal, chips, collapsible card, color swatches), animated primitives, charts, gamification cards, modals and toasts, the circular timer, navigation (including the guarded root stack), settings controls and sections (data, about, the optional sync account card). |
 | `constants/` | Static configuration: theme and Eva theme, animations, XP values, levels, achievements, daily quests, weekly goals, combo multipliers, defaults. |
 | `hooks/` | React hooks: app start-up (`use-app-bootstrap`), the timer's app lifecycle and alert permissions (`use-pomodoro-lifecycle`, `use-alert-permissions`), color scheme, sync trigger, sign-in completion. |
 | `locales/` | `en.json` and `tr.json` translation files. |
 | `services/` | Non-UI logic: `app/` (start-up tasks), `notifications/` (timer alerts, permissions, task reminders, notification taps), `gamification/` (achievement rules, seasons, daily summary, translated labels), `data/` (export/import), `i18n/`, and the optional `supabase/` + `sync/`. |
 | `stores/` | Zustand stores (see below). |
 | `types/` | Shared TypeScript types. |
-| `utils/` | Pure helpers (dates, validators, ids, timer maths, theme helpers). |
+| `utils/` | Pure helpers (dates and locale formatting, validators, ids, timer maths, the installed app version). |
 | `__tests__/` | Jest tests mirroring the folders above, plus integration tests across stores. |
 | `supabase/` | SQL migrations and setup guide for the optional sync backend. |
 
@@ -118,7 +118,15 @@ Quest and goal targets are scaled from the user's recent activity and capped to 
 - [i18next](https://www.i18next.com/) with react-i18next, configured in `services/i18n/i18n-config.ts`.
 - Translations are flat key/value JSON files: `locales/en.json` and `locales/tr.json`. English is the fallback language.
 - The language follows the device locale (`expo-localization`) by default: Turkish if the device is Turkish, otherwise English. Users can pick a language in Settings; the choice is restored at start-up once the settings store has loaded, and "System" follows the device language again on resume.
-- Rule: every user-facing string goes through i18next, and every key exists in both files with matching `{{placeholders}}`. `__tests__/i18n/translation-completeness.test.ts` enforces this.
+- Rule: every user-facing string goes through i18next, and every key exists in both files with matching `{{placeholders}}`. `__tests__/i18n/translation-completeness.test.ts` enforces key parity; `__tests__/i18n/hardcoded-strings.test.ts` parses `app/`, `components/`, `hooks/` and `services/notifications/` and fails on letters in JSX text, text props (placeholder, title, label, accessibilityLabel/Hint, …), navigator/notification `title`/`body` keys, `Alert.alert` arguments and screen-reader announcements. Validators return i18n keys, not sentences.
+- Dates and times: date-fns with the app language's locale (`utils/locale.ts`); 12-hour times use the language's day periods (AM/PM, ÖÖ/ÖS). UI Kitten's Datepicker gets a localized `NativeDateService` (`services/i18n/date-service.ts`) with the first day of the week from `resolveWeekStart`. Upper-case text uses `toLocaleUpperCase(language)`, never `textTransform` (which follows the device locale, wrong for Turkish "i").
+
+## UI conventions
+
+- **Theme tokens** (`constants/theme.ts`, mirrored for UI Kitten in `constants/eva-theme.ts`): every text token meets WCAG AA (4.5:1) on `background`, `backgroundSecondary` and `card` and on its own 12% tint; UI tokens meet 3:1; `onPrimary`/`onError` are the text colors on filled buttons. `__tests__/constants/contrast.test.ts` checks both modes. `GamificationColors` are decorative; text uses `colors.xp`, `colors.streak` and the `rarity*` tokens.
+- **Accessibility:** icon-only controls have labels; toggles, sliders and option pills come from `components/settings/setting-controls.tsx` (named, with value/checked state); touch targets are at least 44pt (size or `hitSlop`); `components/common/screen-header.tsx` is the back button + title for full-screen views; `Icon` is hidden from screen readers. Decorative loops use `useAmbientMotion(active)` (off with Reduce Motion and in unfocused tabs).
+- **Layout:** forms use `KeyboardAwareScrollView` (react-native-keyboard-controller, provider in the root layout), tab screens pad their content with `useTabBarInset()` (the floating tab bar's measured height). The Dashboard's quest, goal and season cards are `CollapsibleCard`s whose folded state is saved in the settings (`collapsedDashboardCards`).
+- **Performance:** only the Pomodoro screen and the Dashboard's `TimerStatusCard` subscribe to the per-second `usePomodoroClock`; no component hands animation frames or completion callbacks back to React (`__tests__/components/render-budget.test.ts`). Dialogs and toasts close by JS timers, never by Reanimated completion callbacks.
 
 ## Optional sync (experimental)
 
