@@ -14,6 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -58,11 +59,12 @@ export function AchievementUnlock({
     legendary: '#9B59B6',
   };
 
+  const { t } = useTranslation();
   const rarityLabels = {
-    common: 'Common',
-    rare: 'Rare',
-    epic: 'Epic',
-    legendary: 'Legendary',
+    common: t('gamification.rarity.common'),
+    rare: t('gamification.rarity.rare'),
+    epic: t('gamification.rarity.epic'),
+    legendary: t('gamification.rarity.legendary'),
   };
 
   useEffect(() => {
@@ -142,7 +144,7 @@ export function AchievementUnlock({
             style={styles.unlockIcon}
           />
           <Text style={[styles.headerText, { color: rarityColors[rarity] }]}>
-            ACHIEVEMENT UNLOCKED
+            {t('gamification.achievementUnlocked')}
           </Text>
         </View>
 
@@ -182,7 +184,7 @@ export function AchievementUnlock({
                 style={styles.xpIcon}
               />
               <Text style={[styles.xpText, { color: GamificationColors.xp }]}>
-                +{xpReward} XP
+                {t('gamification.xpEarned', { amount: xpReward })}
               </Text>
             </View>
           </View>

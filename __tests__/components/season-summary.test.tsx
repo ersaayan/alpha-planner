@@ -31,3 +31,34 @@ it('shows nothing when the last season was already seen', async () => {
   await render(<CelebrationHost />);
   expect(screen.queryByTestId('season-summary')).toBeNull();
 });
+
+describe('celebration queue', () => {
+  const { getAchievementById } = jest.requireActual('@/constants/gamification');
+
+  it('shows achievements one at a time, translated, then the level up', async () => {
+    const { act } = require('@testing-library/react-native');
+    useGamificationStore.setState({
+      prestige: { ...INITIAL_PRESTIGE_STATE, history: [], acknowledgedMonth: null },
+      pendingNotifications: [getAchievementById('first_focus'), getAchievementById('task_starter')],
+    });
+    await render(<CelebrationHost />);
+    expect(screen.getByText('First Focus')).toBeTruthy();
+    expect(screen.queryByText('Task Starter')).toBeNull();
+
+    // A level up while achievements are waiting is shown after them.
+    await act(async () => {
+      useGamificationStore.setState((state) => ({ stats: { ...state.stats, level: state.stats.level + 1 } }));
+    });
+    await act(async () => useGamificationStore.getState().dismissNotification('first_focus'));
+    expect(screen.getByText('Task Starter')).toBeTruthy();
+    await act(async () => useGamificationStore.getState().dismissNotification('task_starter'));
+    expect(screen.getByText('Level Up!')).toBeTruthy();
+  });
+
+  it('nothing is shown during onboarding', async () => {
+    useSettingsStore.setState((state) => ({ settings: { ...state.settings, hasCompletedOnboarding: false } }));
+    useGamificationStore.setState({ pendingNotifications: [getAchievementById('first_focus')] });
+    await render(<CelebrationHost />);
+    expect(screen.queryByText('First Focus')).toBeNull();
+  });
+});

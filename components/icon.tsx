@@ -19,6 +19,7 @@ const NAVIGATION_ICONS: Record<string, IconEntry> = {
   'settings-2': { pack: 'feather', name: 'settings' },
   'settings-2-outline': { pack: 'feather', name: 'settings' },
   'plus': { pack: 'feather', name: 'plus' },
+  'minus': { pack: 'feather', name: 'minus' },
   'plus-outline': { pack: 'feather', name: 'plus' },
   'plus-circle': { pack: 'feather', name: 'plus-circle' },
   'plus-circle-outline': { pack: 'feather', name: 'plus-circle' },

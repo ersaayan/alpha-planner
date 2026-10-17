@@ -14,8 +14,7 @@ import {
 } from '@/constants/weekly-goals';
 import { XP_VALUES } from '@/constants/gamification';
 import { generateId } from '@/utils/uuid';
-import { addDaysToKey, getDateKey } from '@/utils/date';
-import { startOfWeek, format } from 'date-fns';
+import { addDaysToKey, getDateKey, getWeekKey } from '@/utils/date';
 import { useGamificationStore } from './gamification-store';
 import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
@@ -40,11 +39,7 @@ interface WeeklyGoalsStore {
 }
 
 /** Weeks start on Monday (the goal week does not follow the calendar setting). */
-export function getWeekKey(date?: Date): string {
-  const d = date ?? new Date();
-  const weekStart = startOfWeek(d, { weekStartsOn: 1 }); // Monday
-  return format(weekStart, 'yyyy-MM-dd');
-}
+export { getWeekKey };
 
 /** Days left in the week of `now`, today included (7 on Monday, 1 on Sunday). */
 export function daysLeftInWeek(now: Date): number {

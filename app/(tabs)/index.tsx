@@ -26,7 +26,10 @@ import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 import { DailySummaryModal } from '@/components/dashboard';
+import { ComboIndicator } from '@/components/gamification/combo-indicator';
+import { DailyQuestsCard } from '@/components/gamification/daily-quests-card';
 import { SeasonCard } from '@/components/gamification/season-card';
+import { WeeklyGoalsCard } from '@/components/gamification/weekly-goals-card';
 import { levelTierName, levelTitle } from '@/services/gamification/display';
 import { shouldShowSummary, getDailySummaryData, getMotivationalMessage, markSummaryShown } from '@/services/gamification/daily-summary';
 import type { DailySummaryData } from '@/services/gamification/daily-summary';
@@ -188,8 +191,8 @@ export default function HomeScreen() {
         </Text>
       </AnimatedCard>
 
-      {/* Monthly season (prestige) */}
-      <SeasonCard />
+      {/* Session and daily combos */}
+      <ComboIndicator />
 
       {/* Quick Stats Grid */}
       <View style={styles.statsGrid}>
@@ -261,6 +264,11 @@ export default function HomeScreen() {
           </AnimatedCard>
         </Animated.View>
       )}
+
+      {/* Today's quests, this week's goals, the monthly season */}
+      <DailyQuestsCard />
+      <WeeklyGoalsCard />
+      <SeasonCard />
 
       {/* Active Tasks Section */}
       <View style={styles.section}>

@@ -9,10 +9,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DistributionChart, WeeklyChart } from '@/components/charts';
 import { useTranslation } from 'react-i18next';
 import { ACHIEVEMENTS, MAX_LEVEL } from '@/constants/gamification';
-import { levelTierName, levelTitle } from '@/services/gamification/display';
+import { getAchievementProgress, type AchievementContext } from '@/services/gamification/achievement-rules';
+import { achievementDescription, achievementName, levelTierName, levelTitle } from '@/services/gamification/display';
+import { effectiveDailyCombo, liveSessionCombo } from '@/constants/combo';
+import { useNow } from '@/hooks/use-now';
+import { getDateKey } from '@/utils/date';
+import { formatMonthKey } from '@/utils/locale';
+import type { AchievementCategory } from '@/types';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAuthStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+import { useCategoryStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+
+const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
+  'pomodoro',
+  'tasks',
+  'streaks',
+  'focus_time',
+  'combo',
+  'daily_quest',
+  'category',
+  'milestones',
+  'special',
+];
 
 import { SectionHeader } from '@/components/common';
 import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
@@ -22,7 +40,7 @@ import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 export default function StatsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -39,6 +57,24 @@ export default function StatsScreen() {
 
   const sessions = usePomodoroStore((state) => state.sessions);
   const todos = useTodoStore((state) => state.todos);
+  const categories = useCategoryStore((state) => state.categories);
+  const dailyStats = useGamificationStore((state) => state.dailyStats);
+  const now = useNow();
+
+  // What locked achievements still need (same rules the store unlocks with).
+  const achievementContext = useMemo<AchievementContext>(() => {
+    const dateKey = getDateKey(now);
+    return {
+      stats,
+      sessionCombo: liveSessionCombo(combo, now.getTime()),
+      dailyCombo: effectiveDailyCombo(combo, dateKey),
+      prestigeCount: prestige.count,
+      dailyStats: dailyStats ?? [],
+      dateKey,
+      todos,
+      categories: categories ?? [],
+    };
+  }, [stats, combo, prestige.count, dailyStats, now, todos, categories]);
 
   const isNewUser = stats.totalPomodoros === 0 && stats.totalTasksCompleted === 0;
 
@@ -321,10 +357,33 @@ export default function StatsScreen() {
         </>
       )}
 
+      {/* Seasons (prestige history) */}
+      {prestige.history.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader title={t('stats.seasonHistory')} />
+          <AnimatedCard variant="default" contentStyle={styles.historyContent}>
+            {[...prestige.history].reverse().map((record) => (
+              <View key={record.month} style={styles.historyRow}>
+                <Text style={[styles.historyMonth, { color: colors.text }]}>
+                  {formatMonthKey(record.month, i18n.language)}
+                </Text>
+                <Text style={[styles.historyDetail, { color: colors.textMuted }]}>
+                  {t('stats.seasonRecord', {
+                    level: record.finalLevel,
+                    xp: record.totalXp,
+                    rewards: record.rewards.length,
+                  })}
+                </Text>
+              </View>
+            ))}
+          </AnimatedCard>
+        </View>
+      )}
+
       {/* Achievements Section */}
       <View style={styles.section}>
         <SectionHeader
-          title="Achievements"
+          title={t('stats.achievements')}
           action={
             <View style={[styles.achievementCount, { backgroundColor: colors.primary + '20' }]}>
               <Text style={[styles.achievementCountText, { color: colors.primary }]}>
@@ -334,43 +393,62 @@ export default function StatsScreen() {
           }
         />
 
-        <View style={styles.achievementsGrid}>
-          {ACHIEVEMENTS.filter((a) => !a.isSecret || isAchievementUnlocked(a.id)).map((achievement) => {
-            const unlocked = isAchievementUnlocked(achievement.id);
-            return (
-              <AnimatedCard
-                key={achievement.id}
-                variant={unlocked ? 'default' : 'outlined'}
-                style={styles.achievementCard}
-                contentStyle={styles.achievementCardContent}
-              >
-                <AchievementBadge
-                  icon={achievement.icon}
-                  title={achievement.name}
-                  isUnlocked={unlocked}
-                  rarity={achievement.rarity}
-                  size="sm"
-                />
-                <Text
-                  style={[
-                    styles.achievementDescription,
-                    { color: unlocked ? colors.textSecondary : colors.textMuted },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {achievement.description}
-                </Text>
-                {unlocked && (
-                  <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
-                    <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
-                      +{achievement.xpReward} XP
-                    </Text>
-                  </View>
-                )}
-              </AnimatedCard>
-            );
-          })}
-        </View>
+        {ACHIEVEMENT_CATEGORIES.map((category) => {
+          const inCategory = ACHIEVEMENTS.filter((a) => a.category === category);
+          const unlockedHere = inCategory.filter((a) => isAchievementUnlocked(a.id)).length;
+          return (
+            <View key={category} style={styles.achievementGroup}>
+              <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                {t(`achievementCategory.${category}`)} · {unlockedHere}/{inCategory.length}
+              </Text>
+              <View style={styles.achievementsGrid}>
+                {inCategory.map((achievement) => {
+                  const unlocked = isAchievementUnlocked(achievement.id);
+                  // Locked secrets stay a mystery.
+                  const hidden = achievement.isSecret && !unlocked;
+                  const progress = !unlocked && !hidden ? getAchievementProgress(achievement, achievementContext) : null;
+                  return (
+                    <AnimatedCard
+                      key={achievement.id}
+                      variant={unlocked ? 'default' : 'outlined'}
+                      style={styles.achievementCard}
+                      contentStyle={styles.achievementCardContent}
+                    >
+                      <AchievementBadge
+                        icon={hidden ? 'lock' : achievement.icon}
+                        title={hidden ? t('achievements.secret') : achievementName(t, achievement)}
+                        isUnlocked={unlocked}
+                        rarity={achievement.rarity}
+                        size="sm"
+                      />
+                      <Text
+                        style={[
+                          styles.achievementDescription,
+                          { color: unlocked ? colors.textSecondary : colors.textMuted },
+                        ]}
+                        numberOfLines={3}
+                      >
+                        {hidden ? t('achievements.secretDesc') : achievementDescription(t, achievement)}
+                      </Text>
+                      {progress && progress.target > 1 && (
+                        <Text style={[styles.achievementProgress, { color: colors.textMuted }]}>
+                          {Math.min(progress.current, progress.target)} / {progress.target}
+                        </Text>
+                      )}
+                      {unlocked && (
+                        <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
+                          <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
+                            {t('gamification.xpEarned', { amount: achievement.xpReward })}
+                          </Text>
+                        </View>
+                      )}
+                    </AnimatedCard>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -420,6 +498,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: Spacing.md,
+  },
+  historyContent: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  historyMonth: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.sm,
+  },
+  historyDetail: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
+  },
+  achievementGroup: {
+    marginBottom: Spacing.md,
+  },
+  groupTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.sm,
+  },
+  achievementProgress: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+    marginTop: Spacing.xs,
   },
   header: {
     marginBottom: Spacing.lg,

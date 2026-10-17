@@ -1,5 +1,12 @@
 import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpProgressFor, type XpProgress } from '@/constants/gamification';
-import { calculateComboXp, getDailyComboMultiplier, getSessionComboMultiplier, liveSessionCombo, sessionComboMaxGapMs } from '@/constants/combo';
+import {
+  calculateComboXp,
+  effectiveDailyCombo,
+  getDailyComboMultiplier,
+  getSessionComboMultiplier,
+  liveSessionCombo,
+  sessionComboMaxGapMs,
+} from '@/constants/combo';
 import { DAILY_QUEST_ALL_COMPLETE_BONUS, DAILY_QUEST_COUNT, type QuestEvent } from '@/constants/daily-quests';
 import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, TodoPriority, UserAchievement, UserStats } from '@/types';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
@@ -125,15 +132,7 @@ const DAILY_COUNTERS = [
 /** Days of daily stats kept. */
 const DAILY_STATS_LIMIT = 90;
 
-/**
- * The daily combo streak that still applies on `dateKey`. A combo day keeps its
- * multiplier until the end of the next day; after a day without one it lapses.
- */
-export function effectiveDailyCombo(combo: ComboState, dateKey: string): number {
-  const last = combo.lastDailyComboDate;
-  if (!last || last < addDaysToKey(dateKey, -1)) return 0;
-  return combo.dailyComboStreak;
-}
+export { effectiveDailyCombo };
 
 /**
  * Adds to the weekly goals of the week of `at`, then recomputes the streak and

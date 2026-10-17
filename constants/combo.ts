@@ -30,6 +30,26 @@ export function liveSessionCombo(
   return Number.isFinite(last) && atMs - last <= maxGapMs ? combo.sessionCombo : 0;
 }
 
+/** The day before a `yyyy-MM-dd` key (local calendar, DST-safe). */
+function previousDateKey(key: string): string {
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, (month || 1) - 1, (day || 1) - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * The daily combo streak that still applies on `dateKey`. A combo day keeps its
+ * multiplier until the end of the next day; after a day without one it lapses.
+ */
+export function effectiveDailyCombo(
+  combo: { dailyComboStreak: number; lastDailyComboDate: string | null },
+  dateKey: string
+): number {
+  const last = combo.lastDailyComboDate;
+  if (!last || last < previousDateKey(dateKey)) return 0;
+  return combo.dailyComboStreak;
+}
+
 export function getSessionComboMultiplier(combo: number): number {
   if (combo >= 5) return SESSION_COMBO_MAX_MULTIPLIER;
   return SESSION_COMBO_MULTIPLIERS[combo] ?? 1;
