@@ -44,8 +44,7 @@ export function AnimatedProgressBar({
       duration: AnimationDuration.xpFill,
       easing: AnimationEasing.smooth,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [progress]);
+  }, [progress, animatedProgress]);
 
   // Continuous shimmer animation (not with Reduce Motion, not while the screen is hidden)
   useEffect(() => {
@@ -63,8 +62,7 @@ export function AnimatedProgressBar({
       cancelAnimation(shimmerPosition);
       shimmerPosition.set(-1);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [shimmer, progress]);
+  }, [shimmer, progress, shimmerPosition]);
 
   const progressStyle = useAnimatedStyle(() => {
     return {

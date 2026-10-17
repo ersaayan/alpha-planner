@@ -25,10 +25,6 @@ export function achievementDescription(t: TFunction, achievement: Pick<Achieveme
   return t(`achievements.${achievement.id}.desc`, { defaultValue: achievement.description });
 }
 
-export function rarityName(t: TFunction, rarity: Achievement['rarity']): string {
-  return t(`gamification.rarity.${rarity}`);
-}
-
 /**
  * Display name of a category: the translated name for an unchanged default category,
  * otherwise the user's own name.

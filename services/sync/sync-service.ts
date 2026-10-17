@@ -151,8 +151,8 @@ export async function pullRemoteChanges(): Promise<Record<string, unknown[]>> {
 export function mergeIntoLocalStores(
   remoteData: Record<string, unknown[]>,
   localStores: {
-    todoStore: { todos: Array<{ id: string; updatedAt: string }>; _mergeRemoteTodos: (todos: unknown[]) => void };
-    categoryStore: { categories: Array<{ id: string; updatedAt: string }>; _mergeRemoteCategories: (categories: unknown[]) => void };
+    todoStore: { todos: { id: string; updatedAt: string }[]; _mergeRemoteTodos: (todos: unknown[]) => void };
+    categoryStore: { categories: { id: string; updatedAt: string }[]; _mergeRemoteCategories: (categories: unknown[]) => void };
   }
 ): void {
   // Merge todos

@@ -62,8 +62,7 @@ export function CircularProgress({
       duration: 500,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1),
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [progress]);
+  }, [progress, animatedProgress]);
 
   // Pulse animation when timer is running (not with Reduce Motion)
   useEffect(() => {
@@ -92,8 +91,7 @@ export function CircularProgress({
       cancelAnimation(pulseScale);
       cancelAnimation(glowOpacity);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [pulse, showGlow]);
+  }, [pulse, showGlow, glowOpacity, pulseScale]);
 
   const animatedProps = useAnimatedProps(() => {
     const strokeDashoffset = circumference * (1 - animatedProgress.value);

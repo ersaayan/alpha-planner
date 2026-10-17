@@ -10,7 +10,6 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +25,6 @@ import {
   Shadows,
   InterFonts,
   FontSize,
-  Typography,
 } from '@/constants/theme';
 import { AnimationDuration, SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -85,8 +83,7 @@ export function DailySummaryModal({
       modalOpacity.value = 0;
       modalTranslateY.value = 40;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible]);
+  }, [visible, backdropOpacity, modalOpacity, modalTranslateY]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,

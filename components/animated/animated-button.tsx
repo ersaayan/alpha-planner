@@ -213,50 +213,6 @@ export function AnimatedButton({
   );
 }
 
-// Floating Action Button variant
-interface FABProps extends Omit<AnimatedButtonProps, 'title' | 'variant' | 'size'> {
-  icon: string;
-  size?: 'sm' | 'md' | 'lg';
-  color?: string;
-}
-
-export function FAB({
-  icon,
-  size = 'md',
-  color,
-  style,
-  ...props
-}: FABProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-
-  const sizeConfig = {
-    sm: { size: 44, icon: 20 },
-    md: { size: 56, icon: 24 },
-    lg: { size: 68, icon: 28 },
-  };
-
-  const config = sizeConfig[size];
-  const bgColor = color || colors.primary;
-
-  return (
-    <AnimatedButton
-      icon={icon}
-      variant="primary"
-      style={{
-        width: config.size,
-        height: config.size,
-        borderRadius: config.size / 2,
-        paddingHorizontal: 0,
-        backgroundColor: bgColor,
-        ...Shadows.lg,
-        ...style,
-      }}
-      {...props}
-    />
-  );
-}
-
 const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',

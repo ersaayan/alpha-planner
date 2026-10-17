@@ -20,6 +20,12 @@ import { formatDuration } from '@/services/i18n/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+import { SectionHeader } from '@/components/common';
+import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
+import { AnimatedButton } from '@/components/animated/animated-button';
+import { AnimatedCard } from '@/components/animated/animated-card';
+import { AnimatedCounter } from '@/components/animated/animated-counter';
+import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
   'pomodoro',
@@ -32,13 +38,6 @@ const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
   'milestones',
   'special',
 ];
-
-import { SectionHeader } from '@/components/common';
-import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
-import { AnimatedButton } from '@/components/animated/animated-button';
-import { AnimatedCard } from '@/components/animated/animated-card';
-import { AnimatedCounter } from '@/components/animated/animated-counter';
-import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 export default function StatsScreen() {
   const { t, i18n } = useTranslation();

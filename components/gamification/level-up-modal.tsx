@@ -87,8 +87,7 @@ export function LevelUpModal({
     return () => {
       cancelAnimation(confettiRotation);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible]);
+  }, [visible, ambient, backdropOpacity, confettiRotation, modalOpacity, modalScale, titleTranslateY]);
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,

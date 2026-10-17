@@ -1,4 +1,4 @@
-import type { Achievement, AchievementCategory, LevelConfig } from '@/types';
+import type { Achievement, LevelConfig } from '@/types';
 
 export const XP_VALUES = {
   POMODORO_COMPLETE: 15,
@@ -1051,9 +1051,6 @@ export function getXpProgressFor(totalXp: number, level: number): XpProgress {
   };
 }
 
-export function getAchievementsByCategory(category: AchievementCategory): Achievement[] {
-  return ACHIEVEMENTS.filter((a) => a.category === category);
-}
 
 export function getAchievementById(id: string): Achievement | undefined {
   return ACHIEVEMENTS.find((a) => a.id === id);

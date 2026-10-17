@@ -65,8 +65,7 @@ export function XPGainToast({
         withSpring(1, SpringConfig.default)
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible, duration]);
+  }, [visible, duration, opacity, scale, translateY]);
 
   // A JS timer (not an animation callback) hides the toast: it fires on every platform
   // (Reanimated completion callbacks did not on the web) and only once.

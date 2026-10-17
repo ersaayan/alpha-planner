@@ -79,8 +79,7 @@ export function AnimatedCheckbox({
       );
       checkProgress.value = withTiming(0, { duration: AnimationDuration.fast });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [checked]);
+  }, [checked, checkProgress, scale]);
 
   const handlePress = () => {
     if (disabled) return;

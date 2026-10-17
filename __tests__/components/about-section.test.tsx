@@ -18,7 +18,7 @@ jest.mock('@/utils/app-version', () => ({ getAppVersion: () => ({ version: '1.0.
 
 describe('Settings → About', () => {
   beforeEach(() => {
-    jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
   });
 
   afterEach(() => jest.restoreAllMocks());

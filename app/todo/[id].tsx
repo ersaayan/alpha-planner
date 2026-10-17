@@ -9,7 +9,7 @@ import {
   Text,
 } from '@ui-kitten/components';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -24,7 +24,31 @@ import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { PRIORITIES, PRIORITY_LABEL_KEYS, STATUSES, STATUS_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
+import type { Category, Todo, TodoPriority, TodoStatus } from '@/types';
 import { formatDue, getDueDateKey } from '@/utils/todo-dates';
+
+interface Draft {
+  title: string;
+  description: string;
+  categoryId: string | null;
+  priority: TodoPriority;
+  status: TodoStatus;
+  due: { dueDate: string | null; dueTime: string | null };
+  estimatedPomodoros: string;
+}
+
+/** The edit form's starting values (a category that no longer exists is dropped). */
+function draftFrom(todo: Todo, categories: Category[]): Draft {
+  return {
+    title: todo.title,
+    description: todo.description ?? '',
+    categoryId: categories.some((c) => c.id === todo.categoryId) ? todo.categoryId : null,
+    priority: todo.priority,
+    status: todo.status,
+    due: { dueDate: getDueDateKey(todo.dueDate), dueTime: todo.dueTime ?? null },
+    estimatedPomodoros: todo.estimatedPomodoros?.toString() ?? '',
+  };
+}
 
 export default function TodoDetailScreen() {
   const { t, i18n } = useTranslation();
@@ -48,37 +72,14 @@ export default function TodoDetailScreen() {
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
   const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [selectedPriorityIndex, setSelectedPriorityIndex] = useState<IndexPath>(new IndexPath(1));
-  const [selectedStatusIndex, setSelectedStatusIndex] = useState<IndexPath>(new IndexPath(0));
-  const [due, setDue] = useState<{ dueDate: string | null; dueTime: string | null }>({ dueDate: null, dueTime: null });
-  const [estimatedPomodoros, setEstimatedPomodoros] = useState('');
+  // The edit form's values, created when editing starts (null while viewing). The view
+  // reads the stored todo directly, so nothing has to be mirrored into state.
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [newSubtask, setNewSubtask] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
   // The subtask being renamed, with its draft title.
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
-
-  useEffect(() => {
-    if (!todo) return;
-    // Don't reset form if user is currently editing
-    if (isEditing) return;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors the stored todo while not editing
-    setTitle(todo.title);
-    setDescription(todo.description || '');
-    setDue({ dueDate: getDueDateKey(todo.dueDate), dueTime: todo.dueTime ?? null });
-    setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
-    setCategoryId(categories.some((c) => c.id === todo.categoryId) ? todo.categoryId : null);
-
-    const priorityIndex = PRIORITIES.indexOf(todo.priority);
-    setSelectedPriorityIndex(new IndexPath(priorityIndex >= 0 ? priorityIndex : 1));
-
-    const statusIndex = STATUSES.indexOf(todo.status);
-    setSelectedStatusIndex(new IndexPath(statusIndex >= 0 ? statusIndex : 0));
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally syncing form on specific field changes only
-  }, [todo?.id, todo?.updatedAt, isEditing, categories]);
+  const isEditing = draft !== null;
+  const edit = (patch: Partial<Draft>) => setDraft((current) => (current ? { ...current, ...patch } : current));
 
   if (!todo) {
     return (
@@ -96,30 +97,30 @@ export default function TodoDetailScreen() {
     );
   }
 
-  const selectedCategory = categories.find((c) => c.id === categoryId) ?? null;
-  const selectedPriority = PRIORITIES[selectedPriorityIndex.row];
-  const selectedStatus = STATUSES[selectedStatusIndex.row];
+  const selectedPriority = draft?.priority ?? todo.priority;
+  const selectedStatus = draft?.status ?? todo.status;
+  const selectedCategory = categories.find((c) => c.id === (draft ? draft.categoryId : todo.categoryId)) ?? null;
   const selectedPriorityColor = priorityColor(selectedPriority, colors);
 
   const handleSave = () => {
-    if (!title.trim()) return;
+    if (!draft || !draft.title.trim()) return;
 
-    const parsedPomodoros = parseInt(estimatedPomodoros, 10);
+    const parsedPomodoros = parseInt(draft.estimatedPomodoros, 10);
     const estimatedPomodorosValue =
       Number.isFinite(parsedPomodoros) && parsedPomodoros > 0 ? parsedPomodoros : null;
 
     updateTodo(id, {
-      title: title.trim(),
-      description: description.trim() || null,
-      dueDate: due.dueDate,
-      dueTime: due.dueTime,
-      categoryId,
-      priority: selectedPriority,
-      status: selectedStatus,
+      title: draft.title.trim(),
+      description: draft.description.trim() || null,
+      dueDate: draft.due.dueDate,
+      dueTime: draft.due.dueTime,
+      categoryId: draft.categoryId,
+      priority: draft.priority,
+      status: draft.status,
       estimatedPomodoros: estimatedPomodorosValue,
     });
-    if (due.dueTime && due.dueTime !== todo.dueTime) void enableTaskReminders();
-    setIsEditing(false);
+    if (draft.due.dueTime && draft.due.dueTime !== todo.dueTime) void enableTaskReminders();
+    setDraft(null);
   };
 
   const saveRename = () => {
@@ -183,19 +184,19 @@ export default function TodoDetailScreen() {
       </View>
 
       {/* Title & Description */}
-      {isEditing ? (
+      {draft ? (
         <>
           <Input
             label={t('todo.create.taskTitle')}
-            value={title}
-            onChangeText={setTitle}
+            value={draft.title}
+            onChangeText={(value) => edit({ title: value })}
             style={styles.input}
             size="large"
           />
           <Input
             label={t('todo.create.description')}
-            value={description}
-            onChangeText={setDescription}
+            value={draft.description}
+            onChangeText={(value) => edit({ description: value })}
             style={styles.input}
             multiline
             numberOfLines={3}
@@ -213,21 +214,21 @@ export default function TodoDetailScreen() {
       )}
 
       {/* Category & Priority (Edit Mode) */}
-      {isEditing && (
+      {draft && (
         <>
           <CategorySelect
             label={t('todo.detail.category')}
             categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
+            value={draft.categoryId}
+            onChange={(value) => edit({ categoryId: value })}
             style={styles.input}
           />
 
           <Select
             label={t('todo.detail.priority')}
             value={t(PRIORITY_LABEL_KEYS[selectedPriority])}
-            selectedIndex={selectedPriorityIndex}
-            onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
+            selectedIndex={new IndexPath(PRIORITIES.indexOf(draft.priority))}
+            onSelect={(index) => edit({ priority: PRIORITIES[(index as IndexPath).row] })}
             style={styles.input}
           >
             {PRIORITIES.map((priority) => (
@@ -238,8 +239,8 @@ export default function TodoDetailScreen() {
           <Select
             label={t('todo.detail.status')}
             value={t(STATUS_LABEL_KEYS[selectedStatus])}
-            selectedIndex={selectedStatusIndex}
-            onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
+            selectedIndex={new IndexPath(STATUSES.indexOf(draft.status))}
+            onSelect={(index) => edit({ status: STATUSES[(index as IndexPath).row] })}
             style={styles.input}
           >
             {STATUSES.map((status) => (
@@ -249,16 +250,16 @@ export default function TodoDetailScreen() {
 
           <DueDateFields
             label={t('todo.detail.dueDate')}
-            dueDate={due.dueDate}
-            dueTime={due.dueTime}
-            onChange={setDue}
+            dueDate={draft.due.dueDate}
+            dueTime={draft.due.dueTime}
+            onChange={(value) => edit({ due: value })}
           />
 
           <Input
             label={t('todo.detail.estimatedPomodoros')}
             placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
-            value={estimatedPomodoros}
-            onChangeText={setEstimatedPomodoros}
+            value={draft.estimatedPomodoros}
+            onChangeText={(value) => edit({ estimatedPomodoros: value })}
             style={styles.input}
             keyboardType="number-pad"
             accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
@@ -403,17 +404,17 @@ export default function TodoDetailScreen() {
       <View style={styles.actions}>
         {isEditing ? (
           <>
-            <Button appearance="ghost" onPress={() => setIsEditing(false)}>
+            <Button appearance="ghost" onPress={() => setDraft(null)}>
               {t('common.cancel')}
             </Button>
-            <Button onPress={handleSave} disabled={!title.trim()}>{t('todo.saveChanges')}</Button>
+            <Button onPress={handleSave} disabled={!draft.title.trim()}>{t('todo.saveChanges')}</Button>
           </>
         ) : (
           <>
             <Button
               appearance="outline"
               accessoryLeft={(props) => <Icon {...props} name="edit-outline" />}
-              onPress={() => setIsEditing(true)}
+              onPress={() => setDraft(draftFrom(todo, categories))}
             >
               {t('todo.detail.edit')}
             </Button>

@@ -3,8 +3,6 @@
  * Color palette: https://colorhunt.co/palette/ebf4dd90ab8b5a78683b4953
  */
 
-import { Platform } from 'react-native';
-
 // Main color palette
 export const Palette = {
   cream: '#EBF4DD',
@@ -146,28 +144,6 @@ export const InterFonts = {
   extrabold: 'Inter_800ExtraBold',
 } as const;
 
-// Legacy font definitions (fallback if Inter not loaded)
-export const Fonts = Platform.select({
-  ios: {
-    sans: 'Inter_400Regular',
-    serif: 'ui-serif',
-    rounded: 'Inter_500Medium',
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'Inter_400Regular',
-    serif: 'serif',
-    rounded: 'Inter_500Medium',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "Inter, 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
-
 export const FontSize = {
   xs: 12,
   sm: 14,
@@ -273,16 +249,6 @@ export const BorderRadius = {
   xl: 24,  // Updated: playful rounding (was 16)
   xxl: 32, // New: large rounded corners
   full: 9999,
-} as const;
-
-// Font weights for Inter font
-export const FontWeight = {
-  light: '300',
-  regular: '400',
-  medium: '500',
-  semibold: '600',
-  bold: '700',
-  extrabold: '800',
 } as const;
 
 // Shadow presets for depth and elevation

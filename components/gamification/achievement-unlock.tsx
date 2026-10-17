@@ -108,8 +108,7 @@ export function AchievementUnlock({
         opacity.value = withTiming(1, { duration: AnimationDuration.fast });
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [visible, autoDismiss, autoDismissDelay]);
+  }, [visible, autoDismiss, autoDismissDelay, badgeScale, opacity, scale, translateY]);
 
   // A JS timer (not an animation callback) closes it, so the next celebration in the
   // queue is shown on every platform (completion callbacks did not fire on the web).

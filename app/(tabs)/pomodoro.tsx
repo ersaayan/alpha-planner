@@ -5,6 +5,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useIsFocused } from "expo-router";
 import { BottomTabBarHeightContext } from "expo-router/js-tabs";
 import { useContext, useEffect, useRef, useState } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import {
   AccessibilityInfo,
@@ -50,11 +51,26 @@ import {
   useSettingsStore,
   useTodoStore,
 } from "@/stores";
+import type { PomodoroPhase } from "@/types";
 import { formatClock } from "@/utils/pomodoro-helpers";
 
 const KEEP_AWAKE_TAG = "pomodoro-timer";
 const MIN_CIRCLE = 150;
 const MAX_CIRCLE = 320;
+
+/** The phase's name ("Focus Time", "Short Break", …). */
+function phaseLabel(t: TFunction, phase: PomodoroPhase): string {
+  switch (phase) {
+    case "focus":
+      return t("pomodoro.focusTime");
+    case "short_break":
+      return t("pomodoro.shortBreak");
+    case "long_break":
+      return t("pomodoro.longBreak");
+    default:
+      return t("pomodoro.readyToFocus");
+  }
+}
 
 // Ask for notification permission at most once per app session from the Start button.
 let askedForPermissionThisSession = false;
@@ -123,19 +139,6 @@ export default function PomodoroScreen() {
     };
   }, [keepScreenAwake, isFocused, isRunning]);
 
-  function phaseLabel(phase: typeof timerPhase) {
-    switch (phase) {
-      case "focus":
-        return t("pomodoro.focusTime");
-      case "short_break":
-        return t("pomodoro.shortBreak");
-      case "long_break":
-        return t("pomodoro.longBreak");
-      default:
-        return t("pomodoro.readyToFocus");
-    }
-  }
-
   const sessionDotScale = useSharedValue(1);
 
   // Announce phase changes for screen readers and bounce the current session dot.
@@ -145,7 +148,7 @@ export default function PomodoroScreen() {
     const completedPhase = prevPhaseRef.current;
     if (completedPhase !== timerPhase && prevTimerStateRef.current === "running") {
       AccessibilityInfo.announceForAccessibility(
-        t("pomodoro.phaseComplete", { phase: phaseLabel(completedPhase) }),
+        t("pomodoro.phaseComplete", { phase: phaseLabel(t, completedPhase) }),
       );
       sessionDotScale.set(
         withSequence(withSpring(1.3, SpringConfig.bouncy), withSpring(1, SpringConfig.default)),
@@ -153,8 +156,8 @@ export default function PomodoroScreen() {
     }
     prevPhaseRef.current = timerPhase;
     prevTimerStateRef.current = timerState;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only phase/state transitions matter
-  }, [timerPhase, timerState]);
+    // Runs again when `t` changes (language switch): harmless, the refs already match.
+  }, [timerPhase, timerState, t, sessionDotScale]);
 
   const phaseColor =
     timerPhase === "focus"
@@ -328,7 +331,7 @@ export default function PomodoroScreen() {
               <Icon name={phaseIcon} fill={phaseColor} style={styles.phaseIcon} />
               <Text style={[styles.phaseLabel, { color: phaseColor }]} maxFontSizeMultiplier={1.3}>
                 {/* Upper-cased for the app language (CSS-style uppercase would use the device locale: "I" for Turkish "i") */}
-                {phaseLabel(timerPhase).toLocaleUpperCase(i18n.language)}
+                {phaseLabel(t, timerPhase).toLocaleUpperCase(i18n.language)}
               </Text>
             </View>
 

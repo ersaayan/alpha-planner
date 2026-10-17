@@ -28,7 +28,7 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('expo-router/js-tabs', () => ({ BottomTabBarHeightContext: require('react').createContext(undefined) }));
 
-jest.mock('@/components/animated/animated-button', () => ({ AnimatedButton: ({ title, onPress }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={onPress}><Text>{title}</Text></Pressable>; }, FAB: () => null }));
+jest.mock('@/components/animated/animated-button', () => ({ AnimatedButton: ({ title, onPress }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={onPress}><Text>{title}</Text></Pressable>; } }));
 jest.mock('@/components/animated/animated-card', () => ({ AnimatedCard: ({ children }: any) => { const { View } = require('react-native'); return <View>{children}</View>; } }));
 jest.mock('@/components/pomodoro', () => ({ CircularProgress: ({ children, progress }: any) => { const { View } = require('react-native'); return <View testID="circle" accessibilityValue={{ now: Math.round(progress * 100) }}>{children}</View>; } }));
 

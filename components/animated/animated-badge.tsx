@@ -81,8 +81,7 @@ export function LevelBadge({
         withTiming(0.3, { duration: 600 })
       );
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [isLevelingUp]);
+  }, [isLevelingUp, glowOpacity, ringOpacity, ringScale, scale]);
 
   useEffect(() => {
     if (pulseGlow) {
@@ -98,8 +97,7 @@ export function LevelBadge({
     return () => {
       cancelAnimation(glowOpacity);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [pulseGlow]);
+  }, [pulseGlow, glowOpacity]);
 
   const badgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
