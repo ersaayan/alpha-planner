@@ -51,19 +51,29 @@ export function ComboIndicator() {
     });
   }
 
+  const active = chips.length > 0;
+
   return (
-    <View style={styles.container} testID="combo-indicator">
-      <Icon name="flash" fill={GamificationColors.streak} style={styles.icon} />
-      {chips.length === 0 ? (
-        <Text style={[styles.hint, { color: colors.textMuted }]}>{t('combo.hint')}</Text>
+    <View
+      style={[styles.container, { backgroundColor: active ? colors.streak + '14' : colors.card, borderColor: colors.cardBorder }]}
+      testID="combo-indicator"
+      accessible
+      accessibilityLabel={active ? chips.map((chip) => `${chip.label}, ${chip.detail}`).join('. ') : t('combo.hint')}
+    >
+      <View style={[styles.iconBubble, { backgroundColor: GamificationColors.streak + '24' }]}>
+        <Icon name="flash" fill={colors.streak} size={18} />
+      </View>
+      {active ? (
+        <View style={styles.chips}>
+          {chips.map((chip) => (
+            <View key={chip.key} style={[styles.chip, { backgroundColor: colors.card }]}>
+              <Text style={[styles.chipLabel, { color: colors.text }]}>{chip.label}</Text>
+              <Text style={[styles.chipDetail, { color: colors.streak }]}>{chip.detail}</Text>
+            </View>
+          ))}
+        </View>
       ) : (
-        chips.map((chip) => (
-          <View key={chip.key} style={[styles.chip, { backgroundColor: GamificationColors.streak + '20' }]}>
-            <Text style={[styles.chipText, { color: colors.streak }]}>
-              {chip.label} · {chip.detail}
-            </Text>
-          </View>
-        ))
+        <Text style={[styles.hint, { color: colors.textSecondary }]}>{t('combo.hint')}</Text>
       )}
     </View>
   );
@@ -72,27 +82,47 @@ export function ComboIndicator() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     alignItems: 'center',
     gap: Spacing.sm,
+    padding: Spacing.sm,
+    paddingRight: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: Spacing.lg,
   },
-  icon: {
-    width: 18,
-    height: 18,
+  iconBubble: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hint: {
     flex: 1,
     fontFamily: InterFonts.regular,
     fontSize: FontSize.xs,
+    lineHeight: FontSize.xs * 1.45,
+  },
+  chips: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.xs,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
   },
-  chipText: {
-    fontFamily: InterFonts.semibold,
+  chipLabel: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+  },
+  chipDetail: {
+    fontFamily: InterFonts.bold,
     fontSize: FontSize.xs,
   },
 });

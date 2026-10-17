@@ -90,25 +90,32 @@ export function DataSection() {
     <Pressable
       onPress={onPress}
       disabled={busy !== null}
-      style={styles.row}
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityHint={description}
+      accessibilityState={{ disabled: busy !== null, busy: busy === key }}
     >
-      <Icon name={icon} fill={colors.primary} style={styles.icon} />
+      <View style={[styles.iconBubble, { backgroundColor: colors.primary + '20' }]}>
+        <Icon name={icon} fill={colors.primary} size={20} />
+      </View>
       <View style={styles.rowText}>
         <Text category="s1">{title}</Text>
         <Text category="c1" style={{ color: colors.textMuted }}>
           {description}
         </Text>
       </View>
-      {busy === key ? <ActivityIndicator color={colors.primary} /> : null}
+      {busy === key ? (
+        <ActivityIndicator color={colors.primary} />
+      ) : (
+        <Icon name="chevron-right" fill={colors.textMuted} size={20} />
+      )}
     </Pressable>
   );
 
   return (
     <>
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('data.title')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
@@ -171,15 +178,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    minHeight: 44,
+    minHeight: 48,
     paddingVertical: Spacing.xs,
   },
   rowText: {
     flex: 1,
   },
-  icon: {
-    width: 22,
-    height: 22,
+  iconBubble: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    opacity: 0.7,
   },
   divider: {
     marginVertical: Spacing.sm,

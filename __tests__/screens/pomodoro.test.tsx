@@ -116,7 +116,7 @@ describe('Pomodoro Screen', () => {
     await render(<PomodoroScreen />);
     expect(screen.getByText('Start Focus')).toBeTruthy();
     expect(screen.getByText('Session 1')).toBeTruthy();
-    expect(screen.getByText('Focus Time')).toBeTruthy();
+    expect(screen.getByText('FOCUS TIME')).toBeTruthy();
   });
 
   it('start button calls startTimer', async () => {

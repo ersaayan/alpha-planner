@@ -1,11 +1,12 @@
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { AnimatedButton } from '@/components/animated/animated-button';
+import { Chip } from '@/components/common/chip';
 import { SheetModal } from '@/components/common/sheet-modal';
-import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
-import { PRIORITIES, PRIORITY_LABEL_KEYS } from '@/constants/todo-options';
+import { Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
+import { PRIORITIES, PRIORITY_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { categoryName } from '@/services/gamification/display';
 import { useCategoryStore, useTodoStore } from '@/stores';
@@ -14,35 +15,6 @@ import { TODO_SORTS } from '@/utils/todo-list';
 
 // Most urgent first.
 const PRIORITY_CHIPS = [...PRIORITIES].reverse();
-
-interface ChipProps {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-  color?: string;
-  /** 'radio' for single-choice groups (sort, category), 'checkbox' for multi-choice (priority). */
-  role?: 'radio' | 'checkbox';
-}
-
-function Chip({ label, selected, onPress, color, role = 'radio' }: ChipProps) {
-  const colors = Colors[useColorScheme() ?? 'light'];
-  const accent = color ?? colors.primary;
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.chip,
-        { borderColor: selected ? accent : colors.border, backgroundColor: selected ? accent + '20' : colors.card },
-      ]}
-      hitSlop={4}
-      accessibilityRole={role}
-      accessibilityState={{ checked: selected }}
-    >
-      {color ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
-      <Text style={[styles.chipText, { color: selected ? accent : colors.text }]}>{label}</Text>
-    </Pressable>
-  );
-}
 
 /** Category, priority and sort options for the task list (kept between visits). */
 export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
@@ -61,10 +33,17 @@ export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClos
       priority: priorities.includes(priority) ? priorities.filter((p) => p !== priority) : [...priorities, priority],
     });
 
+  const section = (title: string) => (
+    <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
+      {title}
+    </Text>
+  );
+
   return (
     <SheetModal
       visible={visible}
       title={t('todos.filterTitle')}
+      icon="filter"
       onClose={onClose}
       footer={
         <>
@@ -81,76 +60,63 @@ export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClos
         </>
       }
     >
-      <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
-        {t('todos.sortBy')}
-      </Text>
-      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('todos.sortBy')}>
-        {TODO_SORTS.map((sort) => (
-          <Chip key={sort} label={t(`todos.sort.${sort}`)} selected={sortBy === sort} onPress={() => setSortBy(sort)} />
-        ))}
+      <View style={styles.group}>
+        {section(t('todos.sortBy'))}
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('todos.sortBy')}>
+          {TODO_SORTS.map((sort) => (
+            <Chip key={sort} label={t(`todos.sort.${sort}`)} selected={sortBy === sort} onPress={() => setSortBy(sort)} />
+          ))}
+        </View>
       </View>
 
-      <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
-        {t('todo.create.category')}
-      </Text>
-      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('todo.create.category')}>
-        <Chip label={t('todos.allCategories')} selected={!filter.categoryId} onPress={() => setFilter({ categoryId: undefined })} />
-        {categories.map((category) => (
-          <Chip
-            key={category.id}
-            label={categoryName(t, category)}
-            color={category.color}
-            selected={filter.categoryId === category.id}
-            onPress={() => setFilter({ categoryId: filter.categoryId === category.id ? undefined : category.id })}
-          />
-        ))}
+      <View style={styles.group}>
+        {section(t('todo.create.category'))}
+        <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('todo.create.category')}>
+          <Chip label={t('todos.allCategories')} selected={!filter.categoryId} onPress={() => setFilter({ categoryId: undefined })} />
+          {categories.map((category) => (
+            <Chip
+              key={category.id}
+              label={categoryName(t, category)}
+              dotColor={category.color}
+              selected={filter.categoryId === category.id}
+              onPress={() => setFilter({ categoryId: filter.categoryId === category.id ? undefined : category.id })}
+            />
+          ))}
+        </View>
       </View>
 
-      <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
-        {t('todo.create.priority')}
-      </Text>
-      <View style={styles.chips}>
-        {PRIORITY_CHIPS.map((priority) => (
-          <Chip
-            key={priority}
-            label={t(PRIORITY_LABEL_KEYS[priority])}
-            selected={priorities.includes(priority)}
-            onPress={() => togglePriority(priority)}
-            role="checkbox"
-          />
-        ))}
+      <View style={styles.group}>
+        {section(t('todo.create.priority'))}
+        <View style={styles.chips}>
+          {PRIORITY_CHIPS.map((priority) => (
+            <Chip
+              key={priority}
+              label={t(PRIORITY_LABEL_KEYS[priority])}
+              dotColor={priorityColor(priority, colors)}
+              selected={priorities.includes(priority)}
+              onPress={() => togglePriority(priority)}
+              role="checkbox"
+            />
+          ))}
+        </View>
       </View>
     </SheetModal>
   );
 }
 
 const styles = StyleSheet.create({
+  group: {
+    gap: Spacing.sm,
+  },
+  // Sentence case on purpose: textTransform 'uppercase' uses the device locale, which
+  // turns Turkish "i" into "I" instead of "İ".
   section: {
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.sm,
-    marginTop: Spacing.xs,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    borderWidth: 1,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    minHeight: 40,
-  },
-  chipText: {
-    fontFamily: InterFonts.medium,
-    fontSize: FontSize.sm,
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
 });

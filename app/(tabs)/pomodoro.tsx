@@ -74,7 +74,7 @@ function confirmAsync(title: string, message: string, cancel: string, ok: string
 }
 
 export default function PomodoroScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useContext(BottomTabBarHeightContext);
   const colorScheme = useColorScheme();
@@ -327,7 +327,8 @@ export default function PomodoroScreen() {
             <View style={[styles.phaseBadge, { backgroundColor: phaseColor + "20" }]}>
               <Icon name={phaseIcon} fill={phaseColor} style={styles.phaseIcon} />
               <Text style={[styles.phaseLabel, { color: phaseColor }]} maxFontSizeMultiplier={1.3}>
-                {phaseLabel(timerPhase)}
+                {/* Upper-cased for the app language (CSS-style uppercase would use the device locale: "I" for Turkish "i") */}
+                {phaseLabel(timerPhase).toLocaleUpperCase(i18n.language)}
               </Text>
             </View>
 
@@ -539,7 +540,6 @@ const styles = StyleSheet.create({
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.xs,
     letterSpacing: 0.5,
-    textTransform: "uppercase",
   },
   timeText: {
     fontFamily: InterFonts.light,

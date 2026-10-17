@@ -45,7 +45,7 @@ export function ProgressRow({ title, description, valueLabel, progress, done, re
         </View>
         <Text style={[styles.description, { color: colors.textMuted }]}>{description}</Text>
         <View style={styles.barRow}>
-          <View style={[styles.track, { backgroundColor: colors.backgroundSecondary }]}>
+          <View style={[styles.track, { backgroundColor: colors.border }]}>
             <View style={[styles.fill, { width: percent, backgroundColor: done ? colors.success : colors.primary }]} />
           </View>
           <Text style={[styles.value, { color: colors.textSecondary }]}>{valueLabel}</Text>

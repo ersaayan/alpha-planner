@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AnimatedButton } from '@/components/animated/animated-button';
+import { Chip } from '@/components/common/chip';
 import { SheetModal } from '@/components/common/sheet-modal';
 import { Icon } from '@/components/icon';
 import { PERSONAL_GOAL_LIMITS, PERSONAL_GOAL_XP, getWeeklyGoalTemplate, type WeeklyGoalMetric } from '@/constants/weekly-goals';
@@ -60,6 +61,7 @@ export function PersonalGoalEditor({ visible, initialMetric = 'pomodoros', initi
     <SheetModal
       visible={visible}
       title={t('goals.setPersonal')}
+      icon="flag"
       onClose={onClose}
       footer={
         <>
@@ -68,62 +70,53 @@ export function PersonalGoalEditor({ visible, initialMetric = 'pomodoros', initi
         </>
       }
     >
-      <Text style={[styles.hint, { color: colors.textMuted }]}>
+      <Text style={[styles.hint, { color: colors.textSecondary }]}>
         {t('goals.personalHint', { xp: PERSONAL_GOAL_XP })}
       </Text>
       <View style={styles.metrics} accessibilityRole="radiogroup">
         {METRICS.map((m) => {
-          const selected = m === metric;
           const template = getWeeklyGoalTemplate(m);
           return (
-            <Pressable
-              key={m}
-              onPress={() => chooseMetric(m)}
-              style={[
-                styles.chip,
-                { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary + '20' : colors.card },
-              ]}
-              hitSlop={4}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: selected }}
-            >
-              <Text style={[styles.chipText, { color: selected ? colors.primary : colors.text }]}>
-                {template ? t(template.nameKey) : m}
-              </Text>
-            </Pressable>
+            <Chip key={m} label={template ? t(template.nameKey) : m} selected={m === metric} onPress={() => chooseMetric(m)} />
           );
         })}
       </View>
 
-      <Text style={[styles.hint, { color: colors.textSecondary }]}>
-        {t('goals.soFarThisWeek', { value: formatGoalValue(metric, progress) })}
-      </Text>
-      <View style={styles.stepper}>
-        <Pressable
-          onPress={() => setTarget(Math.max(lowest, clamped - 1))}
-          style={[styles.stepButton, { borderColor: colors.border }]}
-          accessibilityRole="button"
-          accessibilityLabel={t('goals.decrease')}
-          accessibilityState={{ disabled: clamped <= lowest }}
-          disabled={clamped <= lowest}
-        >
-          <Icon name="minus" fill={colors.text} style={styles.stepIcon} />
-        </Pressable>
-        <Text style={[styles.target, { color: colors.text }]} accessibilityLiveRegion="polite">
-          {t(getWeeklyGoalTemplate(metric)?.descriptionKey ?? '', { value: clamped })}
+      <View style={[styles.targetBox, { backgroundColor: colors.backgroundSecondary }]}>
+        <Text style={[styles.soFar, { color: colors.textMuted }]}>
+          {t('goals.soFarThisWeek', { value: formatGoalValue(metric, progress) })}
         </Text>
-        <Pressable
-          onPress={() => setTarget(Math.min(limits.max, clamped + 1))}
-          style={[styles.stepButton, { borderColor: colors.border }]}
-          accessibilityRole="button"
-          accessibilityLabel={t('goals.increase')}
-          accessibilityState={{ disabled: clamped >= limits.max }}
-          disabled={clamped >= limits.max}
-        >
-          <Icon name="plus" fill={colors.text} style={styles.stepIcon} />
-        </Pressable>
+        <View style={styles.stepper}>
+          <Pressable
+            onPress={() => setTarget(Math.max(lowest, clamped - 1))}
+            style={({ pressed }) => [styles.stepButton, { backgroundColor: colors.card, borderColor: colors.border }, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('goals.decrease')}
+            accessibilityState={{ disabled: clamped <= lowest }}
+            disabled={clamped <= lowest}
+          >
+            <Icon name="minus" fill={clamped <= lowest ? colors.textMuted : colors.primary} size={20} />
+          </Pressable>
+          <Text style={[styles.target, { color: colors.text }]} accessibilityLiveRegion="polite">
+            {t(getWeeklyGoalTemplate(metric)?.descriptionKey ?? '', { value: clamped })}
+          </Text>
+          <Pressable
+            onPress={() => setTarget(Math.min(limits.max, clamped + 1))}
+            style={({ pressed }) => [styles.stepButton, { backgroundColor: colors.card, borderColor: colors.border }, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel={t('goals.increase')}
+            accessibilityState={{ disabled: clamped >= limits.max }}
+            disabled={clamped >= limits.max}
+          >
+            <Icon name="plus" fill={clamped >= limits.max ? colors.textMuted : colors.primary} size={20} />
+          </Pressable>
+        </View>
       </View>
-      {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
+      {error ? (
+        <Text style={[styles.error, { color: colors.error }]} accessibilityRole="alert">
+          {error}
+        </Text>
+      ) : null}
     </SheetModal>
   );
 }
@@ -132,23 +125,22 @@ const styles = StyleSheet.create({
   hint: {
     fontFamily: InterFonts.regular,
     fontSize: FontSize.sm,
+    lineHeight: FontSize.sm * 1.45,
   },
   metrics: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.sm,
   },
-  chip: {
-    minHeight: 36,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+  targetBox: {
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
   },
-  chipText: {
+  soFar: {
     fontFamily: InterFonts.medium,
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
+    textAlign: 'center',
   },
   stepper: {
     flexDirection: 'row',
@@ -163,15 +155,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepIcon: {
-    width: 20,
-    height: 20,
+  pressed: {
+    opacity: 0.7,
   },
   target: {
     flex: 1,
     textAlign: 'center',
     fontFamily: InterFonts.semibold,
-    fontSize: FontSize.sm,
+    fontSize: FontSize.md,
   },
   error: {
     fontFamily: InterFonts.medium,
