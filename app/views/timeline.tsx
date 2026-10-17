@@ -20,6 +20,7 @@ function isOpen(todo: Todo): boolean {
   return todo.status === 'pending' || todo.status === 'in_progress';
 }
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface TimelineDay {
@@ -113,16 +114,6 @@ export default function TimelineScreen() {
     router.push(`/todo/${todoId}`);
   };
 
-  const getPriorityColor = (priority: string): string => {
-    switch (priority) {
-      case 'urgent': return colors.priorityUrgent;
-      case 'high': return colors.priorityHigh;
-      case 'medium': return colors.priorityMedium;
-      case 'low': return colors.priorityLow;
-      default: return colors.textMuted;
-    }
-  };
-
   const renderTodoCard = (todo: Todo, dayIsOverdue: boolean) => {
     // A task due today at a time that has passed is late too.
     const isOverdue = dayIsOverdue || isPastDue(todo.dueDate, new Date(), todo.dueTime);
@@ -138,7 +129,7 @@ export default function TimelineScreen() {
         <View
           style={[
             styles.priorityBar,
-            { backgroundColor: getPriorityColor(todo.priority) },
+            { backgroundColor: priorityColor(todo.priority, colors) },
           ]}
         />
         <View style={styles.cardBody}>
@@ -165,7 +156,7 @@ export default function TimelineScreen() {
 
           {todo.dueTime ? (
             <Text category="c2" style={{ color: isOverdue ? colors.priorityUrgent : colors.textMuted }}>
-              {formatTime(todo.dueTime, timeFormat)}
+              {formatTime(todo.dueTime, timeFormat, i18n.language)}
             </Text>
           ) : null}
 

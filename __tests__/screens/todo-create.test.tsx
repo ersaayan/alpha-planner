@@ -25,6 +25,7 @@ jest.mock('@ui-kitten/components', () => {
     Select: ({ label, children, ...props }: any) => <View>{label && <Text>{label}</Text>}{children}</View>,
     SelectItem: ({ title, ...props }: any) => <View><Text>{title}</Text></View>,
     IndexPath: class { row: number; constructor(row: number) { this.row = row; } },
+    NativeDateService: class {},
     Datepicker: ({ label, onSelect }: any) => (
       <View>
         {label && <Text>{label}</Text>}
@@ -44,7 +45,7 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn(), replace: 
 jest.mock('@/components/animated/animated-badge', () => ({ LevelBadge: () => null, AchievementBadge: () => null }));
 jest.mock('@/components/animated/animated-button', () => ({ AnimatedButton: ({ title, onPress }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={onPress}><Text>{title}</Text></Pressable>; }, FAB: () => null }));
 jest.mock('@/components/animated/animated-card', () => ({ AnimatedCard: ({ children }: any) => { const { View } = require('react-native'); return <View>{children}</View>; } }));
-jest.mock('@/components/animated/animated-counter', () => ({ AnimatedCounter: ({ value }: any) => { const { Text } = require('react-native'); return <Text>{value}</Text>; }, XPCounter: () => null, StreakCounter: () => null }));
+jest.mock('@/components/animated/animated-counter', () => ({ AnimatedCounter: ({ value }: any) => { const { Text } = require('react-native'); return <Text>{value}</Text>; } }));
 jest.mock('@/components/animated/animated-progress-bar', () => ({ AnimatedProgressBar: () => null }));
 jest.mock('@/components/animated/animated-checkbox', () => ({ AnimatedCheckbox: ({ checked, onToggle }: any) => { const { Pressable, Text } = require('react-native'); return <Pressable onPress={() => onToggle?.(!checked)}><Text>{checked ? '☑' : '☐'}</Text></Pressable>; } }));
 jest.mock('@/components/common', () => ({ SectionHeader: ({ title }: any) => { const { Text } = require('react-native'); return <Text>{title}</Text>; }, EmptyState: ({ title }: any) => { const { Text } = require('react-native'); return <Text>{title}</Text>; }, SyncStatus: () => null }));

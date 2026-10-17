@@ -30,7 +30,7 @@ import {
 } from '@/constants/theme';
 import { AnimationDuration, SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { formatDuration } from '@/utils/theme-helpers';
+import { formatDuration } from '@/services/i18n/format';
 
 interface DailySummaryModalProps {
   visible: boolean;
@@ -218,7 +218,7 @@ export function DailySummaryModal({
                 <Icon name="star" fill={GamificationColors.xp} size={20} />
                 <AnimatedCounter
                   value={data.xpEarned}
-                  suffix=" XP"
+                  suffix={` ${t('gamification.xp')}`}
                   category="h3"
                   color={GamificationColors.xp}
                   style={styles.statValue}
@@ -275,7 +275,7 @@ export function DailySummaryModal({
                   {data.topCategory.name}
                 </Text>
                 <Text style={[styles.rowSubtext, { color: colors.textSecondary }]}>
-                  {formatDuration(data.topCategory.time)}
+                  {formatDuration(t, data.topCategory.time)}
                 </Text>
               </View>
             )}

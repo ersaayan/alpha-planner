@@ -15,6 +15,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
+import { priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDue } from '@/utils/todo-dates';
@@ -32,7 +33,7 @@ import { WeeklyGoalsCard } from '@/components/gamification/weekly-goals-card';
 import { levelTierName, levelTitle } from '@/services/gamification/display';
 
 export default function HomeScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -305,7 +306,7 @@ export default function HomeScreen() {
                 variant="default"
                 style={styles.todoCard}
                 contentStyle={styles.todoCardContent}
-                accentColor={getPriorityColor(todo.priority, colors)}
+                accentColor={priorityColor(todo.priority, colors)}
                 accentPosition="left"
                 onPress={() => router.push(`/todo/${todo.id}`)}
               >
@@ -324,7 +325,7 @@ export default function HomeScreen() {
                         style={styles.dueDateIcon}
                       />
                       <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
-                        {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
+                        {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}
                       </Text>
                     </View>
                   )}
@@ -404,21 +405,6 @@ function StatCard({ icon, value, label, color, onPress }: StatCardProps) {
       </Text>
     </AnimatedCard>
   );
-}
-
-// Helper function for priority colors
-function getPriorityColor(priority: string, colors: (typeof Colors)['light'] | (typeof Colors)['dark']) {
-  switch (priority) {
-    case 'urgent':
-      return colors.priorityUrgent;
-    case 'high':
-      return colors.priorityHigh;
-    case 'medium':
-      return colors.priorityMedium;
-    case 'low':
-    default:
-      return colors.priorityLow;
-  }
 }
 
 const styles = StyleSheet.create({

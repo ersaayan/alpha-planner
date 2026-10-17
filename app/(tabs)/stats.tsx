@@ -16,6 +16,7 @@ import { getDateKey, parseDateKey } from '@/utils/date';
 import { formatMonthKey } from '@/utils/locale';
 import type { AchievementCategory } from '@/types';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { formatDuration } from '@/services/i18n/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
 
@@ -99,15 +100,6 @@ export default function StatsScreen() {
     () => (dailyStats ?? []).map((day) => ({ date: parseDateKey(day.date), value: day.tasksCompleted })),
     [dailyStats]
   );
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return t('summary.hoursMinutes', { hours, minutes });
-    }
-    return t('stats.minutesValue', { minutes });
-  };
 
   return (
     <ScrollView
@@ -221,7 +213,7 @@ export default function StatsScreen() {
         />
         <StatGridCard
           icon="hourglass"
-          value={formatTime(stats.totalFocusTime)}
+          value={formatDuration(t, stats.totalFocusTime)}
           label={t('stats.focusTime')}
           color={colors.info}
           isString

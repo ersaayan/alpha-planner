@@ -20,18 +20,12 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { STATUS_LABEL_KEYS } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo } from '@/types';
 import { getDueDateKey } from '@/utils/todo-dates';
 import { formatLocalized, getDateLocale, resolveWeekStart } from '@/utils/locale';
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'todos.statusPending',
-  in_progress: 'todos.statusInProgress',
-  completed: 'todos.statusDone',
-  archived: 'todos.archived',
-};
 
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
@@ -270,7 +264,7 @@ export default function CalendarScreen() {
                         {todo.title}
                       </Text>
                       <Text category="c1" style={{ color: colors.textMuted }}>
-                        {t(STATUS_LABELS[todo.status] ?? 'todos.statusPending')}
+                        {t(STATUS_LABEL_KEYS[todo.status])}
                       </Text>
                     </View>
                     <Icon name="chevron-right-outline" fill={colors.textMuted} size={16} />

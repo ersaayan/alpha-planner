@@ -5,19 +5,15 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AnimatedButton } from '@/components/animated/animated-button';
 import { SheetModal } from '@/components/common/sheet-modal';
 import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
+import { PRIORITIES, PRIORITY_LABEL_KEYS } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { categoryName } from '@/services/gamification/display';
 import { useCategoryStore, useTodoStore } from '@/stores';
 import type { TodoPriority } from '@/types';
 import { TODO_SORTS } from '@/utils/todo-list';
 
-const PRIORITIES: TodoPriority[] = ['urgent', 'high', 'medium', 'low'];
-const PRIORITY_LABELS: Record<TodoPriority, string> = {
-  urgent: 'todo.create.priorityUrgent',
-  high: 'todo.create.priorityHigh',
-  medium: 'todo.create.priorityMedium',
-  low: 'todo.create.priorityLow',
-};
+// Most urgent first.
+const PRIORITY_CHIPS = [...PRIORITIES].reverse();
 
 interface ChipProps {
   label: string;
@@ -105,10 +101,10 @@ export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClos
 
       <Text style={[styles.section, { color: colors.textSecondary }]}>{t('todo.create.priority')}</Text>
       <View style={styles.chips}>
-        {PRIORITIES.map((priority) => (
+        {PRIORITY_CHIPS.map((priority) => (
           <Chip
             key={priority}
-            label={t(PRIORITY_LABELS[priority])}
+            label={t(PRIORITY_LABEL_KEYS[priority])}
             selected={priorities.includes(priority)}
             onPress={() => togglePriority(priority)}
           />

@@ -199,18 +199,18 @@ export default function PomodoroSetupScreen() {
             {Array.from({ length: sessionsUntilLongBreak }).map((_, i) => (
               <View key={i} style={styles.previewItem}>
                 <View style={[styles.previewDot, { backgroundColor: colors.primary }]} />
-                <Text category="c2">{focusDuration}m</Text>
+                <Text category="c2">{focusDuration} {t('common.min')}</Text>
                 {i < sessionsUntilLongBreak - 1 && (
                   <>
                     <View style={[styles.previewDot, { backgroundColor: colors.secondary }]} />
-                    <Text category="c2">{shortBreak}m</Text>
+                    <Text category="c2">{shortBreak} {t('common.min')}</Text>
                   </>
                 )}
               </View>
             ))}
             <View style={styles.previewItem}>
               <View style={[styles.previewDot, { backgroundColor: colors.accent }]} />
-              <Text category="c2">{longBreak}m</Text>
+              <Text category="c2">{longBreak} {t('common.min')}</Text>
             </View>
           </View>
         </Card>

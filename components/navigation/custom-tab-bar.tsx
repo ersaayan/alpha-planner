@@ -23,19 +23,20 @@ import { useSettingsStore } from '@/stores';
 interface TabIconConfig {
   name: string;
   focusedName: string;
-  label: string;
 }
 
 const TAB_ICONS: Record<string, TabIconConfig> = {
-  index: { name: 'home-outline', focusedName: 'home', label: 'Home' },
-  todos: { name: 'checkmark-square-2-outline', focusedName: 'checkmark-square-2', label: 'Todos' },
-  pomodoro: { name: 'clock-outline', focusedName: 'clock', label: 'Focus' },
-  stats: { name: 'bar-chart-outline', focusedName: 'bar-chart', label: 'Stats' },
-  settings: { name: 'settings-2-outline', focusedName: 'settings-2', label: 'Settings' },
+  index: { name: 'home-outline', focusedName: 'home' },
+  todos: { name: 'checkmark-square-2-outline', focusedName: 'checkmark-square-2' },
+  pomodoro: { name: 'clock-outline', focusedName: 'clock' },
+  stats: { name: 'bar-chart-outline', focusedName: 'bar-chart' },
+  settings: { name: 'settings-2-outline', focusedName: 'settings-2' },
 };
 
 interface TabItemProps {
   routeName: string;
+  /** The translated tab title, read by screen readers (the bar shows icons only). */
+  label: string;
   isFocused: boolean;
   onPress: () => void;
   onLongPress: () => void;
@@ -46,6 +47,7 @@ interface TabItemProps {
 
 function TabItem({
   routeName,
+  label,
   isFocused,
   onPress,
   onLongPress,
@@ -108,7 +110,7 @@ function TabItem({
       onPressOut={handlePressOut}
       style={styles.tabItem}
       accessibilityRole="button"
-      accessibilityLabel={iconConfig.label}
+      accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}
     >
       <Animated.View style={[styles.tabItemInner, animatedStyle]}>
@@ -211,6 +213,7 @@ export function CustomTabBar({ state, descriptors, emitter, navigateToTab }: Bot
               <TabItem
                 key={route.key}
                 routeName={route.name}
+                label={options.title ?? route.name}
                 isFocused={isFocused}
                 onPress={onPress}
                 onLongPress={onLongPress}

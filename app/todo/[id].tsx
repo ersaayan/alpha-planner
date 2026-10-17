@@ -20,46 +20,18 @@ import { DueDateFields } from '@/components/todos/due-date-fields';
 import { enableTaskReminders } from '@/hooks/use-task-reminders';
 import { categoryName } from '@/services/gamification/display';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { PRIORITIES, PRIORITY_LABEL_KEYS, STATUSES, STATUS_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
-import type { TodoPriority, TodoStatus } from '@/types';
 import { formatDue, getDueDateKey } from '@/utils/todo-dates';
 
-const PRIORITIES: { value: TodoPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Low', color: '#90AB8B' },
-  { value: 'medium', label: 'Medium', color: '#B5A45E' },
-  { value: 'high', label: 'High', color: '#E47F7F' },
-  { value: 'urgent', label: 'Urgent', color: '#D85656' },
-];
-
-const STATUSES: { value: TodoStatus; label: string }[] = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
-];
-
 export default function TodoDetailScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
-
-  const priorityLabels: Record<string, string> = {
-    low: t('todo.create.priorityLow'),
-    medium: t('todo.create.priorityMedium'),
-    high: t('todo.create.priorityHigh'),
-    urgent: t('todo.create.priorityUrgent'),
-  };
-
-  const statusLabels: Record<string, string> = {
-    pending: t('todos.statusPending'),
-    in_progress: t('todos.statusInProgress'),
-    completed: t('todos.statusDone'),
-    archived: t('todos.archived'),
-  };
 
   const todo = useTodoStore((state) => state.getTodoById(id));
   const updateTodo = useTodoStore((state) => state.updateTodo);
@@ -98,10 +70,10 @@ export default function TodoDetailScreen() {
     setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
     setCategoryId(categories.some((c) => c.id === todo.categoryId) ? todo.categoryId : null);
 
-    const priorityIndex = PRIORITIES.findIndex((p) => p.value === todo.priority);
+    const priorityIndex = PRIORITIES.indexOf(todo.priority);
     setSelectedPriorityIndex(new IndexPath(priorityIndex >= 0 ? priorityIndex : 1));
 
-    const statusIndex = STATUSES.findIndex((s) => s.value === todo.status);
+    const statusIndex = STATUSES.indexOf(todo.status);
     setSelectedStatusIndex(new IndexPath(statusIndex >= 0 ? statusIndex : 0));
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally syncing form on specific field changes only
   }, [todo?.id, todo?.updatedAt, isEditing, categories]);
@@ -125,6 +97,7 @@ export default function TodoDetailScreen() {
   const selectedCategory = categories.find((c) => c.id === categoryId) ?? null;
   const selectedPriority = PRIORITIES[selectedPriorityIndex.row];
   const selectedStatus = STATUSES[selectedStatusIndex.row];
+  const selectedPriorityColor = priorityColor(selectedPriority, colors);
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -139,8 +112,8 @@ export default function TodoDetailScreen() {
       dueDate: due.dueDate,
       dueTime: due.dueTime,
       categoryId,
-      priority: selectedPriority.value,
-      status: selectedStatus.value,
+      priority: selectedPriority,
+      status: selectedStatus,
       estimatedPomodoros: estimatedPomodorosValue,
     });
     if (due.dueTime && due.dueTime !== todo.dueTime) void enableTaskReminders();
@@ -199,13 +172,13 @@ export default function TodoDetailScreen() {
         <View style={styles.statusRow}>
           <View style={[styles.statusBadge, { backgroundColor: colors.primary + '20' }]}>
             <Text category="c1" style={{ color: colors.primary }}>
-              {statusLabels[selectedStatus.value] ?? selectedStatus.label}
+              {t(STATUS_LABEL_KEYS[selectedStatus])}
             </Text>
           </View>
-          <View style={[styles.priorityBadge, { backgroundColor: selectedPriority.color + '20' }]}>
-            <View style={[styles.priorityDot, { backgroundColor: selectedPriority.color }]} />
-            <Text category="c1" style={{ color: selectedPriority.color }}>
-              {priorityLabels[selectedPriority.value] ?? selectedPriority.label}
+          <View style={[styles.priorityBadge, { backgroundColor: selectedPriorityColor + '20' }]}>
+            <View style={[styles.priorityDot, { backgroundColor: selectedPriorityColor }]} />
+            <Text category="c1" style={{ color: selectedPriorityColor }}>
+              {t(PRIORITY_LABEL_KEYS[selectedPriority])}
             </Text>
           </View>
         </View>
@@ -253,25 +226,25 @@ export default function TodoDetailScreen() {
 
             <Select
               label={t('todo.detail.priority')}
-              value={priorityLabels[selectedPriority.value] ?? selectedPriority.label}
+              value={t(PRIORITY_LABEL_KEYS[selectedPriority])}
               selectedIndex={selectedPriorityIndex}
               onSelect={(index) => setSelectedPriorityIndex(index as IndexPath)}
               style={styles.input}
             >
               {PRIORITIES.map((priority) => (
-                <SelectItem key={priority.value} title={priorityLabels[priority.value] ?? priority.label} />
+                <SelectItem key={priority} title={t(PRIORITY_LABEL_KEYS[priority])} />
               ))}
             </Select>
 
             <Select
               label={t('todo.detail.status')}
-              value={statusLabels[selectedStatus.value] ?? selectedStatus.label}
+              value={t(STATUS_LABEL_KEYS[selectedStatus])}
               selectedIndex={selectedStatusIndex}
               onSelect={(index) => setSelectedStatusIndex(index as IndexPath)}
               style={styles.input}
             >
               {STATUSES.map((status) => (
-                <SelectItem key={status.value} title={statusLabels[status.value] ?? status.label} />
+                <SelectItem key={status} title={t(STATUS_LABEL_KEYS[status])} />
               ))}
             </Select>
 
@@ -309,7 +282,7 @@ export default function TodoDetailScreen() {
               <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
                 <View style={styles.infoContent}>
                   <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}</Text>
+                  <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}</Text>
                 </View>
               </Card>
             )}
@@ -317,7 +290,7 @@ export default function TodoDetailScreen() {
               <View style={styles.infoContent}>
                 <Icon name="clock-outline" fill={colors.textMuted} style={styles.infoIcon} />
                 <Text category="s2">
-                  {todo.pomodoroSessions} {t('stats.pomodoros').toLowerCase()}
+                  {t('todo.detail.pomodoroCount', { count: todo.pomodoroSessions })}
                 </Text>
               </View>
             </Card>

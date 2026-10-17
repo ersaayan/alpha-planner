@@ -16,6 +16,7 @@ import { changeLanguage } from '@/services/i18n/i18n-config';
 import { updateProfile } from '@/services/supabase/auth-service';
 import { isSyncConfigured } from '@/services/supabase/client';
 import { useRouter } from 'expo-router';
+import { getAppVersion } from '@/utils/app-version';
 
 const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
@@ -39,6 +40,8 @@ export default function SettingsScreen() {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState('');
   const [categoryColor, setCategoryColor] = useState(EXTRA_COLORS[0]);
+
+  const appVersion = getAppVersion();
 
   const formatDuration = (seconds: number) => {
     return t('settings.minutes', { value: Math.floor(seconds / 60) });
@@ -674,7 +677,9 @@ export default function SettingsScreen() {
       {/* Version */}
       <View style={styles.versionContainer}>
         <Text category="c1" style={{ color: colors.textMuted }}>
-          {t('common.version')}
+          {appVersion.build
+            ? t('settings.versionWithBuild', appVersion)
+            : t('settings.version', { version: appVersion.version })}
         </Text>
       </View>
     </ScrollView>

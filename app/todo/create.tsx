@@ -12,14 +12,8 @@ import { enableTaskReminders } from '@/hooks/use-task-reminders';
 import { useTodoStore, useCategoryStore } from '@/stores';
 import type { TodoPriority } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { PRIORITIES, PRIORITY_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-const PRIORITIES: { value: TodoPriority; labelKey: string; color: string }[] = [
-  { value: 'low', labelKey: 'todo.create.priorityLow', color: '#90AB8B' },
-  { value: 'medium', labelKey: 'todo.create.priorityMedium', color: '#B5A45E' },
-  { value: 'high', labelKey: 'todo.create.priorityHigh', color: '#E47F7F' },
-  { value: 'urgent', labelKey: 'todo.create.priorityUrgent', color: '#D85656' },
-];
 
 export default function CreateTodoScreen() {
   const { t } = useTranslation();
@@ -126,24 +120,25 @@ export default function CreateTodoScreen() {
       </Text>
       <View style={styles.priorityContainer}>
         {PRIORITIES.map((option) => {
-          const selected = option.value === priority;
+          const selected = option === priority;
+          const color = priorityColor(option, colors);
           return (
             <Pressable
-              key={option.value}
+              key={option}
               style={[
                 styles.priorityButton,
                 {
-                  backgroundColor: selected ? option.color + '20' : colors.card,
-                  borderColor: selected ? option.color : colors.border,
+                  backgroundColor: selected ? color + '20' : colors.card,
+                  borderColor: selected ? color : colors.border,
                 },
               ]}
-              onPress={() => setPriority(option.value)}
+              onPress={() => setPriority(option)}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
             >
-              <View style={[styles.priorityDot, { backgroundColor: option.color }]} />
-              <Text category="c1" style={{ color: selected ? option.color : colors.text }}>
-                {t(option.labelKey)}
+              <View style={[styles.priorityDot, { backgroundColor: color }]} />
+              <Text category="c1" style={{ color: selected ? color : colors.text }}>
+                {t(PRIORITY_LABEL_KEYS[option])}
               </Text>
             </Pressable>
           );

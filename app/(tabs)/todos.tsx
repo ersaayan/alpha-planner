@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontSize, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { TAB_BAR_BOTTOM_PADDING } from '@/constants/defaults';
+import { PRIORITY_LABEL_KEYS, priorityColor } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
@@ -32,14 +33,14 @@ const STATUS_TABS: { labelKey: string; value: TodoStatus | 'all' }[] = [
   { labelKey: 'todos.statusDone', value: 'completed' },
 ];
 
-const EMPTY_STATUS_KEYS: Record<string, string> = {
-  pending: 'todos.pending',
-  in_progress: 'todos.inProgress',
-  completed: 'todos.completed',
+const EMPTY_STATUS_KEYS: Partial<Record<TodoStatus, string>> = {
+  pending: 'todos.emptyPending',
+  in_progress: 'todos.emptyInProgress',
+  completed: 'todos.emptyCompleted',
 };
 
 export default function TodosScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -81,19 +82,6 @@ export default function TodosScreen() {
     return categoryName(t, categories.find((c) => c.id === categoryId));
   }, [categories, t]);
 
-  const getPriorityColor = useCallback((priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return colors.priorityUrgent;
-      case 'high':
-        return colors.priorityHigh;
-      case 'medium':
-        return colors.priorityMedium;
-      default:
-        return colors.priorityLow;
-    }
-  }, [colors]);
-
   const handleTodoPress = useCallback((todoId: string) => {
     router.push(`/todo/${todoId}`);
   }, [router]);
@@ -107,7 +95,7 @@ export default function TodosScreen() {
         variant="default"
         style={styles.todoCard}
         contentStyle={styles.todoCardContent}
-        accentColor={getPriorityColor(item.priority)}
+        accentColor={priorityColor(item.priority, colors)}
         accentPosition="left"
         onPress={() => handleTodoPress(item.id)}
       >
@@ -169,7 +157,7 @@ export default function TodosScreen() {
                       },
                     ]}
                   >
-                    {formatDue(item.dueDate, item.dueTime, dateFormat, timeFormat)}
+                    {formatDue(item.dueDate, item.dueTime, dateFormat, timeFormat, i18n.language)}
                   </Text>
                 </View>
               )}
@@ -190,7 +178,7 @@ export default function TodosScreen() {
         </View>
       </AnimatedCard>
     </Animated.View>
-  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, getPriorityColor, handleTodoPress, dateFormat, timeFormat]);
+  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, handleTodoPress, dateFormat, timeFormat, i18n.language]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -267,7 +255,7 @@ export default function TodosScreen() {
           <Text style={[styles.activeFiltersText, { color: colors.textSecondary }]} numberOfLines={1}>
             {[
               filter.categoryId ? getCategoryName(filter.categoryId) : null,
-              ...(filter.priority ?? []).map((p) => t(`todo.create.priority${p.charAt(0).toUpperCase()}${p.slice(1)}`)),
+              ...(filter.priority ?? []).map((p) => t(PRIORITY_LABEL_KEYS[p])),
               sortBy !== 'manual' ? t(`todos.sort.${sortBy}`) : null,
             ]
               .filter(Boolean)
@@ -324,7 +312,7 @@ export default function TodosScreen() {
             searchQuery || filtersActive
               ? t('todos.emptySearch')
               : activeTab !== 'all'
-                ? t('todos.emptyFiltered', { status: t(EMPTY_STATUS_KEYS[activeTab] ?? 'todos.pending') })
+                ? t(EMPTY_STATUS_KEYS[activeTab] ?? 'todos.emptyPending')
                 : t('todos.emptyDefault')
           }
           action={

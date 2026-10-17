@@ -2,7 +2,7 @@ import { Icon } from '@/components/icon';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCloseAuth, useFinishSignIn } from '@/hooks/use-finish-sign-in';
-import { getAuthErrorKey, getValidationErrorKey } from '@/services/supabase/auth-errors';
+import { getAuthErrorKey } from '@/services/supabase/auth-errors';
 import { useAuthStore } from '@/stores/auth-store';
 import { validateEmail, validatePassword } from '@/utils/validators';
 import { Input, Text } from '@ui-kitten/components';
@@ -39,9 +39,9 @@ export default function LoginScreen() {
   const handleSignIn = async () => {
     const trimmedEmail = email.trim();
     const emailError = validateEmail(trimmedEmail);
-    if (emailError) { Alert.alert(t('common.error'), t(getValidationErrorKey(emailError))); return; }
+    if (emailError) { Alert.alert(t('common.error'), t(emailError)); return; }
     const passwordError = validatePassword(password);
-    if (passwordError) { Alert.alert(t('common.error'), t(getValidationErrorKey(passwordError))); return; }
+    if (passwordError) { Alert.alert(t('common.error'), t(passwordError)); return; }
 
     let result;
     try {

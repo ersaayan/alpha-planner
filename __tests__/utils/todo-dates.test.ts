@@ -74,3 +74,10 @@ describe('task list filter and sort', () => {
     expect(ids(filterTodos(todos, { search: 'istanbul' }))).toEqual(['c']);
   });
 });
+
+describe('12-hour times follow the app language', () => {
+  it('uses the Turkish day periods in Turkish', () => {
+    expect(formatDue('2026-10-14', '21:30', 'DD/MM/YYYY', '12h', 'tr')).toBe('14/10/2026 9:30 ÖS');
+    expect(formatDue('2026-10-14', '08:00', 'DD/MM/YYYY', '12h', 'en')).toBe('14/10/2026 8:00 AM');
+  });
+});

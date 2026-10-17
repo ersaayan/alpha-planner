@@ -6,30 +6,26 @@ import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
+import { STATUSES, STATUS_LABEL_KEYS } from '@/constants/todo-options';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
 import { formatDue } from '@/utils/todo-dates';
 
-const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
-  { status: 'pending', title: 'To Do', color: '#90AB8B' },
-  { status: 'in_progress', title: 'In Progress', color: '#B5A45E' },
-  { status: 'completed', title: 'Done', color: '#5A7868' },
-  { status: 'archived', title: 'Archived', color: '#9E9E9E' },
-];
+const COLUMNS: readonly TodoStatus[] = STATUSES;
 
 export default function KanbanScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const columnTitles: Record<string, string> = {
-    pending: t('todos.statusPending'),
-    in_progress: t('todos.statusInProgress'),
-    completed: t('todos.statusDone'),
-    archived: t('todos.archived'),
+  const columnColors: Record<TodoStatus, string> = {
+    pending: colors.primaryLight,
+    in_progress: colors.priorityMedium,
+    completed: colors.primary,
+    archived: colors.textMuted,
   };
   const { width: screenWidth } = useWindowDimensions();
   const columnWidth = screenWidth * 0.75;
@@ -55,21 +51,21 @@ export default function KanbanScreen() {
   };
 
   const handleMoveLeft = (todo: Todo) => {
-    const currentIndex = COLUMNS.findIndex((c) => c.status === todo.status);
+    const currentIndex = COLUMNS.indexOf(todo.status);
     if (currentIndex > 0) {
-      updateTodo(todo.id, { status: COLUMNS[currentIndex - 1].status });
+      updateTodo(todo.id, { status: COLUMNS[currentIndex - 1] });
     }
   };
 
   const handleMoveRight = (todo: Todo) => {
-    const currentIndex = COLUMNS.findIndex((c) => c.status === todo.status);
+    const currentIndex = COLUMNS.indexOf(todo.status);
     if (currentIndex < COLUMNS.length - 1) {
-      updateTodo(todo.id, { status: COLUMNS[currentIndex + 1].status });
+      updateTodo(todo.id, { status: COLUMNS[currentIndex + 1] });
     }
   };
 
   const renderTodoCard = (todo: Todo) => {
-    const currentIndex = COLUMNS.findIndex((c) => c.status === todo.status);
+    const currentIndex = COLUMNS.indexOf(todo.status);
     const canMoveLeft = currentIndex > 0;
     const canMoveRight = currentIndex < COLUMNS.length - 1;
 
@@ -115,7 +111,7 @@ export default function KanbanScreen() {
             <View style={styles.dueDateBadge}>
               <Icon name="calendar-outline" fill={colors.textMuted} size={12} />
               <Text category="c2" style={{ color: colors.textMuted }}>
-                {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
+                {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat, i18n.language)}
               </Text>
             </View>
           )}
@@ -127,9 +123,12 @@ export default function KanbanScreen() {
             onPress={() => canMoveLeft && handleMoveLeft(todo)}
             disabled={!canMoveLeft}
             accessibilityRole="button"
-            accessibilityLabel={`Move task to ${currentIndex > 0 ? COLUMNS[currentIndex - 1].title : 'previous column'}`}
+            accessibilityLabel={
+              canMoveLeft
+                ? t('views.moveTaskTo', { title: todo.title, column: t(STATUS_LABEL_KEYS[COLUMNS[currentIndex - 1]]) })
+                : t('views.movePrevious')
+            }
             accessibilityState={{ disabled: !canMoveLeft }}
-            accessibilityHint="Moves task to the previous status column"
           >
             <Icon
               name="arrow-back-outline"
@@ -142,9 +141,12 @@ export default function KanbanScreen() {
             onPress={() => canMoveRight && handleMoveRight(todo)}
             disabled={!canMoveRight}
             accessibilityRole="button"
-            accessibilityLabel={`Move task to ${currentIndex < COLUMNS.length - 1 ? COLUMNS[currentIndex + 1].title : 'next column'}`}
+            accessibilityLabel={
+              canMoveRight
+                ? t('views.moveTaskTo', { title: todo.title, column: t(STATUS_LABEL_KEYS[COLUMNS[currentIndex + 1]]) })
+                : t('views.moveNext')
+            }
             accessibilityState={{ disabled: !canMoveRight }}
-            accessibilityHint="Moves task to the next status column"
           >
             <Icon
               name="arrow-forward-outline"
@@ -185,18 +187,19 @@ export default function KanbanScreen() {
         snapToInterval={columnWidth + Spacing.md}
       >
         {COLUMNS.map((column) => {
-          const columnTodos = getTodosByStatus(column.status);
+          const columnTodos = getTodosByStatus(column);
+          const columnColor = columnColors[column];
           return (
             <View
-              key={column.status}
+              key={column}
               style={[styles.column, { width: columnWidth }]}
             >
               {/* Column Header */}
               <View style={styles.columnHeader}>
-                <View style={[styles.columnDot, { backgroundColor: column.color }]} />
-                <Text category="s1">{columnTitles[column.status] ?? column.title}</Text>
-                <View style={[styles.countBadge, { backgroundColor: column.color + '20' }]}>
-                  <Text category="c2" style={{ color: column.color }}>
+                <View style={[styles.columnDot, { backgroundColor: columnColor }]} />
+                <Text category="s1">{t(STATUS_LABEL_KEYS[column])}</Text>
+                <View style={[styles.countBadge, { backgroundColor: columnColor + '20' }]}>
+                  <Text category="c2" style={{ color: columnColor }}>
                     {columnTodos.length}
                   </Text>
                 </View>

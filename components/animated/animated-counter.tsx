@@ -3,7 +3,7 @@
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { StyleSheet, TextStyle } from 'react-native';
+import { TextStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,7 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { Colors, InterFonts, FontSize, Typography } from '@/constants/theme';
+import { Colors, Typography } from '@/constants/theme';
 import { AnimationDuration, AnimationEasing } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -121,74 +121,5 @@ export function AnimatedCounter({
     </Animated.View>
   );
 }
-
-// Specialized counter for XP display
-interface XPCounterProps {
-  currentXP: number;
-  totalXP: number;
-  style?: TextStyle;
-}
-
-export function XPCounter({ currentXP, totalXP, style }: XPCounterProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-
-  return (
-    <Animated.View style={styles.xpContainer}>
-      <AnimatedCounter
-        value={currentXP}
-        category="stat"
-        color={colors.primary}
-        style={style}
-      />
-      <Text style={[styles.xpSeparator, { color: colors.textMuted }]}>
-        {' / '}
-      </Text>
-      <Text style={[styles.xpTotal, { color: colors.textMuted }]}>
-        {totalXP}
-      </Text>
-      <Text style={[styles.xpLabel, { color: colors.textMuted }]}>
-        {' XP'}
-      </Text>
-    </Animated.View>
-  );
-}
-
-// Specialized counter for streak display
-interface StreakCounterProps {
-  streak: number;
-  style?: TextStyle;
-}
-
-export function StreakCounter({ streak, style }: StreakCounterProps) {
-  return (
-    <AnimatedCounter
-      value={streak}
-      suffix=" days"
-      category="h3"
-      bounceOnChange={true}
-      style={style}
-    />
-  );
-}
-
-const styles = StyleSheet.create({
-  xpContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  xpSeparator: {
-    fontFamily: InterFonts.regular,
-    fontSize: FontSize.lg,
-  },
-  xpTotal: {
-    fontFamily: InterFonts.medium,
-    fontSize: FontSize.lg,
-  },
-  xpLabel: {
-    fontFamily: InterFonts.medium,
-    fontSize: FontSize.sm,
-  },
-});
 
 export default AnimatedCounter;
