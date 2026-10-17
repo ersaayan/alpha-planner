@@ -62,6 +62,13 @@ export const useCategoryStore = create<CategoryState>()(
         set((state) => ({
           categories: [...state.categories, newCategory],
         }));
+        // "Create 5 categories" / "5 colors" achievements. Lazy: gamification reads this store.
+        try {
+          const { useGamificationStore } = require('./gamification-store') as typeof import('./gamification-store');
+          useGamificationStore.getState().checkAchievements();
+        } catch {
+          // Achievements are a nicety.
+        }
 
         useSyncStore.getState().enqueue('categories', 'insert', {
           id: newCategory.id,

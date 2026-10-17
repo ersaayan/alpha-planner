@@ -313,7 +313,8 @@ describe('store migrate functions', () => {
 
   it('gamification: v1 without combo/prestige', () => {
     const migrated = migrateGamificationState({ stats: { totalXp: 5 }, unlockedAchievements: [] }, 1);
-    expect(migrated.stats).toEqual({ totalXp: 5 });
+    // v3 counters start from the stored data.
+    expect(migrated.stats).toEqual({ totalXp: 5, activeDays: 0, perfectQuestDays: 0, lifetimeXp: 5 });
     expect(migrated.combo).toEqual({});
     expect(migrated.prestige).toEqual({});
   });

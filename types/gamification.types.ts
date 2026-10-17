@@ -68,8 +68,19 @@ export interface UserStats {
   longestStreak: number;
   level: number;
   currentXp: number;
+  /** XP of the current season (reset by prestige). */
   totalXp: number;
   lastActiveDate: string;
+  /** Lifetime counters (dailyStats only keeps the last 90 days). */
+  activeDays: number;
+  perfectQuestDays: number;
+  totalSubtasksCompleted: number;
+  urgentTasksCompleted: number;
+  categoryTaskCounts: Record<string, number>;
+  /** How many times a streak was lost. */
+  streakBreaks: number;
+  /** All XP ever earned, across seasons. */
+  lifetimeXp: number;
 }
 
 export interface LevelConfig {
@@ -92,6 +103,8 @@ export interface DailyStats {
   breaksCompleted?: number;
   breaksSkipped?: number;
   weeklyGoalsCompleted?: number;
+  /** Every daily quest of that day was completed. */
+  perfectQuestDay?: boolean;
 }
 
 // --- Combo ---
@@ -153,6 +166,13 @@ export const INITIAL_USER_STATS: UserStats = {
   currentXp: 0,
   totalXp: 0,
   lastActiveDate: '',
+  activeDays: 0,
+  perfectQuestDays: 0,
+  totalSubtasksCompleted: 0,
+  urgentTasksCompleted: 0,
+  categoryTaskCounts: {},
+  streakBreaks: 0,
+  lifetimeXp: 0,
 };
 
 export const INITIAL_COMBO_STATE: ComboState = {

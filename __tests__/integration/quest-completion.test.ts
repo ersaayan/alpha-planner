@@ -51,7 +51,13 @@ afterAll(() => {
   setSyncConfigured(false);
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(() => {
+  // Afternoon: finishing every quest before noon or after 23:00 unlocks extra achievements.
+  jest.useFakeTimers({ now: new Date(2026, 9, 14, 15, 0) });
   useGamificationStore.setState(GAMIFICATION_INITIAL);
   useDailyQuestsStore.setState(QUESTS_INITIAL);
   useSyncStore.setState(SYNC_INITIAL);

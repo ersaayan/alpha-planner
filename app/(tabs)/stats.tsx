@@ -323,7 +323,7 @@ export default function StatsScreen() {
           action={
             <View style={[styles.achievementCount, { backgroundColor: colors.primary + '20' }]}>
               <Text style={[styles.achievementCountText, { color: colors.primary }]}>
-                {unlockedAchievements.length} / {ACHIEVEMENTS.filter((a) => !a.isSecret).length}
+                {unlockedAchievements.length} / {ACHIEVEMENTS.length}
               </Text>
             </View>
           }
@@ -343,15 +343,7 @@ export default function StatsScreen() {
                   icon={achievement.icon}
                   title={achievement.name}
                   isUnlocked={unlocked}
-                  rarity={
-                    achievement.xpReward >= 200
-                      ? 'legendary'
-                      : achievement.xpReward >= 150
-                        ? 'epic'
-                        : achievement.xpReward >= 100
-                          ? 'rare'
-                          : 'common'
-                  }
+                  rarity={achievement.rarity}
                   size="sm"
                 />
                 <Text
