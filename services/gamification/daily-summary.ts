@@ -1,10 +1,12 @@
-import { useGamificationStore } from '@/stores/gamification-store';
+import { effectiveDailyCombo, useGamificationStore } from '@/stores/gamification-store';
 import { usePomodoroStore } from '@/stores/pomodoro-store';
 import { useTodoStore } from '@/stores/todo-store';
 import { useDailyQuestsStore } from '@/stores/daily-quests-store';
-import { useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
-import { getDateKey } from '@/utils/date';
+import { getWeekKey, useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
+import { addDaysToKey, getDateKey, parseDateKey } from '@/utils/date';
 import i18n from '@/services/i18n/i18n-config';
+import { categoryName } from './display';
+import type { DailyStats } from '@/types';
 
 export interface DailySummaryData {
   totalFocusTime: number; // seconds
@@ -21,41 +23,31 @@ export interface DailySummaryData {
   motivationLevel: 'great' | 'normal' | 'low';
 }
 
-export function getDailySummaryData(): DailySummaryData {
+/** Summary of one day (`yyyy-MM-dd`, default today). */
+export function getDailySummaryData(dateKey: string = getDateKey()): DailySummaryData {
   const gamStore = useGamificationStore.getState();
   const todoStore = useTodoStore.getState();
   const questStore = useDailyQuestsStore.getState();
   const goalStore = useWeeklyGoalsStore.getState();
 
-  const today = getDateKey();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayKey = getDateKey(yesterday);
+  const previousKey = addDaysToKey(dateKey, -1);
+  const dayStats = gamStore.dailyStats.find((ds) => ds.date === dateKey);
+  const previousStats = gamStore.dailyStats.find((ds) => ds.date === previousKey);
 
-  const todayStats = gamStore.dailyStats.find((ds) => ds.date === today);
-  const yesterdayStats = gamStore.dailyStats.find((ds) => ds.date === yesterdayKey);
+  const pomodorosCompleted = dayStats?.pomodorosCompleted ?? 0;
+  const totalFocusTime = dayStats?.focusTime ?? 0;
+  const tasksCompleted = dayStats?.tasksCompleted ?? 0;
+  const xpEarned = dayStats?.xpEarned ?? 0;
+  // Counted when each subtask was first completed (whatever its todo's status now).
+  const subtasksCompleted = dayStats?.subtasksCompleted ?? 0;
 
-  const pomodorosCompleted = todayStats?.pomodorosCompleted ?? 0;
-  const totalFocusTime = todayStats?.focusTime ?? 0;
-  const tasksCompleted = todayStats?.tasksCompleted ?? 0;
-  const xpEarned = todayStats?.xpEarned ?? 0;
-
-  // Count today's subtasks
-  const todayCompletedTodos = todoStore.todos.filter(
-    (t) => t.status === 'completed' && t.updatedAt?.startsWith(today)
-  );
-  const subtasksCompleted = todayCompletedTodos.reduce(
-    (sum, t) => sum + (t.subtasks?.filter((s) => s.isCompleted)?.length ?? 0),
-    0
-  );
-
-  // Top category by pomodoro sessions today
+  // Top category by focus time that day (local date of the session's end).
   const sessions = usePomodoroStore.getState().sessions;
-  const todaySessions = sessions.filter(
-    (s) => s.startedAt.startsWith(today) && s.phase === 'focus' && s.wasCompleted
+  const daySessions = sessions.filter(
+    (s) => s.phase === 'focus' && s.wasCompleted && getDateKey(new Date(s.endedAt ?? s.startedAt)) === dateKey
   );
   const categoryTime = new Map<string, number>();
-  for (const session of todaySessions) {
+  for (const session of daySessions) {
     if (session.todoId) {
       const todo = todoStore.todos.find((t) => t.id === session.todoId);
       if (todo?.categoryId) {
@@ -68,32 +60,33 @@ export function getDailySummaryData(): DailySummaryData {
     const [catId, time] = [...categoryTime.entries()].sort((a, b) => b[1] - a[1])[0];
     try {
       const { useCategoryStore } = require('@/stores/category-store');
-      const cat = useCategoryStore.getState().categories.find((c: { id: string; name: string }) => c.id === catId);
-      topCategory = cat ? { name: cat.name, time } : null;
+      const cat = useCategoryStore.getState().categories.find((c: { id: string; name: string; isDefault: boolean }) => c.id === catId);
+      topCategory = cat ? { name: categoryName(i18n.t, cat), time } : null;
     } catch {
       topCategory = null;
     }
   }
 
-  // Streak
+  // Streak: alive on that day if the day itself was active.
   const streakStatus = {
     days: gamStore.stats.currentStreak,
-    isActive: gamStore.stats.lastActiveDate === today,
+    isActive: pomodorosCompleted > 0 || tasksCompleted > 0,
   };
 
   // Combo
   const { getDailyComboMultiplier } = require('@/constants/combo');
-  const comboMultiplier = getDailyComboMultiplier(gamStore.combo.dailyComboStreak);
+  const comboMultiplier = getDailyComboMultiplier(effectiveDailyCombo(gamStore.combo, dateKey));
 
-  // Daily quests
-  const todayQuests = questStore.getTodayQuests();
+  // Daily quests of that day
+  const dayQuests = questStore.quests.filter((q) => q.date === dateKey);
   const dailyQuestsStatus = {
-    completed: todayQuests.filter((q) => q.isCompleted).length,
-    total: todayQuests.length,
+    completed: dayQuests.filter((q) => q.isCompleted).length,
+    total: dayQuests.length,
   };
 
-  // Weekly goals
-  const weekGoals = goalStore.getThisWeekGoals();
+  // Weekly goals of that day's week
+  const weekKey = getWeekKey(parseDateKey(dateKey));
+  const weekGoals = goalStore.goals.filter((g) => g.weekStart === weekKey);
   const weeklyGoalProgress = {
     completed: weekGoals.filter((g) => g.isCompleted).length,
     total: weekGoals.length,
@@ -102,21 +95,20 @@ export function getDailySummaryData(): DailySummaryData {
       : 0,
   };
 
-  // Delta from yesterday
+  // Delta from the day before
   const deltaFromYesterday = {
-    pomodoros: pomodorosCompleted - (yesterdayStats?.pomodorosCompleted ?? 0),
-    focusTime: totalFocusTime - (yesterdayStats?.focusTime ?? 0),
-    tasks: tasksCompleted - (yesterdayStats?.tasksCompleted ?? 0),
+    pomodoros: pomodorosCompleted - (previousStats?.pomodorosCompleted ?? 0),
+    focusTime: totalFocusTime - (previousStats?.focusTime ?? 0),
+    tasks: tasksCompleted - (previousStats?.tasksCompleted ?? 0),
   };
 
-  // Motivation level based on 7-day average
-  const last7 = gamStore.dailyStats.slice(-7);
-  const avgPomodoros = last7.length > 0
-    ? last7.reduce((s, d) => s + d.pomodorosCompleted, 0) / last7.length
-    : 0;
+  // Motivation level based on the 7 calendar days before
+  const weekBefore = gamStore.dailyStats.filter((d) => d.date >= addDaysToKey(dateKey, -7) && d.date < dateKey);
+  const avgPomodoros = weekBefore.reduce((s, d) => s + d.pomodorosCompleted, 0) / 7;
 
   let motivationLevel: DailySummaryData['motivationLevel'] = 'normal';
-  if (pomodorosCompleted >= avgPomodoros * 1.2 || dailyQuestsStatus.completed === dailyQuestsStatus.total) {
+  const allQuestsDone = dailyQuestsStatus.total > 0 && dailyQuestsStatus.completed === dailyQuestsStatus.total;
+  if ((avgPomodoros > 0 && pomodorosCompleted >= avgPomodoros * 1.2) || allQuestsDone) {
     motivationLevel = 'great';
   } else if (pomodorosCompleted < avgPomodoros * 0.5 && pomodorosCompleted < 2) {
     motivationLevel = 'low';
@@ -138,44 +130,30 @@ export function getDailySummaryData(): DailySummaryData {
   };
 }
 
-export function getMotivationalMessage(level: 'great' | 'normal' | 'low'): string {
-  const messages = {
-    great: [
-      i18n.t('summary.motivation.great.0'),
-      i18n.t('summary.motivation.great.1'),
-      i18n.t('summary.motivation.great.2'),
-    ],
-    normal: [
-      i18n.t('summary.motivation.normal.0'),
-      i18n.t('summary.motivation.normal.1'),
-      i18n.t('summary.motivation.normal.2'),
-    ],
-    low: [
-      i18n.t('summary.motivation.low.0'),
-      i18n.t('summary.motivation.low.1'),
-      i18n.t('summary.motivation.low.2'),
-    ],
-  };
-  const pool = messages[level];
-  return pool[Math.floor(Math.random() * pool.length)];
+export function getMotivationalMessage(level: 'great' | 'normal' | 'low', seed = ''): string {
+  // The same day always gets the same message (no randomness during render).
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return i18n.t(`summary.motivation.${level}.${hash % 3}`);
 }
 
-export function markSummaryShown(): void {
-  useGamificationStore.getState().updateDailyStats({
-    summaryShownAt: new Date().toISOString(),
-  });
+/**
+ * The day whose summary to show when the app opens: yesterday, once, if anything was done
+ * that day. A summary opened from the 23:00 notification counts as shown.
+ */
+export function getPendingSummaryDate(dailyStats: DailyStats[], now: Date = new Date()): string | null {
+  const yesterday = addDaysToKey(getDateKey(now), -1);
+  const day = dailyStats.find((ds) => ds.date === yesterday);
+  if (!day || day.summaryShownAt) return null;
+  if (day.pomodorosCompleted === 0 && day.tasksCompleted === 0) return null;
+  return yesterday;
 }
 
+export function markSummaryShown(dateKey: string = getDateKey()): void {
+  useGamificationStore.getState().updateDailyStats({ summaryShownAt: new Date().toISOString() }, parseDateKey(dateKey));
+}
+
+/** @deprecated use getPendingSummaryDate */
 export function shouldShowSummary(): boolean {
-  const today = getDateKey();
-  const todayStats = useGamificationStore.getState().dailyStats.find((ds) => ds.date === today);
-
-  // Show if today has activity but summary not yet shown
-  if (!todayStats) return false;
-  if (todayStats.summaryShownAt) return false;
-  if (todayStats.pomodorosCompleted === 0 && todayStats.tasksCompleted === 0) return false;
-
-  // Only show after 23:00 or next day
-  const now = new Date();
-  return now.getHours() >= 23;
+  return getPendingSummaryDate(useGamificationStore.getState().dailyStats) !== null;
 }

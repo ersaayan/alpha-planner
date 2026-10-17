@@ -207,6 +207,22 @@ describe('usePomodoroLifecycle', () => {
     jest.runOnlyPendingTimers();
     expect(mockNavigate).toHaveBeenCalledWith('/pomodoro');
   });
+
+  it('a daily-summary tap that launched the app opens that day\'s summary on the dashboard', async () => {
+    const { useSummaryRequest } = require('@/services/gamification/summary-request');
+    const firedAt = new Date(2026, 9, 14, 23, 0).getTime();
+    (Notifications.getLastNotificationResponse as jest.Mock).mockReturnValueOnce({
+      actionIdentifier: Notifications.DEFAULT_ACTION_IDENTIFIER ?? 'expo.modules.notifications.actions.DEFAULT',
+      notification: { date: firedAt, request: { identifier: 'daily-summary-notification', content: { data: { kind: 'daily-summary' } } } },
+    });
+
+    await renderHook(() => usePomodoroLifecycle());
+    await settle();
+    jest.runOnlyPendingTimers();
+
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+    expect(useSummaryRequest.getState().dateKey).toBe('2026-10-14');
+  });
 });
 
 describe('handleTimerResponse', () => {

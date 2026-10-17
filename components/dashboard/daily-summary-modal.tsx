@@ -2,7 +2,7 @@
  * DailySummaryModal - End-of-day summary modal with animated stats
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -10,10 +10,10 @@ import Animated, {
   withTiming,
   withSpring,
   withDelay,
-  runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icon';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
@@ -50,6 +50,8 @@ interface DailySummaryModalProps {
     motivationLevel: 'great' | 'normal' | 'low';
   };
   motivationalMessage: string;
+  /** Which day this is about, e.g. "Wednesday, 14 October". */
+  subtitle?: string;
 }
 
 export function DailySummaryModal({
@@ -57,7 +59,9 @@ export function DailySummaryModal({
   onClose,
   data,
   motivationalMessage,
+  subtitle,
 }: DailySummaryModalProps) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -93,14 +97,18 @@ export function DailySummaryModal({
     transform: [{ translateY: modalTranslateY.value }],
   }));
 
+  const closing = useRef(false);
   const handleClose = () => {
+    if (closing.current) return;
+    closing.current = true;
     backdropOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
     modalTranslateY.set(withTiming(40, { duration: AnimationDuration.fast }));
-    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
-      if (finished) {
-        runOnJS(onClose)();
-      }
-    }));
+    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
+    // Closed by a timer: an animation callback does not fire on every platform.
+    setTimeout(() => {
+      closing.current = false;
+      onClose();
+    }, AnimationDuration.fast + 50);
   };
 
   // --- helpers ---
@@ -108,14 +116,15 @@ export function DailySummaryModal({
   const focusHours = Math.floor(data.totalFocusTime / 3600);
   const focusMinutes = Math.floor((data.totalFocusTime % 3600) / 60);
 
-  const formatDelta = (value: number, suffix: string): { text: string; isPositive: boolean } => {
-    const sign = value >= 0 ? '+' : '';
-    return { text: `${sign}${value}${suffix}`, isPositive: value >= 0 };
-  };
+  const formatDelta = (value: number, moreKey: string, lessKey: string): { text: string; isPositive: boolean } => ({
+    text: t(value >= 0 ? moreKey : lessKey, { count: value }),
+    isPositive: value >= 0,
+  });
 
-  const pomoDelta = formatDelta(data.deltaFromYesterday.pomodoros, ' pomodoro');
-  const focusDelta = formatDelta(data.deltaFromYesterday.focusTime, 'dk');
-  const tasksDelta = formatDelta(data.deltaFromYesterday.tasks, ' gorev');
+  const pomoDelta = formatDelta(data.deltaFromYesterday.pomodoros, 'summary.morePomodoros', 'summary.lessPomodoros');
+  // Focus time is stored in seconds; the chip shows minutes.
+  const focusDelta = formatDelta(Math.round(data.deltaFromYesterday.focusTime / 60), 'summary.moreFocus', 'summary.lessFocus');
+  const tasksDelta = formatDelta(data.deltaFromYesterday.tasks, 'summary.moreTasks', 'summary.lessTasks');
 
   if (!visible) return null;
 
@@ -136,7 +145,7 @@ export function DailySummaryModal({
             modalStyle,
           ]}
           accessibilityViewIsModal={true}
-          accessibilityLabel="Gunun ozeti"
+          accessibilityLabel={t('summary.accessibilityLabel')}
         >
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -145,14 +154,19 @@ export function DailySummaryModal({
           >
             {/* Header */}
             <View style={styles.header}>
-              <Text style={[styles.title, { color: colors.text }]}>
-                Gunun Ozeti
-              </Text>
+              <View style={styles.titleBlock}>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  {t('summary.title')}
+                </Text>
+                {subtitle ? (
+                  <Text style={[styles.statLabel, { color: colors.textMuted }]}>{subtitle}</Text>
+                ) : null}
+              </View>
               <Pressable
                 onPress={handleClose}
                 hitSlop={12}
                 accessibilityRole="button"
-                accessibilityLabel="Kapat"
+                accessibilityLabel={t('summary.close')}
               >
                 <Icon name="close" fill={colors.textMuted} size={24} />
               </Pressable>
@@ -163,16 +177,11 @@ export function DailySummaryModal({
               {/* Focus time */}
               <View style={[styles.statCard, { backgroundColor: colors.backgroundSecondary }]}>
                 <Icon name="clock" fill={colors.primary} size={20} />
-                <AnimatedCounter
-                  value={focusHours}
-                  suffix={`h ${focusMinutes}m`}
-                  formatNumber={(v) => `${v}`}
-                  category="h3"
-                  color={colors.text}
-                  style={styles.statValue}
-                />
+                <Text category="h3" style={[styles.statValue, { color: colors.text }]}>
+                  {t('summary.hoursMinutes', { hours: focusHours, minutes: focusMinutes })}
+                </Text>
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                  Odaklanma
+                  {t('summary.focusTime')}
                 </Text>
               </View>
 
@@ -186,7 +195,7 @@ export function DailySummaryModal({
                   style={styles.statValue}
                 />
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                  Pomodoro
+                  {t('summary.pomodoros')}
                 </Text>
               </View>
 
@@ -200,7 +209,7 @@ export function DailySummaryModal({
                   style={styles.statValue}
                 />
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                  Gorev
+                  {t('summary.tasks')}
                 </Text>
               </View>
 
@@ -215,7 +224,7 @@ export function DailySummaryModal({
                   style={styles.statValue}
                 />
                 <Text style={[styles.statLabel, { color: colors.textMuted }]}>
-                  Kazanilan
+                  {t('summary.xpEarned')}
                 </Text>
               </View>
             </View>
@@ -238,12 +247,12 @@ export function DailySummaryModal({
                 ]}
               >
                 {data.streakStatus.isActive
-                  ? `${data.streakStatus.days} gun`
-                  : 'Kirildi!'}
+                  ? t('summary.streakDays', { days: data.streakStatus.days })
+                  : t('summary.streakBroken')}
               </Text>
               {data.streakStatus.isActive && (
                 <Text style={[styles.rowSubtext, { color: colors.textMuted }]}>
-                  seri
+                  {t('summary.streakLabel')}
                 </Text>
               )}
             </View>
@@ -253,7 +262,7 @@ export function DailySummaryModal({
               <View style={[styles.comboBadge, { backgroundColor: GamificationColors.xp + '1A' }]}>
                 <Icon name="flash" fill={GamificationColors.xp} size={18} />
                 <Text style={[styles.comboText, { color: GamificationColors.xp }]}>
-                  {data.comboMultiplier}x Combo
+                  {t('summary.combo', { value: data.comboMultiplier })}
                 </Text>
               </View>
             )}
@@ -275,7 +284,7 @@ export function DailySummaryModal({
             <View style={styles.progressSection}>
               <View style={styles.progressHeader}>
                 <Text style={[styles.progressLabel, { color: colors.text }]}>
-                  Gunluk Gorevler
+                  {t('summary.dailyQuests')}
                 </Text>
                 <Text style={[styles.progressValue, { color: colors.textSecondary }]}>
                   {data.dailyQuestsStatus.completed}/{data.dailyQuestsStatus.total}
@@ -297,10 +306,10 @@ export function DailySummaryModal({
             <View style={styles.progressSection}>
               <View style={styles.progressHeader}>
                 <Text style={[styles.progressLabel, { color: colors.text }]}>
-                  Haftalik Hedef
+                  {t('summary.weeklyGoal')}
                 </Text>
                 <Text style={[styles.progressValue, { color: colors.textSecondary }]}>
-                  %{data.weeklyGoalProgress.percentage}
+                  {t('summary.percent', { value: data.weeklyGoalProgress.percentage })}
                 </Text>
               </View>
               <AnimatedProgressBar
@@ -314,7 +323,7 @@ export function DailySummaryModal({
             {/* Delta from yesterday */}
             <View style={styles.deltaContainer}>
               <Text style={[styles.deltaTitle, { color: colors.textMuted }]}>
-                Dune gore
+                {t('summary.vsYesterday')}
               </Text>
               <View style={styles.deltaChips}>
                 <View
@@ -384,7 +393,7 @@ export function DailySummaryModal({
 
             {/* Close button */}
             <AnimatedButton
-              title="Kapat"
+              title={t('summary.close')}
               variant="primary"
               size="lg"
               fullWidth
@@ -425,6 +434,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.lg,
+  },
+  titleBlock: {
+    flex: 1,
   },
   title: {
     fontFamily: InterFonts.bold,

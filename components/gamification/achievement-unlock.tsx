@@ -14,6 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -58,11 +59,12 @@ export function AchievementUnlock({
     legendary: '#9B59B6',
   };
 
+  const { t } = useTranslation();
   const rarityLabels = {
-    common: 'Common',
-    rare: 'Rare',
-    epic: 'Epic',
-    legendary: 'Legendary',
+    common: t('gamification.rarity.common'),
+    rare: t('gamification.rarity.rare'),
+    epic: t('gamification.rarity.epic'),
+    legendary: t('gamification.rarity.legendary'),
   };
 
   useEffect(() => {
@@ -107,6 +109,14 @@ export function AchievementUnlock({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, autoDismiss, autoDismissDelay]);
 
+  // The exit animation's callback does not fire on every platform (e.g. the web); a timer
+  // makes sure the next celebration in the queue is shown.
+  useEffect(() => {
+    if (!visible || !autoDismiss) return;
+    const timer = setTimeout(onClose, autoDismissDelay + 150);
+    return () => clearTimeout(timer);
+  }, [visible, autoDismiss, autoDismissDelay, onClose]);
+
   const containerStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: translateY.value },
@@ -142,7 +152,7 @@ export function AchievementUnlock({
             style={styles.unlockIcon}
           />
           <Text style={[styles.headerText, { color: rarityColors[rarity] }]}>
-            ACHIEVEMENT UNLOCKED
+            {t('gamification.achievementUnlocked')}
           </Text>
         </View>
 
@@ -182,7 +192,7 @@ export function AchievementUnlock({
                 style={styles.xpIcon}
               />
               <Text style={[styles.xpText, { color: GamificationColors.xp }]}>
-                +{xpReward} XP
+                {t('gamification.xpEarned', { amount: xpReward })}
               </Text>
             </View>
           </View>

@@ -3,6 +3,8 @@ jest.mock('@/stores/gamification-store', () => ({
     getState: () => ({
       incrementTaskCompleted: jest.fn(),
       addXp: jest.fn(),
+      recordTaskCreated: jest.fn(),
+      recordSubtaskCompleted: jest.fn(),
     }),
   },
 }));

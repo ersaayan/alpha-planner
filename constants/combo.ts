@@ -11,6 +11,45 @@ export const SESSION_COMBO_MULTIPLIERS: Record<number, number> = {
 };
 export const SESSION_COMBO_MAX_MULTIPLIER = 3; // 5+ sessions
 
+/**
+ * Longest gap between the end of one focus session and the start of the next that keeps
+ * the session combo going: an hour, or the long break plus 15 minutes if that is longer.
+ */
+export function sessionComboMaxGapMs(longBreakSeconds = 0): number {
+  return Math.max(60 * 60_000, (longBreakSeconds + 15 * 60) * 1000);
+}
+
+/** The session combo that still counts at `atMs` (0 once the gap is too long). */
+export function liveSessionCombo(
+  combo: { sessionCombo: number; lastSessionAt?: string | null },
+  atMs: number,
+  maxGapMs = sessionComboMaxGapMs()
+): number {
+  if (!combo.lastSessionAt) return 0;
+  const last = Date.parse(combo.lastSessionAt);
+  return Number.isFinite(last) && atMs - last <= maxGapMs ? combo.sessionCombo : 0;
+}
+
+/** The day before a `yyyy-MM-dd` key (local calendar, DST-safe). */
+function previousDateKey(key: string): string {
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, (month || 1) - 1, (day || 1) - 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * The daily combo streak that still applies on `dateKey`. A combo day keeps its
+ * multiplier until the end of the next day; after a day without one it lapses.
+ */
+export function effectiveDailyCombo(
+  combo: { dailyComboStreak: number; lastDailyComboDate: string | null },
+  dateKey: string
+): number {
+  const last = combo.lastDailyComboDate;
+  if (!last || last < previousDateKey(dateKey)) return 0;
+  return combo.dailyComboStreak;
+}
+
 export function getSessionComboMultiplier(combo: number): number {
   if (combo >= 5) return SESSION_COMBO_MAX_MULTIPLIER;
   return SESSION_COMBO_MULTIPLIERS[combo] ?? 1;

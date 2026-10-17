@@ -3,6 +3,10 @@ import {
   getLevelTitle,
   getLevelTier,
   getXpForNextLevel,
+  getXpProgressFor,
+  getLevelTierId,
+  isMaxLevel,
+  MAX_LEVEL,
   getCurrentLevelXp,
   LEVELS,
   ACHIEVEMENTS,
@@ -125,8 +129,8 @@ describe('getXpForNextLevel', () => {
     expect(getXpForNextLevel(1)).toBe(LEVELS[1].xpRequired);
   });
 
-  it('returns Infinity for level 50 (max level)', () => {
-    expect(getXpForNextLevel(50)).toBe(Infinity);
+  it('returns null for level 50 (max level)', () => {
+    expect(getXpForNextLevel(50)).toBeNull();
   });
 
   it('returns a positive number for mid-range levels', () => {
@@ -146,5 +150,28 @@ describe('getCurrentLevelXp', () => {
   it('falls back to 0 for out-of-range level', () => {
     expect(getCurrentLevelXp(0)).toBe(0);
     expect(getCurrentLevelXp(99)).toBe(0);
+  });
+});
+
+describe('getXpProgressFor', () => {
+  it('reports the maximum level as complete instead of Infinity', () => {
+    const top = LEVELS[LEVELS.length - 1];
+    const progress = getXpProgressFor(top.xpRequired + 1234, MAX_LEVEL);
+    expect(progress).toEqual({ current: 1234, required: 0, percentage: 100, isMaxLevel: true });
+  });
+
+  it('is not max level at level 10 (there are 50)', () => {
+    expect(MAX_LEVEL).toBe(50);
+    expect(isMaxLevel(10)).toBe(false);
+    const progress = getXpProgressFor(LEVELS[9].xpRequired, 10);
+    expect(progress.isMaxLevel).toBe(false);
+    expect(progress.required).toBe(LEVELS[10].xpRequired - LEVELS[9].xpRequired);
+    expect(progress.percentage).toBe(0);
+  });
+
+  it('tier ids follow the level bands', () => {
+    expect([1, 10, 11, 20, 21, 30, 31, 40, 41, 50].map(getLevelTierId)).toEqual([
+      'seedling', 'seedling', 'sapling', 'sapling', 'tree', 'tree', 'forest', 'forest', 'ancient', 'ancient',
+    ]);
   });
 });

@@ -3,6 +3,7 @@ jest.mock('@/stores/gamification-store', () => ({
     getState: jest.fn(() => ({
       dailyStats: [],
       addXp: jest.fn(),
+      recordWeeklyGoalCompleted: jest.fn(),
     })),
   },
 }));
@@ -44,6 +45,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: jest.fn(),
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     useWeeklyGoalsStore.getState().ensureThisWeekGoals();
@@ -66,6 +68,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: jest.fn(),
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     useWeeklyGoalsStore.getState().ensureThisWeekGoals();
@@ -85,6 +88,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: jest.fn(),
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     useWeeklyGoalsStore.getState().ensureThisWeekGoals();
@@ -143,6 +147,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: mockAddXp,
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     useWeeklyGoalsStore.getState().setPersonalGoal('tasks', 10);
@@ -160,6 +165,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: mockAddXp,
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     useWeeklyGoalsStore.getState().setPersonalGoal('tasks', 5);
@@ -168,7 +174,7 @@ describe('useWeeklyGoalsStore', () => {
     const goal = useWeeklyGoalsStore.getState().goals.find((g) => g.goalType === 'personal');
     expect(goal?.isCompleted).toBe(true);
     expect(goal?.currentValue).toBe(5);
-    expect(mockAddXp).toHaveBeenCalledWith(PERSONAL_GOAL_XP);
+    expect(mockAddXp).toHaveBeenCalledWith(PERSONAL_GOAL_XP, expect.any(Date));
   });
 
   it('updateGoalProgress: does not exceed target value', () => {
@@ -178,6 +184,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: mockAddXp,
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     useWeeklyGoalsStore.getState().setPersonalGoal('tasks', 5);
@@ -195,6 +202,7 @@ describe('useWeeklyGoalsStore', () => {
     (useGamificationStore.getState as jest.Mock).mockReturnValue({
       dailyStats: [],
       addXp: jest.fn(),
+      recordWeeklyGoalCompleted: jest.fn(),
     });
 
     // Manually inject an old goal

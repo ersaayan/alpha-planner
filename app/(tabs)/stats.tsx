@@ -1,16 +1,35 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
-import { startOfDay } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DistributionChart, WeeklyChart } from '@/components/charts';
-import { ACHIEVEMENTS, getLevelTitle, getLevelTier } from '@/constants/gamification';
+import { useTranslation } from 'react-i18next';
+import { ACHIEVEMENTS, MAX_LEVEL } from '@/constants/gamification';
+import { getAchievementProgress, type AchievementContext } from '@/services/gamification/achievement-rules';
+import { achievementDescription, achievementName, levelTierName, levelTitle } from '@/services/gamification/display';
+import { effectiveDailyCombo, liveSessionCombo } from '@/constants/combo';
+import { useNow } from '@/hooks/use-now';
+import { getDateKey, parseDateKey } from '@/utils/date';
+import { formatMonthKey } from '@/utils/locale';
+import type { AchievementCategory } from '@/types';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useAuthStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+import { useCategoryStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
+
+const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
+  'pomodoro',
+  'tasks',
+  'streaks',
+  'focus_time',
+  'combo',
+  'daily_quest',
+  'category',
+  'milestones',
+  'special',
+];
 
 import { SectionHeader } from '@/components/common';
 import { AchievementBadge, LevelBadge } from '@/components/animated/animated-badge';
@@ -20,6 +39,7 @@ import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 export default function StatsScreen() {
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -36,73 +56,57 @@ export default function StatsScreen() {
 
   const sessions = usePomodoroStore((state) => state.sessions);
   const todos = useTodoStore((state) => state.todos);
+  const categories = useCategoryStore((state) => state.categories);
+  const dailyStats = useGamificationStore((state) => state.dailyStats);
+  const now = useNow();
+
+  // What locked achievements still need (same rules the store unlocks with).
+  const achievementContext = useMemo<AchievementContext>(() => {
+    const dateKey = getDateKey(now);
+    return {
+      stats,
+      sessionCombo: liveSessionCombo(combo, now.getTime()),
+      dailyCombo: effectiveDailyCombo(combo, dateKey),
+      prestigeCount: prestige.count,
+      dailyStats: dailyStats ?? [],
+      dateKey,
+      todos,
+      categories: categories ?? [],
+    };
+  }, [stats, combo, prestige.count, dailyStats, now, todos, categories]);
 
   const isNewUser = stats.totalPomodoros === 0 && stats.totalTasksCompleted === 0;
 
-  // Prepare weekly activity data
-  const weeklyActivityData = useMemo(() => {
-    const focusSessions = sessions.filter(
-      (s) => s.phase === 'focus' && s.wasCompleted
-    );
-
-    const dateMap = new Map<string, number>();
-    focusSessions.forEach((session) => {
-      const dateKey = startOfDay(new Date(session.startedAt)).toISOString();
-      dateMap.set(dateKey, (dateMap.get(dateKey) ?? 0) + 1);
-    });
-
-    return Array.from(dateMap.entries()).map(([dateStr, count]) => ({
-      date: new Date(dateStr),
-      value: count,
-    }));
-  }, [sessions]);
+  // Last 7 days, from the daily stats (each pomodoro and task counted once, on its day)
+  const weeklyActivityData = useMemo(
+    () => (dailyStats ?? []).map((day) => ({ date: parseDateKey(day.date), value: day.pomodorosCompleted })),
+    [dailyStats]
+  );
 
   // Prepare focus time distribution
   const timeDistributionData = useMemo(() => {
-    const focusTime = sessions
-      .filter((s) => s.phase === 'focus' && s.wasCompleted)
-      .reduce((sum, s) => sum + s.duration, 0);
-
-    const shortBreakTime = sessions
-      .filter((s) => s.phase === 'short_break' && s.wasCompleted)
-      .reduce((sum, s) => sum + s.duration, 0);
-
-    const longBreakTime = sessions
-      .filter((s) => s.phase === 'long_break' && s.wasCompleted)
-      .reduce((sum, s) => sum + s.duration, 0);
+    const total = (phase: string) =>
+      sessions.filter((s) => s.phase === phase && s.wasCompleted).reduce((sum, s) => sum + s.duration, 0);
 
     return [
-      { label: 'Focus', value: focusTime, color: colors.timerFocus },
-      { label: 'Short Break', value: shortBreakTime, color: colors.timerBreak },
-      { label: 'Long Break', value: longBreakTime, color: '#B5A45E' },
+      { label: t('stats.focus'), value: total('focus'), color: colors.timerFocus },
+      { label: t('stats.shortBreak'), value: total('short_break'), color: colors.timerBreak },
+      { label: t('stats.longBreak'), value: total('long_break'), color: '#B5A45E' },
     ];
-  }, [sessions, colors]);
+  }, [sessions, colors, t]);
 
-  // Prepare weekly tasks data
-  const weeklyTasksData = useMemo(() => {
-    const completedTodos = todos.filter(
-      (t) => t.status === 'completed' && t.completedAt
-    );
-
-    const dateMap = new Map<string, number>();
-    completedTodos.forEach((todo) => {
-      const dateKey = startOfDay(new Date(todo.completedAt!)).toISOString();
-      dateMap.set(dateKey, (dateMap.get(dateKey) ?? 0) + 1);
-    });
-
-    return Array.from(dateMap.entries()).map(([dateStr, count]) => ({
-      date: new Date(dateStr),
-      value: count,
-    }));
-  }, [todos]);
+  const weeklyTasksData = useMemo(
+    () => (dailyStats ?? []).map((day) => ({ date: parseDateKey(day.date), value: day.tasksCompleted })),
+    [dailyStats]
+  );
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return t('summary.hoursMinutes', { hours, minutes });
     }
-    return `${minutes}m`;
+    return t('stats.minutesValue', { minutes });
   };
 
   return (
@@ -117,7 +121,7 @@ export default function StatsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          Statistics
+          {t('stats.title')}
         </Text>
       </View>
 
@@ -132,21 +136,21 @@ export default function StatsScreen() {
             <Icon name="bar-chart" fill={colors.primary} style={styles.emptyIcon} />
           </View>
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Start Your Journey!
+            {t('stats.emptyTitle')}
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-            Complete pomodoro sessions and tasks to see your progress here.
+            {t('stats.emptySubtitle')}
           </Text>
           <View style={styles.emptyActions}>
             <AnimatedButton
-              title="Create Task"
+              title={t('stats.createTask')}
               icon="plus"
               variant="outline"
               size="sm"
               onPress={() => router.push('/todo/create')}
             />
             <AnimatedButton
-              title="Start Focus"
+              title={t('stats.startFocus')}
               icon="play"
               variant="primary"
               size="sm"
@@ -170,17 +174,17 @@ export default function StatsScreen() {
           />
           <View style={styles.levelInfo}>
             <Text style={[styles.levelTitle, { color: colors.text }]}>
-              {getLevelTier(stats.level)} · {getLevelTitle(stats.level)}
+              {levelTierName(t, stats.level)} · {levelTitle(t, stats.level)}
             </Text>
             <Text style={[styles.levelSubtitle, { color: colors.textMuted }]}>
-              Level {stats.level} / 50
+              {t('stats.levelOf', { level: stats.level, max: MAX_LEVEL })}
             </Text>
           </View>
           <View style={styles.xpInfo}>
             <View style={[styles.xpBadge, { backgroundColor: GamificationColors.xp + '20' }]}>
               <Icon name="star" fill={GamificationColors.xp} style={styles.xpIcon} />
               <Text style={[styles.xpValue, { color: GamificationColors.xp }]}>
-                {stats.totalXp} XP
+                {t('stats.totalXpValue', { xp: stats.totalXp })}
               </Text>
             </View>
           </View>
@@ -189,10 +193,12 @@ export default function StatsScreen() {
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
             <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-              {stats.level >= 10 ? '✨ Max Level!' : `Progress to Level ${stats.level + 1}`}
+              {xpProgress.isMaxLevel ? `✨ ${t('stats.maxLevel')}` : t('stats.levelProgress', { level: stats.level + 1 })}
             </Text>
             <Text style={[styles.progressValue, { color: colors.text }]}>
-              {stats.level >= 10 ? `${stats.totalXp} XP` : `${xpProgress.current} / ${xpProgress.required} XP`}
+              {xpProgress.isMaxLevel
+                ? t('stats.totalXpValue', { xp: stats.totalXp })
+                : t('stats.xpOfLevel', { current: xpProgress.current, required: xpProgress.required })}
             </Text>
           </View>
           <AnimatedProgressBar
@@ -210,26 +216,26 @@ export default function StatsScreen() {
         <StatGridCard
           icon="clock"
           value={stats.totalPomodoros}
-          label="Pomodoros"
+          label={t('stats.pomodoros')}
           color={colors.primary}
         />
         <StatGridCard
           icon="hourglass"
           value={formatTime(stats.totalFocusTime)}
-          label="Focus Time"
+          label={t('stats.focusTime')}
           color={colors.info}
           isString
         />
         <StatGridCard
           icon="checkmark-circle-2"
           value={stats.totalTasksCompleted}
-          label="Tasks Done"
+          label={t('stats.tasksDone')}
           color={colors.success}
         />
         <StatGridCard
           icon="flash"
           value={stats.currentStreak}
-          label="Day Streak"
+          label={t('stats.dayStreak')}
           color={GamificationColors.streak}
         />
       </View>
@@ -247,11 +253,11 @@ export default function StatsScreen() {
             </View>
             <View>
               <Text style={[styles.streakLabel, { color: colors.textMuted }]}>
-                Current Streak
+                {t('stats.currentStreak')}
               </Text>
               <AnimatedCounter
                 value={stats.currentStreak}
-                suffix=" days"
+                suffix={` ${t('stats.days')}`}
                 category="h3"
                 color={colors.text}
               />
@@ -264,10 +270,10 @@ export default function StatsScreen() {
             </View>
             <View>
               <Text style={[styles.streakLabel, { color: colors.textMuted }]}>
-                Best Streak
+                {t('stats.bestStreak')}
               </Text>
               <Text style={[styles.streakValue, { color: colors.text }]}>
-                {stats.longestStreak} days
+                {stats.longestStreak} {t('stats.days')}
               </Text>
             </View>
           </View>
@@ -284,8 +290,8 @@ export default function StatsScreen() {
           >
             <WeeklyChart
               data={weeklyActivityData}
-              title="Focus Sessions"
-              valueLabel="sessions"
+              title={t('stats.focusSessions')}
+              valueLabel={t('stats.sessions')}
               barColor={colors.primary}
             />
           </AnimatedCard>
@@ -297,8 +303,8 @@ export default function StatsScreen() {
           >
             <WeeklyChart
               data={weeklyTasksData}
-              title="Tasks Completed"
-              valueLabel="tasks"
+              title={t('stats.tasksCompleted')}
+              valueLabel={t('stats.tasks')}
               barColor={colors.success}
             />
           </AnimatedCard>
@@ -310,70 +316,104 @@ export default function StatsScreen() {
           >
             <DistributionChart
               data={timeDistributionData}
-              title="Time Distribution"
+              title={t('stats.timeDistribution')}
             />
           </AnimatedCard>
         </>
       )}
 
+      {/* Seasons (prestige history) */}
+      {prestige.history.length > 0 && (
+        <View style={styles.section}>
+          <SectionHeader title={t('stats.seasonHistory')} />
+          <AnimatedCard variant="default" contentStyle={styles.historyContent}>
+            {[...prestige.history].reverse().map((record) => (
+              <View key={record.month} style={styles.historyRow}>
+                <Text style={[styles.historyMonth, { color: colors.text }]}>
+                  {formatMonthKey(record.month, i18n.language)}
+                </Text>
+                <Text style={[styles.historyDetail, { color: colors.textMuted }]}>
+                  {t('stats.seasonRecord', {
+                    level: record.finalLevel,
+                    xp: record.totalXp,
+                    rewards: record.rewards.length,
+                  })}
+                </Text>
+              </View>
+            ))}
+          </AnimatedCard>
+        </View>
+      )}
+
       {/* Achievements Section */}
       <View style={styles.section}>
         <SectionHeader
-          title="Achievements"
+          title={t('stats.achievements')}
           action={
             <View style={[styles.achievementCount, { backgroundColor: colors.primary + '20' }]}>
               <Text style={[styles.achievementCountText, { color: colors.primary }]}>
-                {unlockedAchievements.length} / {ACHIEVEMENTS.filter((a) => !a.isSecret).length}
+                {unlockedAchievements.length} / {ACHIEVEMENTS.length}
               </Text>
             </View>
           }
         />
 
-        <View style={styles.achievementsGrid}>
-          {ACHIEVEMENTS.filter((a) => !a.isSecret || isAchievementUnlocked(a.id)).map((achievement) => {
-            const unlocked = isAchievementUnlocked(achievement.id);
-            return (
-              <AnimatedCard
-                key={achievement.id}
-                variant={unlocked ? 'default' : 'outlined'}
-                style={styles.achievementCard}
-                contentStyle={styles.achievementCardContent}
-              >
-                <AchievementBadge
-                  icon={achievement.icon}
-                  title={achievement.name}
-                  isUnlocked={unlocked}
-                  rarity={
-                    achievement.xpReward >= 200
-                      ? 'legendary'
-                      : achievement.xpReward >= 150
-                        ? 'epic'
-                        : achievement.xpReward >= 100
-                          ? 'rare'
-                          : 'common'
-                  }
-                  size="sm"
-                />
-                <Text
-                  style={[
-                    styles.achievementDescription,
-                    { color: unlocked ? colors.textSecondary : colors.textMuted },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {achievement.description}
-                </Text>
-                {unlocked && (
-                  <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
-                    <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
-                      +{achievement.xpReward} XP
-                    </Text>
-                  </View>
-                )}
-              </AnimatedCard>
-            );
-          })}
-        </View>
+        {ACHIEVEMENT_CATEGORIES.map((category) => {
+          const inCategory = ACHIEVEMENTS.filter((a) => a.category === category);
+          const unlockedHere = inCategory.filter((a) => isAchievementUnlocked(a.id)).length;
+          return (
+            <View key={category} style={styles.achievementGroup}>
+              <Text style={[styles.groupTitle, { color: colors.textSecondary }]}>
+                {t(`achievementCategory.${category}`)} · {unlockedHere}/{inCategory.length}
+              </Text>
+              <View style={styles.achievementsGrid}>
+                {inCategory.map((achievement) => {
+                  const unlocked = isAchievementUnlocked(achievement.id);
+                  // Locked secrets stay a mystery.
+                  const hidden = achievement.isSecret && !unlocked;
+                  const progress = !unlocked && !hidden ? getAchievementProgress(achievement, achievementContext) : null;
+                  return (
+                    <AnimatedCard
+                      key={achievement.id}
+                      variant={unlocked ? 'default' : 'outlined'}
+                      style={styles.achievementCard}
+                      contentStyle={styles.achievementCardContent}
+                    >
+                      <AchievementBadge
+                        icon={hidden ? 'lock' : achievement.icon}
+                        title={hidden ? t('achievements.secret') : achievementName(t, achievement)}
+                        isUnlocked={unlocked}
+                        rarity={achievement.rarity}
+                        size="sm"
+                      />
+                      <Text
+                        style={[
+                          styles.achievementDescription,
+                          { color: unlocked ? colors.textSecondary : colors.textMuted },
+                        ]}
+                        numberOfLines={3}
+                      >
+                        {hidden ? t('achievements.secretDesc') : achievementDescription(t, achievement)}
+                      </Text>
+                      {progress && progress.target > 1 && (
+                        <Text style={[styles.achievementProgress, { color: colors.textMuted }]}>
+                          {Math.min(progress.current, progress.target)} / {progress.target}
+                        </Text>
+                      )}
+                      {unlocked && (
+                        <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
+                          <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
+                            {t('gamification.xpEarned', { amount: achievement.xpReward })}
+                          </Text>
+                        </View>
+                      )}
+                    </AnimatedCard>
+                  );
+                })}
+              </View>
+            </View>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -423,6 +463,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: Spacing.md,
+  },
+  historyContent: {
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  historyMonth: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.sm,
+  },
+  historyDetail: {
+    flexShrink: 1,
+    textAlign: 'right',
+    fontFamily: InterFonts.regular,
+    fontSize: FontSize.xs,
+  },
+  achievementGroup: {
+    marginBottom: Spacing.md,
+  },
+  groupTitle: {
+    fontFamily: InterFonts.semibold,
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.sm,
+  },
+  achievementProgress: {
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
+    marginTop: Spacing.xs,
   },
   header: {
     marginBottom: Spacing.lg,

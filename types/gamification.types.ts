@@ -64,12 +64,26 @@ export interface UserStats {
   totalPomodoros: number;
   totalFocusTime: number;
   totalTasksCompleted: number;
+  /** The streak as shown: streakLength while it is alive (active today or yesterday), else 0. */
   currentStreak: number;
+  /** Length of the run of active days ending at lastActiveDate. */
+  streakLength: number;
   longestStreak: number;
   level: number;
   currentXp: number;
+  /** XP of the current season (reset by prestige). */
   totalXp: number;
   lastActiveDate: string;
+  /** Lifetime counters (dailyStats only keeps the last 90 days). */
+  activeDays: number;
+  perfectQuestDays: number;
+  totalSubtasksCompleted: number;
+  urgentTasksCompleted: number;
+  categoryTaskCounts: Record<string, number>;
+  /** How many times a streak was lost. */
+  streakBreaks: number;
+  /** All XP ever earned, across seasons. */
+  lifetimeXp: number;
 }
 
 export interface LevelConfig {
@@ -84,8 +98,16 @@ export interface DailyStats {
   focusTime: number;
   tasksCompleted: number;
   xpEarned: number;
+  /** Daily quests completed that day (a perfect day completes all of them). */
   dailyQuestsCompleted: number;
   summaryShownAt: string | null;
+  subtasksCompleted?: number;
+  tasksCreated?: number;
+  breaksCompleted?: number;
+  breaksSkipped?: number;
+  weeklyGoalsCompleted?: number;
+  /** Every daily quest of that day was completed. */
+  perfectQuestDay?: boolean;
 }
 
 // --- Combo ---
@@ -94,21 +116,33 @@ export interface ComboState {
   sessionCombo: number;
   dailyComboStreak: number;
   lastDailyComboDate: string | null;
+  /** End of the last focus session that counted for the session combo (ISO). */
+  lastSessionAt: string | null;
 }
 
 // --- Prestige ---
 
+/** A finished season (month). */
 export interface PrestigeRecord {
   month: string;
   finalLevel: number;
   totalXp: number;
+  /** Ids of the season rewards earned (see services/gamification/season.ts). */
   rewards: string[];
+  /** XP of those rewards, given as a head start in the next season. */
+  rewardXp?: number;
+  pomodoros?: number;
+  tasks?: number;
+  activeDays?: number;
 }
 
 export interface PrestigeState {
   count: number;
+  /** The current season's month (`yyyy-MM`, local time). */
   currentSeasonStart: string;
   history: PrestigeRecord[];
+  /** The last finished season whose summary the user has seen. */
+  acknowledgedMonth: string | null;
 }
 
 // --- Daily Quests ---
@@ -142,21 +176,36 @@ export const INITIAL_USER_STATS: UserStats = {
   totalFocusTime: 0,
   totalTasksCompleted: 0,
   currentStreak: 0,
+  streakLength: 0,
   longestStreak: 0,
   level: 1,
   currentXp: 0,
   totalXp: 0,
   lastActiveDate: '',
+  activeDays: 0,
+  perfectQuestDays: 0,
+  totalSubtasksCompleted: 0,
+  urgentTasksCompleted: 0,
+  categoryTaskCounts: {},
+  streakBreaks: 0,
+  lifetimeXp: 0,
 };
 
 export const INITIAL_COMBO_STATE: ComboState = {
   sessionCombo: 0,
   dailyComboStreak: 0,
   lastDailyComboDate: null,
+  lastSessionAt: null,
 };
+
+/** The local month (`yyyy-MM`). Same as utils/date getMonthKey, without importing date-fns here. */
+export function currentMonthKey(date: Date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
 
 export const INITIAL_PRESTIGE_STATE: PrestigeState = {
   count: 0,
-  currentSeasonStart: new Date().toISOString().slice(0, 7),
+  currentSeasonStart: currentMonthKey(),
   history: [],
+  acknowledgedMonth: null,
 };

@@ -1,7 +1,8 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -13,11 +14,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getLevelTitle, getLevelTier } from '@/constants/gamification';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
-import { formatDate } from '@/utils/date';
+import { formatDue } from '@/utils/todo-dates';
 
 import { SectionHeader } from '@/components/common';
 import { LevelBadge } from '@/components/animated/animated-badge';
@@ -25,11 +25,14 @@ import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
-import { DailySummaryModal } from '@/components/dashboard';
-import { shouldShowSummary, getDailySummaryData, getMotivationalMessage, markSummaryShown } from '@/services/gamification/daily-summary';
-import type { DailySummaryData } from '@/services/gamification/daily-summary';
+import { ComboIndicator } from '@/components/gamification/combo-indicator';
+import { DailyQuestsCard } from '@/components/gamification/daily-quests-card';
+import { SeasonCard } from '@/components/gamification/season-card';
+import { WeeklyGoalsCard } from '@/components/gamification/weekly-goals-card';
+import { levelTierName, levelTitle } from '@/services/gamification/display';
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -43,27 +46,8 @@ export default function HomeScreen() {
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
   const profile = useAuthStore((state) => state.profile);
-
-  // Daily summary modal
-  const [showSummary, setShowSummary] = useState(false);
-  const [summaryData, setSummaryData] = useState<DailySummaryData | null>(null);
-  const [summaryMessage, setSummaryMessage] = useState('');
-
-  useEffect(() => {
-    if (shouldShowSummary()) {
-      const data = getDailySummaryData();
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time mount check against persisted stores
-      setSummaryData(data);
-      setSummaryMessage(getMotivationalMessage(data.motivationLevel));
-      setShowSummary(true);
-    }
-  }, []);
-
-  const handleCloseSummary = useCallback(() => {
-    setShowSummary(false);
-    markSummaryShown();
-  }, []);
 
   // Timer pulse animation
   const timerPulse = useSharedValue(1);
@@ -123,10 +107,10 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={[styles.appTitle, { color: colors.text }]}>
-            {profile?.displayName ? `Hoşgeldin, ${profile.displayName}` : 'Alpha Planner'}
+            {profile?.displayName ? t('dashboard.greeting', { name: profile.displayName }) : t('dashboard.greetingDefault')}
           </Text>
           <Text style={[styles.levelSubtitle, { color: colors.textSecondary }]}>
-            {getLevelTier(stats.level)} · {getLevelTitle(stats.level)}
+            {levelTierName(t, stats.level)} · {levelTitle(t, stats.level)}
           </Text>
         </View>
         <LevelBadge
@@ -150,7 +134,7 @@ export default function HomeScreen() {
               style={styles.xpIcon}
             />
             <Text style={[styles.xpTitle, { color: colors.text }]}>
-              Experience
+              {t('dashboard.experience')}
             </Text>
           </View>
           <View style={styles.xpValues}>
@@ -159,12 +143,16 @@ export default function HomeScreen() {
               category="body"
               color={colors.primary}
             />
-            <Text style={[styles.xpSeparator, { color: colors.textMuted }]}>
-              {' / '}
-            </Text>
-            <Text style={[styles.xpTotal, { color: colors.textMuted }]}>
-              {xpProgress.required} XP
-            </Text>
+            {!xpProgress.isMaxLevel && (
+              <>
+                <Text style={[styles.xpSeparator, { color: colors.textMuted }]}>
+                  {' / '}
+                </Text>
+                <Text style={[styles.xpTotal, { color: colors.textMuted }]}>
+                  {t('dashboard.xpOfLevel', { xp: xpProgress.required })}
+                </Text>
+              </>
+            )}
           </View>
         </View>
         <AnimatedProgressBar
@@ -175,32 +163,35 @@ export default function HomeScreen() {
           backgroundColor={colors.backgroundSecondary}
         />
         <Text style={[styles.nextLevelText, { color: colors.textMuted }]}>
-          {stats.level >= 10
-            ? '✨ Max Level Reached!'
-            : `${xpProgress.required - xpProgress.current} XP to Level ${stats.level + 1}`}
+          {xpProgress.isMaxLevel
+            ? `✨ ${t('dashboard.maxLevelReached')}`
+            : t('dashboard.xpToNextLevel', { xp: xpProgress.required - xpProgress.current, level: stats.level + 1 })}
         </Text>
       </AnimatedCard>
+
+      {/* Session and daily combos */}
+      <ComboIndicator />
 
       {/* Quick Stats Grid */}
       <View style={styles.statsGrid}>
         <StatCard
           icon="flash"
           value={stats.currentStreak}
-          label="Day Streak"
+          label={t('dashboard.dayStreak')}
           color={GamificationColors.streak}
           onPress={() => router.push('/(tabs)/stats')}
         />
         <StatCard
           icon="checkmark-circle-2"
           value={todayCompleted}
-          label="Done Today"
+          label={t('dashboard.doneToday')}
           color={colors.success}
           onPress={() => router.push('/(tabs)/todos')}
         />
         <StatCard
           icon="clock"
           value={stats.totalPomodoros}
-          label="Pomodoros"
+          label={t('dashboard.pomodoros')}
           color={colors.primary}
           onPress={() => router.push('/(tabs)/pomodoro')}
         />
@@ -233,7 +224,7 @@ export default function HomeScreen() {
                   style={styles.phaseIcon}
                 />
                 <Text style={[styles.phaseText, { color: colors.primary }]}>
-                  {timerPhase === 'focus' ? 'Focus Time' : 'Break Time'}
+                  {timerPhase === 'focus' ? t('dashboard.focusTime') : t('dashboard.breakTime')}
                 </Text>
               </View>
               <Text style={[styles.timerTime, { color: colors.text }]}>
@@ -252,17 +243,22 @@ export default function HomeScreen() {
         </Animated.View>
       )}
 
+      {/* Today's quests, this week's goals, the monthly season */}
+      <DailyQuestsCard />
+      <WeeklyGoalsCard />
+      <SeasonCard />
+
       {/* Active Tasks Section */}
       <View style={styles.section}>
         <SectionHeader
-          title="Active Tasks"
+          title={t('dashboard.activeTasks')}
           action={
             <Pressable
               onPress={() => router.push('/(tabs)/todos')}
               style={styles.seeAllButton}
             >
               <Text style={[styles.seeAllText, { color: colors.primary }]}>
-                See All
+                {t('dashboard.seeAll')}
               </Text>
               <Icon
                 name="arrow-forward"
@@ -287,13 +283,13 @@ export default function HomeScreen() {
               />
             </View>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              All caught up!
+              {t('dashboard.allCaughtUp')}
             </Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              You&apos;ve completed all your tasks
+              {t('dashboard.allTasksCompleted')}
             </Text>
             <AnimatedButton
-              title="Add a Task"
+              title={t('dashboard.addTask')}
               icon="plus"
               variant="outline"
               size="sm"
@@ -328,7 +324,7 @@ export default function HomeScreen() {
                         style={styles.dueDateIcon}
                       />
                       <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
-                        {formatDate(new Date(todo.dueDate), dateFormat)}
+                        {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
                       </Text>
                     </View>
                   )}
@@ -347,11 +343,11 @@ export default function HomeScreen() {
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: Spacing.md }]}>
-          Quick Actions
+          {t('dashboard.quickActions')}
         </Text>
         <View style={styles.actionsRow}>
           <AnimatedButton
-            title="New Task"
+            title={t('dashboard.newTask')}
             icon="plus"
             variant="outline"
             size="md"
@@ -359,7 +355,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/todo/create')}
           />
           <AnimatedButton
-            title="Start Focus"
+            title={t('dashboard.startFocus')}
             icon="play"
             variant="primary"
             size="md"
@@ -370,14 +366,6 @@ export default function HomeScreen() {
       </View>
     </ScrollView>
 
-    {summaryData && (
-      <DailySummaryModal
-        visible={showSummary}
-        onClose={handleCloseSummary}
-        data={summaryData}
-        motivationalMessage={summaryMessage}
-      />
-    )}
     </>
   );
 }

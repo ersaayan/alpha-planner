@@ -270,7 +270,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'clean_slate',
     name: 'Clean Slate',
-    description: 'Clear all pending tasks in one day',
+    description: 'Finish at least 3 tasks in a day and leave none open',
     category: 'tasks',
     icon: 'target-outline',
     xpReward: 300,
@@ -719,7 +719,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'organizer',
     name: 'Organizer',
-    description: 'Create 5 or more categories',
+    description: 'Create 5 categories of your own',
     category: 'category',
     icon: 'briefcase-outline',
     xpReward: 50,
@@ -730,7 +730,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'color_collector',
     name: 'Color Collector',
-    description: 'Use 5 different category colors',
+    description: 'Give your own categories 5 different colors',
     category: 'category',
     icon: 'layers-outline',
     xpReward: 50,
@@ -947,7 +947,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'overachiever',
     name: 'Overachiever',
-    description: 'Complete all daily quests and the weekly goal in one day',
+    description: 'Complete all daily quests and a weekly goal on the same day',
     category: 'special',
     icon: 'bulb-outline',
     xpReward: 400,
@@ -985,28 +985,70 @@ export function calculateLevel(totalXp: number): number {
   return LEVELS[result].level;
 }
 
+/** The highest level; reaching it ends the level-up track for the season. */
+export const MAX_LEVEL = LEVELS.length;
+
+export function isMaxLevel(level: number): boolean {
+  return level >= MAX_LEVEL;
+}
+
+/** English level title (see `levels.<n>` in the locales for the translated one). */
 export function getLevelTitle(level: number): string {
   const idx = level - 1;
   return LEVELS[idx]?.title ?? 'Seed';
 }
 
-export function getLevelTier(level: number): string {
-  if (level <= 10) return 'Seedling';
-  if (level <= 20) return 'Sapling';
-  if (level <= 30) return 'Tree';
-  if (level <= 40) return 'Forest';
-  return 'Ancient';
+export type LevelTierId = 'seedling' | 'sapling' | 'tree' | 'forest' | 'ancient';
+
+/** Tier of a level, as an i18n id (`gamification.tier.<id>`). */
+export function getLevelTierId(level: number): LevelTierId {
+  if (level <= 10) return 'seedling';
+  if (level <= 20) return 'sapling';
+  if (level <= 30) return 'tree';
+  if (level <= 40) return 'forest';
+  return 'ancient';
 }
 
-export function getXpForNextLevel(level: number): number {
+/** English tier name. */
+export function getLevelTier(level: number): string {
+  const id = getLevelTierId(level);
+  return id.charAt(0).toUpperCase() + id.slice(1);
+}
+
+/** Total XP needed for the level after `level`, or null at the maximum level. */
+export function getXpForNextLevel(level: number): number | null {
   const nextIdx = level; // level is 1-based, so nextIdx = level for 0-based array
-  if (nextIdx >= LEVELS.length) return Infinity;
+  if (nextIdx >= LEVELS.length) return null;
   return LEVELS[nextIdx].xpRequired;
 }
 
 export function getCurrentLevelXp(level: number): number {
   const idx = level - 1;
   return LEVELS[idx]?.xpRequired ?? 0;
+}
+
+export interface XpProgress {
+  /** XP earned within the current level. */
+  current: number;
+  /** XP the current level spans (0 at the maximum level). */
+  required: number;
+  /** 0–100; 100 at the maximum level. */
+  percentage: number;
+  isMaxLevel: boolean;
+}
+
+export function getXpProgressFor(totalXp: number, level: number): XpProgress {
+  const levelXp = getCurrentLevelXp(level);
+  const current = Math.max(0, totalXp - levelXp);
+  const nextLevelXp = getXpForNextLevel(level);
+  if (nextLevelXp === null) return { current, required: 0, percentage: 100, isMaxLevel: true };
+  const required = nextLevelXp - levelXp;
+  return {
+    current,
+    required,
+    percentage: required > 0 ? Math.min(100, (current / required) * 100) : 100,
+    isMaxLevel: false,
+  };
 }
 
 export function getAchievementsByCategory(category: AchievementCategory): Achievement[] {

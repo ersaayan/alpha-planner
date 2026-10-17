@@ -1,5 +1,7 @@
 import { Icon } from '@/components/icon';
 import { AccountSection } from '@/components/settings/account-section';
+import { DataSection } from '@/components/settings/data-section';
+import { categoryName as displayCategoryName } from '@/services/gamification/display';
 import Slider from '@react-native-community/slider';
 import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
 import { useState } from 'react';
@@ -488,7 +490,7 @@ export default function SettingsScreen() {
           </View>
         </View>
         <View style={styles.pillGroup}>
-          {([0, 1] as const).map((day) => (
+          {(['auto', 1, 0] as const).map((day) => (
             <Pressable
               key={day}
               style={[
@@ -501,7 +503,7 @@ export default function SettingsScreen() {
               onPress={() => updateSettings({ weekStartsOn: day })}
             >
               <Text category="c1" style={{ color: settings.weekStartsOn === day ? colors.primary : colors.text }}>
-                {day === 0 ? t('settings.sunday') : t('settings.monday')}
+                {day === 'auto' ? t('settings.weekStartsAuto') : day === 0 ? t('settings.sunday') : t('settings.monday')}
               </Text>
             </Pressable>
           ))}
@@ -545,7 +547,7 @@ export default function SettingsScreen() {
           <View key={category.id} style={styles.categoryRow}>
             <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
             <Text category="s1" style={styles.categoryName}>
-              {category.name}
+              {displayCategoryName(t, category)}
             </Text>
             {!category.isDefault && (
               <Pressable onPress={() => handleDeleteCategory(category.id)}>
@@ -637,6 +639,9 @@ export default function SettingsScreen() {
 
       {/* Account (only in builds with sync configured) */}
       <AccountSection />
+
+      {/* Data: export / import (the only backup of a local-first app) */}
+      <DataSection />
 
       {/* Danger Zone */}
       <Text category="s1" style={styles.sectionTitle}>

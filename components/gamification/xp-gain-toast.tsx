@@ -14,6 +14,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize, Palette } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -34,6 +35,7 @@ export function XPGainToast({
   onHide,
   duration = 2500,
 }: XPGainToastProps) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { width: SCREEN_WIDTH } = useWindowDimensions();
@@ -71,6 +73,13 @@ export function XPGainToast({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, duration]);
 
+  // The exit animation's callback does not fire on every platform; a timer hides the toast.
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(onHide, duration + 150);
+    return () => clearTimeout(timer);
+  }, [visible, duration, onHide]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: translateY.value },
@@ -86,7 +95,7 @@ export function XPGainToast({
       style={[styles.container, animatedStyle]}
       accessible={true}
       accessibilityLiveRegion="polite"
-      accessibilityLabel={`Gained ${amount} XP${reason ? `, ${reason}` : ''}`}
+      accessibilityLabel={reason ? `${t('gamification.xpEarned', { amount })}, ${reason}` : t('gamification.xpEarned', { amount })}
     >
       <View style={[styles.toast, { backgroundColor: colors.card, maxWidth: SCREEN_WIDTH - Spacing.xl * 2 }, Shadows.lg]}>
         {/* XP Icon */}
@@ -101,7 +110,7 @@ export function XPGainToast({
         {/* Content */}
         <View style={styles.content}>
           <Text style={[styles.amount, { color: GamificationColors.xp }]}>
-            +{amount} XP
+            {t('gamification.xpEarned', { amount })}
           </Text>
           {reason && (
             <Text style={[styles.reason, { color: colors.textSecondary }]}>

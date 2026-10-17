@@ -27,6 +27,22 @@ interface CategoryState {
   getCategoryColor: (id: string | null) => string;
 }
 
+/** Removes the matching categories from todos (and from the todo filter). */
+function clearCategoryFromTodos(isRemoved: (categoryId: string) => boolean): void {
+  const now = new Date().toISOString();
+  const { todos, filter } = useTodoStore.getState();
+  if (todos.some((todo) => todo.categoryId && isRemoved(todo.categoryId))) {
+    useTodoStore.setState((state) => ({
+      todos: state.todos.map((todo) =>
+        todo.categoryId && isRemoved(todo.categoryId) ? { ...todo, categoryId: null, updatedAt: now } : todo
+      ),
+    }));
+  }
+  if (filter?.categoryId && isRemoved(filter.categoryId)) {
+    useTodoStore.setState({ filter: { ...filter, categoryId: undefined } });
+  }
+}
+
 export const useCategoryStore = create<CategoryState>()(
   persist(
     (set, get) => ({
@@ -62,6 +78,13 @@ export const useCategoryStore = create<CategoryState>()(
         set((state) => ({
           categories: [...state.categories, newCategory],
         }));
+        // "Create 5 categories" / "5 colors" achievements. Lazy: gamification reads this store.
+        try {
+          const { useGamificationStore } = require('./gamification-store') as typeof import('./gamification-store');
+          useGamificationStore.getState().checkAchievements();
+        } catch {
+          // Achievements are a nicety.
+        }
 
         useSyncStore.getState().enqueue('categories', 'insert', {
           id: newCategory.id,
@@ -112,24 +135,7 @@ export const useCategoryStore = create<CategoryState>()(
           categories: state.categories.filter((c) => c.id !== id),
         }));
 
-        // Clean up orphaned categoryId references on todos in a single batch
-        const todoStore = useTodoStore.getState();
-        const affectedTodos = todoStore.todos.filter((todo) => todo.categoryId === id);
-        if (affectedTodos.length > 0) {
-          useTodoStore.setState((state) => ({
-            todos: state.todos.map((todo) =>
-              todo.categoryId === id ? { ...todo, categoryId: null, updatedAt: new Date().toISOString() } : todo
-            ),
-          }));
-        }
-
-        // Clear todo filter if filtering by deleted category
-        const todoState = useTodoStore.getState();
-        if (todoState.filter?.categoryId === id) {
-          useTodoStore.setState({
-            filter: { ...todoState.filter, categoryId: undefined },
-          });
-        }
+        clearCategoryFromTodos((categoryId) => categoryId === id);
       },
 
       reorderCategories: (categoryIds) => {
@@ -149,6 +155,8 @@ export const useCategoryStore = create<CategoryState>()(
             .filter((category) => selected.has(category.id))
             .map((category, index) => ({ ...category, order: index })),
         }));
+        // Todos must not point at a category that no longer exists.
+        clearCategoryFromTodos((categoryId) => !selected.has(categoryId));
       },
 
       getCategoryById: (id) => {

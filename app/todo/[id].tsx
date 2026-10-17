@@ -2,7 +2,6 @@ import { Icon } from '@/components/icon';
 import {
   Button,
   Card,
-  Datepicker,
   IndexPath,
   Input,
   Select,
@@ -16,11 +15,15 @@ import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { SectionHeader } from '@/components/common';
+import { CategorySelect } from '@/components/todos/category-select';
+import { DueDateFields } from '@/components/todos/due-date-fields';
+import { enableTaskReminders } from '@/hooks/use-task-reminders';
+import { categoryName } from '@/services/gamification/display';
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { TodoPriority, TodoStatus } from '@/types';
-import { formatDate } from '@/utils/date';
+import { formatDue, getDueDateKey } from '@/utils/todo-dates';
 
 const PRIORITIES: { value: TodoPriority; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: '#90AB8B' },
@@ -63,21 +66,25 @@ export default function TodoDetailScreen() {
   const deleteTodo = useTodoStore((state) => state.deleteTodo);
   const addSubtask = useTodoStore((state) => state.addSubtask);
   const toggleSubtask = useTodoStore((state) => state.toggleSubtask);
+  const updateSubtask = useTodoStore((state) => state.updateSubtask);
   const deleteSubtask = useTodoStore((state) => state.deleteSubtask);
   const categories = useCategoryStore((state) => state.categories);
   const linkTodo = usePomodoroStore((state) => state.linkTodo);
   const timer = usePomodoroStore((state) => state.timer);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCategoryIndex, setSelectedCategoryIndex] = useState<IndexPath | undefined>();
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [selectedPriorityIndex, setSelectedPriorityIndex] = useState<IndexPath>(new IndexPath(1));
   const [selectedStatusIndex, setSelectedStatusIndex] = useState<IndexPath>(new IndexPath(0));
-  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [due, setDue] = useState<{ dueDate: string | null; dueTime: string | null }>({ dueDate: null, dueTime: null });
   const [estimatedPomodoros, setEstimatedPomodoros] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  // The subtask being renamed, with its draft title.
+  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     if (!todo) return;
@@ -87,13 +94,9 @@ export default function TodoDetailScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- form mirrors the stored todo while not editing
     setTitle(todo.title);
     setDescription(todo.description || '');
-    setDueDate(todo.dueDate ? new Date(todo.dueDate) : null);
+    setDue({ dueDate: getDueDateKey(todo.dueDate), dueTime: todo.dueTime ?? null });
     setEstimatedPomodoros(todo.estimatedPomodoros?.toString() || '');
-
-    const categoryIndex = categories.findIndex((c) => c.id === todo.categoryId);
-    if (categoryIndex >= 0) {
-      setSelectedCategoryIndex(new IndexPath(categoryIndex));
-    }
+    setCategoryId(categories.some((c) => c.id === todo.categoryId) ? todo.categoryId : null);
 
     const priorityIndex = PRIORITIES.findIndex((p) => p.value === todo.priority);
     setSelectedPriorityIndex(new IndexPath(priorityIndex >= 0 ? priorityIndex : 1));
@@ -119,9 +122,7 @@ export default function TodoDetailScreen() {
     );
   }
 
-  const selectedCategory = selectedCategoryIndex
-    ? categories[selectedCategoryIndex.row]
-    : null;
+  const selectedCategory = categories.find((c) => c.id === categoryId) ?? null;
   const selectedPriority = PRIORITIES[selectedPriorityIndex.row];
   const selectedStatus = STATUSES[selectedStatusIndex.row];
 
@@ -135,13 +136,20 @@ export default function TodoDetailScreen() {
     updateTodo(id, {
       title: title.trim(),
       description: description.trim() || null,
-      dueDate: dueDate?.toISOString() || null,
-      categoryId: selectedCategory?.id || null,
+      dueDate: due.dueDate,
+      dueTime: due.dueTime,
+      categoryId,
       priority: selectedPriority.value,
       status: selectedStatus.value,
       estimatedPomodoros: estimatedPomodorosValue,
     });
+    if (due.dueTime && due.dueTime !== todo.dueTime) void enableTaskReminders();
     setIsEditing(false);
+  };
+
+  const saveRename = () => {
+    if (renaming && renaming.title.trim()) updateSubtask(id, renaming.id, { title: renaming.title });
+    setRenaming(null);
   };
 
   const handleDelete = () => {
@@ -235,18 +243,13 @@ export default function TodoDetailScreen() {
         {/* Category & Priority (Edit Mode) */}
         {isEditing && (
           <>
-            <Select
+            <CategorySelect
               label={t('todo.detail.category')}
-              placeholder={t('todo.create.categoryPlaceholder')}
-              value={selectedCategory?.name}
-              selectedIndex={selectedCategoryIndex}
-              onSelect={(index) => setSelectedCategoryIndex(index as IndexPath)}
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
               style={styles.input}
-            >
-              {categories.map((category) => (
-                <SelectItem key={category.id} title={category.name} />
-              ))}
-            </Select>
+            />
 
             <Select
               label={t('todo.detail.priority')}
@@ -272,13 +275,11 @@ export default function TodoDetailScreen() {
               ))}
             </Select>
 
-            <Datepicker
+            <DueDateFields
               label={t('todo.detail.dueDate')}
-              placeholder={t('todo.create.dueDatePlaceholder')}
-              date={dueDate}
-              onSelect={(date) => setDueDate(date)}
-              style={styles.input}
-              min={dueDate && dueDate < new Date() ? dueDate : new Date()}
+              dueDate={due.dueDate}
+              dueTime={due.dueTime}
+              onChange={setDue}
             />
 
             <Input
@@ -300,7 +301,7 @@ export default function TodoDetailScreen() {
               <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
                 <View style={styles.infoContent}>
                   <Icon name="folder-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{selectedCategory.name}</Text>
+                  <Text category="s2">{categoryName(t, selectedCategory)}</Text>
                 </View>
               </Card>
             )}
@@ -308,7 +309,7 @@ export default function TodoDetailScreen() {
               <Card style={[styles.infoCard, { backgroundColor: colors.card }]}>
                 <View style={styles.infoContent}>
                   <Icon name="calendar-outline" fill={colors.textMuted} style={styles.infoIcon} />
-                  <Text category="s2">{formatDate(new Date(todo.dueDate), dateFormat)}</Text>
+                  <Text category="s2">{formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}</Text>
                 </View>
               </Card>
             )}
@@ -361,26 +362,42 @@ export default function TodoDetailScreen() {
                 accessibilityRole="checkbox"
                 accessibilityLabel={subtask.title}
                 accessibilityState={{ checked: subtask.isCompleted }}
-                accessibilityHint={subtask.isCompleted ? 'Double tap to mark as incomplete' : 'Double tap to mark as complete'}
+                accessibilityHint={subtask.isCompleted ? t('todo.form.markIncompleteHint') : t('todo.form.markCompleteHint')}
               >
                 {subtask.isCompleted && (
                   <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
                 )}
               </Pressable>
-              <Text
-                category="p2"
-                style={[
-                  styles.subtaskText,
-                  subtask.isCompleted && { textDecorationLine: 'line-through', opacity: 0.6 },
-                ]}
-                accessibilityElementsHidden
-              >
-                {subtask.title}
-              </Text>
+              {renaming?.id === subtask.id ? (
+                <Input
+                  value={renaming.title}
+                  onChangeText={(title) => setRenaming({ id: subtask.id, title })}
+                  onSubmitEditing={saveRename}
+                  onBlur={saveRename}
+                  autoFocus
+                  style={styles.subtaskText}
+                  accessibilityLabel={t('todo.form.renameSubtask')}
+                />
+              ) : (
+                <Pressable
+                  style={styles.subtaskText}
+                  onPress={() => setRenaming({ id: subtask.id, title: subtask.title })}
+                  accessibilityRole="button"
+                  accessibilityLabel={subtask.title}
+                  accessibilityHint={t('todo.form.renameSubtaskHint')}
+                >
+                  <Text
+                    category="p2"
+                    style={subtask.isCompleted ? { textDecorationLine: 'line-through', opacity: 0.6 } : undefined}
+                  >
+                    {subtask.title}
+                  </Text>
+                </Pressable>
+              )}
               <Pressable
                 onPress={() => deleteSubtask(id, subtask.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`Delete subtask: ${subtask.title}`}
+                accessibilityLabel={t('todo.form.deleteSubtask', { title: subtask.title })}
               >
                 <Icon name="close-outline" fill={colors.textMuted} style={styles.deleteIcon} />
               </Pressable>

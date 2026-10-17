@@ -1,21 +1,13 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, StyleSheet } from 'react-native';
 import { Text } from '@ui-kitten/components';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { format, subDays, isSameDay } from 'date-fns';
+import { getDateLocale } from '@/utils/locale';
 
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-
-const DAY_LABELS: Record<string, string> = {
-  Mon: 'Mo',
-  Tue: 'Tu',
-  Wed: 'We',
-  Thu: 'Th',
-  Fri: 'Fr',
-  Sat: 'Sa',
-  Sun: 'Su',
-};
 
 interface DayData {
   date: Date;
@@ -29,7 +21,10 @@ interface WeeklyChartProps {
   barColor?: string;
 }
 
-export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: WeeklyChartProps) {
+/** The last 7 days (today included), one bar per day. Days without data show an empty bar. */
+export function WeeklyChart({ data, title, valueLabel = '', barColor }: WeeklyChartProps) {
+  const { t, i18n } = useTranslation();
+  const locale = getDateLocale(i18n.language);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const chartBarColor = barColor ?? colors.primary;
@@ -39,12 +34,13 @@ export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: 
     const today = new Date();
     const days = Array.from({ length: 7 }, (_, i) => {
       const date = subDays(today, 6 - i);
-      const dayData = data.find((d) => isSameDay(d.date, date));
-      const shortName = format(date, 'EEE');
+      const value = data
+        .filter((d) => isSameDay(d.date, date))
+        .reduce((sum, d) => sum + (Number.isFinite(d.value) ? d.value : 0), 0);
       return {
         date,
-        value: dayData?.value ?? 0,
-        label: DAY_LABELS[shortName] ?? shortName.charAt(0),
+        value,
+        label: format(date, 'EEEEEE', { locale }),
         isToday: isSameDay(date, today),
       };
     });
@@ -53,14 +49,14 @@ export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: 
     const total = days.reduce((sum, d) => sum + d.value, 0);
 
     return { last7Days: days, maxValue: max, weekTotal: total };
-  }, [data]);
+  }, [data, locale]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text category="s1">{title}</Text>
         <Text category="c1" style={{ color: colors.textMuted }}>
-          {weekTotal} {valueLabel} this week
+          {t('charts.lastSevenDays', { count: weekTotal, unit: valueLabel })}
         </Text>
       </View>
 
@@ -71,7 +67,7 @@ export function WeeklyChart({ data, title, valueLabel = 'sessions', barColor }: 
               <Animated.View
                 entering={FadeInUp.delay(index * 80).duration(400)}
                 accessible={true}
-                accessibilityLabel={`${format(day.date, 'EEEE')}: ${day.value} ${valueLabel}`}
+                accessibilityLabel={`${format(day.date, 'EEEE', { locale })}: ${day.value} ${valueLabel}`}
                 style={[
                   styles.bar,
                   {

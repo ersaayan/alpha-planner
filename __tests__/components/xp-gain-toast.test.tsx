@@ -70,7 +70,7 @@ describe('XPGainToast', () => {
   it('has accessibility label with amount', async () => {
     await render(<XPGainToast {...defaultProps} />);
     expect(
-      screen.getByLabelText('Gained 25 XP, Pomodoro completed')
+      screen.getByLabelText('+25 XP, Pomodoro completed')
     ).toBeTruthy();
   });
 });

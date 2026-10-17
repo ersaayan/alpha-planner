@@ -159,7 +159,16 @@ describe('upgrading from the previous release', () => {
     expect(settings.pomodoroSettings.focusDuration).toBe(1800);
     expect(settings.pomodoroSettings.shortBreakDuration).toBeGreaterThan(0);
 
-    expect(stores.todos.getState().todos).toEqual([OLD_TODO]);
+    // Intact, plus the v2 reward markers (the completed subtask was already paid for)
+    // and the v3 due time.
+    expect(stores.todos.getState().todos).toEqual([
+      {
+        ...OLD_TODO,
+        dueTime: null,
+        xpAwardedAt: null,
+        subtasks: [{ ...OLD_TODO.subtasks[0], xpAwardedAt: OLD_TODO.subtasks[0].createdAt }],
+      },
+    ]);
     expect(stores.categories.getState().categories).toEqual(OLD_CATEGORIES);
 
     const gamification = stores.gamification.getState();
@@ -306,9 +315,10 @@ describe('store migrate functions', () => {
 
   it('gamification: v1 without combo/prestige', () => {
     const migrated = migrateGamificationState({ stats: { totalXp: 5 }, unlockedAchievements: [] }, 1);
-    expect(migrated.stats).toEqual({ totalXp: 5 });
+    // v3 counters start from the stored data.
+    expect(migrated.stats).toEqual({ totalXp: 5, streakLength: 0, activeDays: 0, perfectQuestDays: 0, lifetimeXp: 5 });
     expect(migrated.combo).toEqual({});
-    expect(migrated.prestige).toEqual({});
+    expect(migrated.prestige).toEqual({ acknowledgedMonth: null });
   });
 
   it('daily quests and weekly goals: drop malformed entries only', () => {
@@ -320,5 +330,28 @@ describe('store migrate functions', () => {
       goals: [{ id: 'g' }],
       lastGeneratedWeek: '2026-10-12',
     });
+  });
+
+  it('daily quests v1 → v2: hours and minutes move into the quest params', () => {
+    const quest = (questType: string, targetValue: number, extra: Record<string, unknown> = {}) => ({
+      id: questType, date: TODAY, questType, questParams: {}, targetValue, currentValue: 0, isCompleted: false, xpReward: 20, ...extra,
+    });
+    const { quests } = migrateDailyQuestsState(
+      {
+        quests: [
+          quest('start_early', 8),
+          quest('long_focus', 45, { currentValue: 1 }),
+          quest('uninterrupted_focus', 30, { isCompleted: true, currentValue: 30 }),
+          quest('complete_tasks', 3, { currentValue: 2 }),
+        ],
+      },
+      1
+    );
+    expect(quests[0]).toMatchObject({ questParams: { beforeHour: 8 }, targetValue: 1, currentValue: 0 });
+    expect(quests[1]).toMatchObject({ questParams: { minutes: 45 }, targetValue: 1, currentValue: 0 });
+    expect(quests[2]).toMatchObject({ targetValue: 1, currentValue: 1, isCompleted: true });
+    expect(quests[3]).toMatchObject({ targetValue: 3, currentValue: 2 });
+    // Already-migrated data is left alone.
+    expect(migrateDailyQuestsState({ quests: [quests[0]] }, 2).quests[0]).toEqual(quests[0]);
   });
 });

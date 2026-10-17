@@ -9,7 +9,7 @@ import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
-import { formatDate } from '@/utils/date';
+import { formatDue } from '@/utils/todo-dates';
 
 const COLUMNS: { status: TodoStatus; title: string; color: string }[] = [
   { status: 'pending', title: 'To Do', color: '#90AB8B' },
@@ -38,6 +38,7 @@ export default function KanbanScreen() {
   const updateTodo = useTodoStore((state) => state.updateTodo);
   const categories = useCategoryStore((state) => state.categories);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
 
   const getTodosByStatus = (status: TodoStatus): Todo[] => {
     return todos.filter((todo) => todo.status === status);
@@ -114,7 +115,7 @@ export default function KanbanScreen() {
             <View style={styles.dueDateBadge}>
               <Icon name="calendar-outline" fill={colors.textMuted} size={12} />
               <Text category="c2" style={{ color: colors.textMuted }}>
-                {formatDate(new Date(todo.dueDate), dateFormat)}
+                {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
               </Text>
             </View>
           )}

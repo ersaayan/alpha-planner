@@ -26,6 +26,7 @@ jest.mock('@/stores/daily-quests-store', () => ({
   useDailyQuestsStore: {
     getState: () => ({
       updateQuestProgress: jest.fn(),
+      recordQuestEvent: jest.fn(),
     }),
   },
 }));
@@ -34,6 +35,7 @@ jest.mock('@/stores/weekly-goals-store', () => ({
   useWeeklyGoalsStore: {
     getState: () => ({
       updateGoalProgress: jest.fn(),
+      refreshDerivedGoals: jest.fn(),
     }),
   },
 }));
@@ -150,6 +152,7 @@ describe('useGamificationStore', () => {
       stats: {
         ...state.stats,
         currentStreak: 3,
+        streakLength: 3,
         longestStreak: 3,
         lastActiveDate: yyyymmdd,
       },
@@ -172,6 +175,7 @@ describe('useGamificationStore', () => {
       stats: {
         ...state.stats,
         currentStreak: 5,
+        streakLength: 5,
         longestStreak: 5,
         lastActiveDate: yyyymmdd,
       },

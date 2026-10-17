@@ -17,6 +17,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -37,6 +38,7 @@ export function LevelUpModal({
   levelTitle,
   onClose,
 }: LevelUpModalProps) {
+  const { t } = useTranslation();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
@@ -153,7 +155,7 @@ export function LevelUpModal({
             modalStyle,
           ]}
           accessibilityViewIsModal={true}
-          accessibilityLabel={`Level up! You reached level ${newLevel}, ${levelTitle}`}
+          accessibilityLabel={t('gamification.levelUpA11y', { level: newLevel, title: levelTitle })}
         >
           {/* Glow ring */}
           <View style={styles.glowRing} />
@@ -192,10 +194,10 @@ export function LevelUpModal({
           {/* Title */}
           <Animated.View style={titleStyle}>
             <Text style={[styles.congratsText, { color: colors.textSecondary }]}>
-              Congratulations!
+              {t('gamification.congratulations')}
             </Text>
             <Text style={[styles.levelUpText, { color: GamificationColors.xp }]}>
-              LEVEL UP!
+              {t('gamification.levelUp')}
             </Text>
             <Text style={[styles.levelTitle, { color: colors.text }]}>
               {levelTitle}
@@ -204,12 +206,12 @@ export function LevelUpModal({
 
           {/* Description */}
           <Text style={[styles.description, { color: colors.textMuted }]}>
-            You&apos;ve reached Level {newLevel}! Keep up the great work and continue your productivity journey.
+            {t('gamification.levelUpBody', { level: newLevel })}
           </Text>
 
           {/* Continue button */}
           <AnimatedButton
-            title="Continue"
+            title={t('common.continue')}
             variant="primary"
             size="lg"
             fullWidth

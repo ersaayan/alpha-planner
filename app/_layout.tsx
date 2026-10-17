@@ -13,19 +13,20 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router/react-naviga
 import { ApplicationProvider } from '@ui-kitten/components';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { useCallback, useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { ErrorBoundary } from '@/components/error-boundary';
+import { CelebrationHost } from '@/components/gamification/celebration-host';
 import { RootStack } from '@/components/navigation/root-stack';
 import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePomodoroLifecycle } from '@/hooks/use-pomodoro-lifecycle';
+import { useTaskReminders } from '@/hooks/use-task-reminders';
 import { useSync } from '@/hooks/use-sync';
 import { useAppBootstrap } from '@/hooks/use-app-bootstrap';
-import { useGamificationStore, usePomodoroStore, useSettingsStore } from '@/stores';
+import { usePomodoroStore, useSettingsStore } from '@/stores';
 import { useStoresHydrated } from '@/stores/hydration';
 
 // Keep the splash screen up until fonts and stored data are loaded (see useAppBootstrap)
@@ -66,6 +67,7 @@ const AlphaDarkTheme = {
 
 export default function RootLayout() {
   usePomodoroLifecycle();
+  useTaskReminders();
   useSync();
 
   const colorScheme = useColorScheme();
@@ -96,27 +98,7 @@ export default function RootLayout() {
 
   // Startup tasks (default categories, quests, goals, prestige) run in useAppBootstrap, after hydration.
 
-  // Achievement celebration — show a brief alert when achievements are unlocked
-  const pendingNotifications = useGamificationStore((state) => state.pendingNotifications);
-  const dismissNotification = useGamificationStore((state) => state.dismissNotification);
-  const [currentAchievementId, setCurrentAchievementId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (pendingNotifications.length > 0 && !currentAchievementId) {
-      const achievement = pendingNotifications[0];
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- guards against stacking Alert dialogs
-      setCurrentAchievementId(achievement.id);
-      Alert.alert(
-        `🏆 Achievement Unlocked!`,
-        `${achievement.name}\n${achievement.description}\n+${achievement.xpReward} XP`,
-        [{ text: 'Awesome!', onPress: () => {
-          dismissNotification(achievement.id);
-          setCurrentAchievementId(null);
-        }}],
-        { cancelable: false }
-      );
-    }
-  }, [pendingNotifications, currentAchievementId, dismissNotification]);
+  // Achievements, level-ups, XP and season summaries are shown by <CelebrationHost />.
 
   useEffect(() => {
     // Not before hydration: default settings must not overwrite a stored timer.
@@ -139,6 +121,7 @@ export default function RootLayout() {
       <ApplicationProvider {...eva} theme={evaTheme}>
         <ThemeProvider value={navigationTheme}>
           <RootStack />
+          <CelebrationHost />
           <StatusBar style={isDark ? 'light' : 'dark'} />
         </ThemeProvider>
       </ApplicationProvider>

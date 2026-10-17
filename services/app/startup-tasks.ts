@@ -1,6 +1,7 @@
 import { applyPrestigeWithRewards } from '@/services/gamification/prestige-service';
 import { useCategoryStore } from '@/stores/category-store';
 import { useDailyQuestsStore } from '@/stores/daily-quests-store';
+import { useGamificationStore } from '@/stores/gamification-store';
 import { useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
 
 /**
@@ -10,6 +11,12 @@ import { useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
 
 /** Tasks that depend on the current date: run at launch, on resume and when the day changes. */
 export function runDateDependentTasks(): void {
+  // A streak that was not continued yesterday shows as 0
+  try {
+    useGamificationStore.getState().refreshDayState();
+  } catch (error) {
+    console.warn('[startup] Streak refresh failed', error);
+  }
   // Month change → prestige reset with rewards
   try {
     applyPrestigeWithRewards();

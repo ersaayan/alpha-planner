@@ -43,6 +43,11 @@ jest.mock('@/stores', () => ({
       { id: '2', title: 'Finish report', status: 'completed', priority: 'high', categoryId: 'cat1', subtasks: [], createdAt: '', updatedAt: '', order: 1 },
     ],
     toggleTodoStatus: mockToggleTodoStatus,
+    filter: {},
+    sortBy: 'manual',
+    setFilter: jest.fn(),
+    clearFilter: jest.fn(),
+    setSortBy: jest.fn(),
   }),
   useCategoryStore: (sel: any) => sel({ categories: [{ id: 'cat1', name: 'Work', color: '#FF0000' }], getCategoryColor: () => '#FF0000' }),
   useSettingsStore: (sel: any) => sel({ settings: { defaultView: 'list', dateFormat: 'DD/MM/YYYY' } }),
@@ -90,6 +95,8 @@ describe('Todos Screen', () => {
     jest.spyOn(require('@/stores'), 'useTodoStore').mockImplementation((sel: any) => sel({
       todos: [],
       toggleTodoStatus: jest.fn(),
+      filter: {},
+      sortBy: 'manual',
     }));
     await render(<TodosScreen />);
     expect(screen.getByText('No tasks found')).toBeTruthy();

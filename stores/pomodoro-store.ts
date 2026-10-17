@@ -153,12 +153,24 @@ function enqueueSessionSync(session: PomodoroSession): void {
 function creditFocus(session: PomodoroSession): void {
   try {
     const completedAt = new Date(session.endedAt ?? Date.now());
-    useGamificationStore.getState().incrementPomodoro(session.duration, completedAt);
+    useGamificationStore.getState().incrementPomodoro(session.duration, completedAt, {
+      startedAt: new Date(session.startedAt),
+      pausedMs: session.pausedDuration,
+    });
     if (session.todoId) {
       useTodoStore.getState().incrementPomodoroCount(session.todoId);
     }
   } catch (error) {
     console.warn('[Pomodoro] Failed to credit focus session:', error);
+  }
+}
+
+/** Breaks feed the "take your breaks" quest and achievement. */
+function creditBreak(at: Date, skipped: boolean): void {
+  try {
+    useGamificationStore.getState().recordBreak(at, skipped);
+  } catch (error) {
+    console.warn('[Pomodoro] Failed to record a break:', error);
   }
 }
 
@@ -267,6 +279,7 @@ export const usePomodoroStore = create<PomodoroState>()(
 
         for (const record of records) {
           if (record.phase === 'focus') creditFocus(record);
+          else creditBreak(new Date(record.endedAt ?? Date.now()), false);
           enqueueSessionSync(record);
         }
 
@@ -412,6 +425,7 @@ export const usePomodoroStore = create<PomodoroState>()(
           stopPomodoroEngine();
           set({ timer: next, currentSession: null, sessions: ended ? [...sessions, ended] : sessions });
           if (ended) enqueueSessionSync(ended);
+          if (phase !== 'focus') creditBreak(new Date(nowMs), true);
           arm(next);
         },
 

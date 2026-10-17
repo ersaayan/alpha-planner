@@ -11,7 +11,7 @@
 import { useGamificationStore } from '@/stores/gamification-store';
 import { useSyncStore } from '@/stores/sync-store';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
-import { XP_VALUES } from '@/constants/gamification';
+import { ACHIEVEMENTS, XP_VALUES } from '@/constants/gamification';
 import { getDateKey } from '@/utils/date';
 
 // ---------------------------------------------------------------------------
@@ -136,28 +136,48 @@ describe('Pomodoro -> Gamification integration', () => {
   });
 
   it('session combo stacks with daily combo for higher XP', () => {
-    // Set up a daily combo streak of 3 days (multiplier = 1.5x)
-    // and a session combo of 2 (multiplier = 1.5x)
-    // Expected combined multiplier: 1.5 * 1.5 = 2.25
+    // A live daily combo of 3 days (1.5x) and a session combo of 2 (1.5x): 1.5 * 1.5 = 2.25
+    const now = Date.now();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
     useGamificationStore.setState({
       ...GAMIFICATION_INITIAL,
+      // Measure the combo XP only.
+      unlockedAchievements: ACHIEVEMENTS.map((a) => ({ achievementId: a.id, unlockedAt: '', notified: true })),
       combo: {
         sessionCombo: 2,
         dailyComboStreak: 3,
-        lastDailyComboDate: null,
+        lastDailyComboDate: getDateKey(yesterday),
+        lastSessionAt: new Date(now - 30 * 60_000).toISOString(),
       },
     });
 
     const xpBefore = useGamificationStore.getState().stats.totalXp;
-    useGamificationStore.getState().incrementPomodoro(1500);
-    const xpAfter = useGamificationStore.getState().stats.totalXp;
+    useGamificationStore.getState().incrementPomodoro(1500, new Date(now));
+    const xpGain = useGamificationStore.getState().stats.totalXp - xpBefore;
 
-    const xpGain = xpAfter - xpBefore;
-    // 15 * 1.5 (session) * 1.5 (daily) = 33.75 -> 34
-    // Plus achievement XP for first_focus (25) is added separately via checkAchievements
-    // The base combo XP should be Math.round(15 * 1.5 * 1.5) = 34
-    expect(xpGain).toBeGreaterThanOrEqual(Math.round(XP_VALUES.POMODORO_COMPLETE * 1.5 * 1.5));
+    expect(xpGain).toBe(Math.round(XP_VALUES.POMODORO_COMPLETE * 1.5 * 1.5));
   });
+
+  it('the session combo expires after a long gap, and a lapsed daily combo does not multiply', () => {
+    const now = Date.now();
+    useGamificationStore.setState({
+      ...GAMIFICATION_INITIAL,
+      unlockedAchievements: ACHIEVEMENTS.map((a) => ({ achievementId: a.id, unlockedAt: '', notified: true })),
+      combo: {
+        sessionCombo: 4,
+        dailyComboStreak: 7,
+        lastDailyComboDate: '2020-01-01',
+        lastSessionAt: new Date(now - 5 * 60 * 60_000).toISOString(),
+      },
+    });
+
+    useGamificationStore.getState().incrementPomodoro(1500, new Date(now));
+
+    expect(useGamificationStore.getState().stats.totalXp).toBe(XP_VALUES.POMODORO_COMPLETE);
+    expect(useGamificationStore.getState().combo.sessionCombo).toBe(1);
+  });
+
 
   it('incrementPomodoro increments totalPomodoros and totalFocusTime', () => {
     useGamificationStore.getState().incrementPomodoro(1500);

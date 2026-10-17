@@ -57,7 +57,7 @@ describe('AchievementUnlock', () => {
 
   it('renders when visible is true', async () => {
     await render(<AchievementUnlock {...defaultProps} />);
-    expect(screen.getByText('ACHIEVEMENT UNLOCKED')).toBeTruthy();
+    expect(screen.getByText('Achievement Unlocked!')).toBeTruthy();
   });
 
   it('does not render content when visible is false', async () => {
@@ -84,7 +84,7 @@ describe('AchievementUnlock', () => {
     const onClose = jest.fn();
     await render(<AchievementUnlock {...defaultProps} onClose={onClose} />);
     // The overlay is a Pressable wrapping the entire component
-    await fireEvent.press(screen.getByText('ACHIEVEMENT UNLOCKED'));
+    await fireEvent.press(screen.getByText('Achievement Unlocked!'));
     expect(onClose).toHaveBeenCalled();
   });
 });

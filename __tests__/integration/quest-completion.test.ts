@@ -12,7 +12,7 @@ import { useGamificationStore } from '@/stores/gamification-store';
 import { useSyncStore } from '@/stores/sync-store';
 import { setSyncConfigured } from '../helpers/sync';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
-import { XP_VALUES } from '@/constants/gamification';
+import { XP_VALUES, getAchievementById } from '@/constants/gamification';
 import { DAILY_QUEST_COUNT, DAILY_QUEST_ALL_COMPLETE_BONUS } from '@/constants/daily-quests';
 import { getDateKey } from '@/utils/date';
 
@@ -51,7 +51,13 @@ afterAll(() => {
   setSyncConfigured(false);
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(() => {
+  // Afternoon: finishing every quest before noon or after 23:00 unlocks extra achievements.
+  jest.useFakeTimers({ now: new Date(2026, 9, 14, 15, 0) });
   useGamificationStore.setState(GAMIFICATION_INITIAL);
   useDailyQuestsStore.setState(QUESTS_INITIAL);
   useSyncStore.setState(SYNC_INITIAL);
@@ -121,9 +127,12 @@ describe('Quest -> Gamification integration', () => {
 
     const xpAfter = useGamificationStore.getState().stats.totalXp;
 
-    // Total XP should be: 3 * 20 (individual completions) + 30 (all complete bonus) = 90
-    const expectedXp = DAILY_QUEST_COUNT * XP_VALUES.DAILY_QUEST_COMPLETE + DAILY_QUEST_ALL_COMPLETE_BONUS;
+    // 3 * 20 (individual completions) + 30 (all complete bonus), plus the first perfect day's achievement
+    const firstPerfectDay = getAchievementById('quest_beginner')!.xpReward;
+    const expectedXp =
+      DAILY_QUEST_COUNT * XP_VALUES.DAILY_QUEST_COMPLETE + DAILY_QUEST_ALL_COMPLETE_BONUS + firstPerfectDay;
     expect(xpAfter - xpBefore).toBe(expectedXp);
+    expect(useGamificationStore.getState().isAchievementUnlocked('quest_beginner')).toBe(true);
   });
 
   it('quests are not regenerated if already generated today', () => {
@@ -162,6 +171,7 @@ describe('Quest -> Gamification integration', () => {
     const { dailyStats } = useGamificationStore.getState();
     const todayStat = dailyStats.find((ds) => ds.date === today);
     expect(todayStat).toBeDefined();
-    expect(todayStat!.dailyQuestsCompleted).toBeGreaterThanOrEqual(1);
+    // Counts the quests completed that day: a perfect day has all of them.
+    expect(todayStat!.dailyQuestsCompleted).toBe(quests.length);
   });
 });

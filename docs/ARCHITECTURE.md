@@ -17,7 +17,7 @@ The app is **local-first**: it works with no account and no network. Everything 
 | `constants/` | Static configuration: theme and Eva theme, animations, XP values, levels, achievements, daily quests, weekly goals, combo multipliers, defaults. |
 | `hooks/` | React hooks: app start-up (`use-app-bootstrap`), the timer's app lifecycle and alert permissions (`use-pomodoro-lifecycle`, `use-alert-permissions`), color scheme, sync trigger, sign-in completion. |
 | `locales/` | `en.json` and `tr.json` translation files. |
-| `services/` | Non-UI logic: `app/` (start-up tasks), `notifications/` (timer alerts, permissions, other notifications), `gamification/` (daily summary, monthly prestige), `i18n/`, and the optional `supabase/` + `sync/`. |
+| `services/` | Non-UI logic: `app/` (start-up tasks), `notifications/` (timer alerts, permissions, task reminders, notification taps), `gamification/` (achievement rules, seasons, daily summary, translated labels), `data/` (export/import), `i18n/`, and the optional `supabase/` + `sync/`. |
 | `stores/` | Zustand stores (see below). |
 | `types/` | Shared TypeScript types. |
 | `utils/` | Pure helpers (dates, validators, ids, timer maths, theme helpers). |
@@ -97,15 +97,21 @@ Because the operating system owns the alerts, behaviour differs between iOS and 
 
 Static definitions live in `constants/` (XP values, levels, achievements, quest and goal templates, combo tiers); the mutable progress lives in the stores.
 
-1. A user action completes a **focus session** (`pomodoro-store`) or a **task** (`todo-store`).
-2. The store calls `gamification-store` (`incrementPomodoro` / `incrementTaskCompleted`), which updates lifetime stats and today's `dailyStats`.
-3. XP is awarded with a **combo multiplier** (consecutive sessions, daily streak), `addXp` recomputes the level, and `updateStreak` maintains the daily streak.
-4. The same call advances **daily quests** and **weekly goals** (`daily-quests-store`, `weekly-goals-store`), which award bonus XP when completed.
-5. `checkAchievements` evaluates every achievement against the new stats and unlocks the ones that are met, including time-of-day ones.
-6. Level-ups, unlocked achievements and XP gains are queued as pending notifications that the UI shows as modals and toasts.
-7. A **daily summary** is built from the day's stats, and a **monthly prestige** step (`services/gamification/prestige-service`) pays out month-end rewards and starts a new season.
+1. A user action completes a **focus session** or a **break** (`pomodoro-store`), a **task** or **subtask**, or creates a task (`todo-store`). Every credit carries the time it happened, so it is booked on that day (a session that ended before midnight counts for that day even when it is credited after it).
+2. Tasks and subtasks pay once: `xpAwardedAt` is set on the first completion and never cleared, so reopening, archiving and restoring pay nothing extra.
+3. The store calls `gamification-store` (`incrementPomodoro`, `incrementTaskCompleted`, `recordSubtaskCompleted`, `recordBreak`, `recordTaskCreated`), which updates lifetime counters and that day's `dailyStats` (kept for 90 days; lifetime counts such as active days and perfect quest days live in `stats`).
+4. XP gets the **combo multipliers** that still apply at that moment (`constants/combo.ts`: a session combo expires after a long gap, a daily combo lapses after a missed day). The streak keeps its run length (`streakLength`); `refreshDayState` shows it as 0 once a day was missed (run at start-up, on resume and at midnight).
+5. The same call sends a **quest event** to `daily-quests-store` (each template in `constants/daily-quests.ts` says how an event advances it and when it can still be finished today) and advances the **weekly goals** of that week (streak and perfect-quest-day goals are recomputed from `dailyStats`).
+6. `checkAchievements` asks `services/gamification/achievement-rules.ts` for each achievement's progress and unlocks the ones that are met; event-based ones (time of day, all quests before noon) are unlocked directly. The Stats screen shows the same progress.
+7. Unlocked achievements are queued in `pendingNotifications`; `components/gamification/celebration-host.tsx` (root layout) shows them one at a time, followed by level-ups and an XP toast. It also shows the summary of a season that just ended and the daily summary (yesterday's on the first open of a day, or the day of a tapped 23:00 notification).
+8. On the first open of a new month, `checkPrestigeReset` records the finished **season** with the rewards earned in that month (`services/gamification/season.ts`), resets the level and season XP, and gives the reward XP as a head start.
 
-Quest and goal targets are scaled from the user's recent activity, so templates in `constants/` describe ranges rather than fixed numbers.
+Quest and goal targets are scaled from the user's recent activity and capped to what can still be done today / this week, so templates in `constants/` describe ranges rather than fixed numbers. Screens show translated texts through `services/gamification/display.ts`.
+
+## Task reminders and data backup
+
+- A task may have a due date (local `yyyy-MM-dd`) and an optional due time (`HH:mm`). `services/notifications/task-reminders.ts` schedules one reminder per open task with a due time (channel `task-reminders-v1`, id `task-reminder-<todoId>`, at most 40 so the timer alerts keep room under iOS's 64-notification limit). `hooks/use-task-reminders.ts` re-syncs after every todo or setting change, on resume and on language change; the sync compares with what is already scheduled.
+- Settings → Data exports every persisted store except the sign-in session and the sync queue as one versioned JSON file (`services/data/backup.ts`) and imports it back: each store's state goes through that store's own migration and merge, so older backups load like old installs.
 
 ## Internationalization
 

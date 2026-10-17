@@ -63,7 +63,7 @@ describe('LevelUpModal', () => {
 
   it('renders when visible is true', async () => {
     await render(<LevelUpModal {...defaultProps} />);
-    expect(screen.getByText('LEVEL UP!')).toBeTruthy();
+    expect(screen.getByText('Level Up!')).toBeTruthy();
   });
 
   it('does not render when visible is false', async () => {
@@ -82,7 +82,7 @@ describe('LevelUpModal', () => {
     // The description also includes the level number
     expect(
       screen.getByText(
-        /Level 5/
+        /level 5/i
       )
     ).toBeTruthy();
   });

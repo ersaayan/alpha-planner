@@ -2,6 +2,7 @@ import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Animated, {
   FadeIn,
@@ -14,22 +15,31 @@ import { TAB_BAR_BOTTOM_PADDING } from '@/constants/defaults';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo, TodoStatus } from '@/types';
-import { formatDate } from '@/utils/date';
+import { formatDue, isPastDue } from '@/utils/todo-dates';
+import { filterTodos, sortTodos } from '@/utils/todo-list';
+import { categoryName } from '@/services/gamification/display';
+import { TodoFilterSheet } from '@/components/todos/todo-filter-sheet';
 
 import { AnimatedButton } from '@/components/animated/animated-button';
 import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCheckbox } from '@/components/animated/animated-checkbox';
 import { EmptyState } from '@/components/common';
-import { foldForSearch } from '@/utils/search';
 
-const STATUS_TABS: { label: string; value: TodoStatus | 'all' }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Done', value: 'completed' },
+const STATUS_TABS: { labelKey: string; value: TodoStatus | 'all' }[] = [
+  { labelKey: 'todos.statusAll', value: 'all' },
+  { labelKey: 'todos.statusPending', value: 'pending' },
+  { labelKey: 'todos.statusInProgress', value: 'in_progress' },
+  { labelKey: 'todos.statusDone', value: 'completed' },
 ];
 
+const EMPTY_STATUS_KEYS: Record<string, string> = {
+  pending: 'todos.pending',
+  in_progress: 'todos.inProgress',
+  completed: 'todos.completed',
+};
+
 export default function TodosScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -37,31 +47,39 @@ export default function TodosScreen() {
 
   const [activeTab, setActiveTab] = useState<TodoStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterVisible, setFilterVisible] = useState(false);
 
   const todos = useTodoStore((state) => state.todos);
   const toggleTodoStatus = useTodoStore((state) => state.toggleTodoStatus);
   const categories = useCategoryStore((state) => state.categories);
   const getCategoryColor = useCategoryStore((state) => state.getCategoryColor);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
+  const filter = useTodoStore((state) => state.filter);
+  const sortBy = useTodoStore((state) => state.sortBy);
+  const clearFilter = useTodoStore((state) => state.clearFilter);
+  const setSortBy = useTodoStore((state) => state.setSortBy);
 
-  const filteredTodos = useMemo(() => {
-    return todos.filter((todo) => {
-      if (activeTab !== 'all' && todo.status !== activeTab) return false;
-      if (searchQuery) {
-        const query = foldForSearch(searchQuery);
-        return (
-          foldForSearch(todo.title).includes(query) ||
-          (todo.description ? foldForSearch(todo.description).includes(query) : false)
-        );
-      }
-      return true;
-    }).sort((a, b) => a.order - b.order);
-  }, [todos, activeTab, searchQuery]);
+  const filtersActive = Boolean(filter.categoryId) || (filter.priority?.length ?? 0) > 0 || sortBy !== 'manual';
+
+  const filteredTodos = useMemo(
+    () =>
+      sortTodos(
+        filterTodos(todos, {
+          status: activeTab,
+          search: searchQuery,
+          categoryId: filter.categoryId,
+          priorities: filter.priority,
+        }),
+        sortBy
+      ),
+    [todos, activeTab, searchQuery, filter.categoryId, filter.priority, sortBy]
+  );
 
   const getCategoryName = useCallback((categoryId: string | null) => {
     if (!categoryId) return null;
-    return categories.find((c) => c.id === categoryId)?.name;
-  }, [categories]);
+    return categoryName(t, categories.find((c) => c.id === categoryId));
+  }, [categories, t]);
 
   const getPriorityColor = useCallback((priority: string) => {
     switch (priority) {
@@ -139,9 +157,19 @@ export default function TodosScreen() {
               {/* Due date */}
               {item.dueDate && (
                 <View style={styles.dueDateContainer}>
-                  <Icon name="calendar" fill={colors.textMuted} style={styles.metaIcon} />
-                  <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
-                    {formatDate(new Date(item.dueDate), dateFormat)}
+                  <Icon name={item.dueTime ? 'clock' : 'calendar'} fill={colors.textMuted} style={styles.metaIcon} />
+                  <Text
+                    style={[
+                      styles.dueDateText,
+                      {
+                        color:
+                          (item.status === 'pending' || item.status === 'in_progress') && isPastDue(item.dueDate, new Date(), item.dueTime)
+                            ? colors.error
+                            : colors.textMuted,
+                      },
+                    ]}
+                  >
+                    {formatDue(item.dueDate, item.dueTime, dateFormat, timeFormat)}
                   </Text>
                 </View>
               )}
@@ -162,13 +190,13 @@ export default function TodosScreen() {
         </View>
       </AnimatedCard>
     </Animated.View>
-  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, getPriorityColor, handleTodoPress, dateFormat]);
+  ), [colors, toggleTodoStatus, getCategoryColor, getCategoryName, getPriorityColor, handleTodoPress, dateFormat, timeFormat]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>My Tasks</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('todos.title')}</Text>
         <View style={styles.headerActions}>
           {/* View Toggle Buttons */}
           <View style={styles.viewToggle}>
@@ -176,7 +204,7 @@ export default function TodosScreen() {
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/kanban')}
               accessibilityRole="button"
-              accessibilityLabel="Kanban view"
+              accessibilityLabel={t('todos.kanbanView')}
             >
               <Icon name="grid" fill={colors.primary} style={styles.viewIcon} />
             </Pressable>
@@ -184,7 +212,7 @@ export default function TodosScreen() {
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/calendar')}
               accessibilityRole="button"
-              accessibilityLabel="Calendar view"
+              accessibilityLabel={t('todos.calendarView')}
             >
               <Icon name="calendar" fill={colors.primary} style={styles.viewIcon} />
             </Pressable>
@@ -192,13 +220,13 @@ export default function TodosScreen() {
               style={[styles.viewButton, { backgroundColor: colors.card }]}
               onPress={() => router.push('/views/timeline')}
               accessibilityRole="button"
-              accessibilityLabel="Timeline view"
+              accessibilityLabel={t('todos.timelineView')}
             >
               <Icon name="activity" fill={colors.primary} style={styles.viewIcon} />
             </Pressable>
           </View>
           <AnimatedButton
-            title="Add"
+            title={t('todos.add')}
             icon="plus"
             variant="primary"
             size="sm"
@@ -212,17 +240,52 @@ export default function TodosScreen() {
         <Icon name="search" fill={colors.textMuted} style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search tasks..."
+          placeholder={t('todos.searchPlaceholder')}
           placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          accessibilityLabel={t('common.search')}
         />
         {searchQuery.length > 0 && (
-          <Pressable onPress={() => setSearchQuery('')}>
+          <Pressable onPress={() => setSearchQuery('')} accessibilityRole="button" accessibilityLabel={t('todos.clearSearch')}>
             <Icon name="close-circle" fill={colors.textMuted} style={styles.clearIcon} />
           </Pressable>
         )}
+        <Pressable
+          onPress={() => setFilterVisible(true)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('todos.filterTitle')}
+          testID="todo-filter-button"
+        >
+          <Icon name="filter" fill={filtersActive ? colors.primary : colors.textMuted} style={styles.clearIcon} />
+        </Pressable>
       </View>
+
+      {filtersActive && (
+        <View style={styles.activeFilters}>
+          <Text style={[styles.activeFiltersText, { color: colors.textSecondary }]} numberOfLines={1}>
+            {[
+              filter.categoryId ? getCategoryName(filter.categoryId) : null,
+              ...(filter.priority ?? []).map((p) => t(`todo.create.priority${p.charAt(0).toUpperCase()}${p.slice(1)}`)),
+              sortBy !== 'manual' ? t(`todos.sort.${sortBy}`) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+          <Pressable
+            onPress={() => {
+              clearFilter();
+              setSortBy('manual');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('todos.clearFilters')}
+          >
+            <Text style={[styles.activeFiltersText, { color: colors.primary }]}>{t('todos.clearFilters')}</Text>
+          </Pressable>
+        </View>
+      )}
+      <TodoFilterSheet visible={filterVisible} onClose={() => setFilterVisible(false)} />
 
       {/* Status Tabs - Pill style */}
       <View style={styles.tabsContainer}>
@@ -244,7 +307,7 @@ export default function TodosScreen() {
                     { color: isActive ? colors.primary : colors.textMuted },
                   ]}
                 >
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </Text>
               </Pressable>
             );
@@ -256,18 +319,18 @@ export default function TodosScreen() {
       {filteredTodos.length === 0 ? (
         <EmptyState
           icon="clipboard"
-          title="No tasks found"
+          title={t('todos.emptyTitle')}
           subtitle={
-            searchQuery
-              ? 'Try a different search term'
+            searchQuery || filtersActive
+              ? t('todos.emptySearch')
               : activeTab !== 'all'
-                ? `No ${activeTab.replace('_', ' ')} tasks`
-                : 'Create your first task to get started'
+                ? t('todos.emptyFiltered', { status: t(EMPTY_STATUS_KEYS[activeTab] ?? 'todos.pending') })
+                : t('todos.emptyDefault')
           }
           action={
-            !searchQuery && activeTab === 'all' ? (
+            !searchQuery && !filtersActive && activeTab === 'all' ? (
               <AnimatedButton
-                title="Create Task"
+                title={t('todos.createTask')}
                 icon="plus"
                 variant="outline"
                 size="sm"
@@ -346,6 +409,19 @@ const styles = StyleSheet.create({
   clearIcon: {
     width: 20,
     height: 20,
+  },
+  activeFilters: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  activeFiltersText: {
+    flexShrink: 1,
+    fontFamily: InterFonts.medium,
+    fontSize: FontSize.xs,
   },
   tabsContainer: {
     paddingHorizontal: Spacing.md,

@@ -25,7 +25,12 @@ jest.mock('@ui-kitten/components', () => {
     Select: ({ label, children, ...props }: any) => <View>{label && <Text>{label}</Text>}{children}</View>,
     SelectItem: ({ title, ...props }: any) => <View><Text>{title}</Text></View>,
     IndexPath: class { row: number; constructor(row: number) { this.row = row; } },
-    Datepicker: ({ label, ...props }: any) => <View>{label && <Text>{label}</Text>}</View>,
+    Datepicker: ({ label, onSelect }: any) => (
+      <View>
+        {label && <Text>{label}</Text>}
+        <Pressable onPress={() => onSelect?.(new Date(2026, 9, 20))}><Text>pick-date</Text></Pressable>
+      </View>
+    ),
   };
 });
 
@@ -49,9 +54,13 @@ jest.mock('@/services/gamification/daily-summary', () => ({ shouldShowSummary: (
 jest.mock('@/components/pomodoro', () => ({ CircularProgress: ({ children }: any) => { const { View } = require('react-native'); return <View>{children}</View>; } }));
 
 const mockAddTodo = jest.fn().mockReturnValue({ id: 'new-1' });
+const mockAddSubtask = jest.fn();
+const mockEnableReminders = jest.fn().mockResolvedValue(undefined);
+jest.mock('@/hooks/use-task-reminders', () => ({ enableTaskReminders: () => mockEnableReminders() }));
 
 jest.mock('@/stores', () => ({
-  useTodoStore: (sel: any) => sel({ addTodo: mockAddTodo, todos: [] }),
+  useTodoStore: (sel: any) => sel({ addTodo: mockAddTodo, addSubtask: mockAddSubtask, todos: [] }),
+  useSettingsStore: (sel: any) => sel({ settings: { timeFormat: '24h' } }),
   useCategoryStore: (sel: any) => sel({ categories: [{ id: 'cat1', name: 'Work', color: '#FF0000', icon: 'briefcase' }] }),
 }));
 
@@ -99,5 +108,44 @@ describe('Todo Create Screen', () => {
     await render(<CreateTodoScreen />);
     await fireEvent.press(screen.getByText('Create Task'));
     expect(mockAddTodo).not.toHaveBeenCalled();
+  });
+
+  it('creates the task with its subtasks, a local due date and a due time', async () => {
+    const { Platform } = require('react-native');
+    await render(<CreateTodoScreen />);
+    await fireEvent.changeText(screen.getByPlaceholderText('What do you need to do?'), 'Write report');
+
+    await fireEvent.changeText(screen.getAllByPlaceholderText('Add Subtask')[0], 'Outline');
+    await fireEvent(screen.getAllByPlaceholderText('Add Subtask')[0], 'submitEditing');
+    expect(screen.getByText('Outline')).toBeTruthy();
+    // One still typed in the field is added too.
+    await fireEvent.changeText(screen.getAllByPlaceholderText('Add Subtask')[0], 'Draft');
+
+    // No time field before there is a date.
+    expect(screen.queryByText('Due time (optional)')).toBeNull();
+    await fireEvent.press(screen.getByText('pick-date'));
+    expect(screen.getByText('Due time (optional)')).toBeTruthy();
+    // iOS (the test platform): "Add a time" sets 09:00 and shows the native picker.
+    expect(Platform.OS).toBe('ios');
+    await fireEvent.press(screen.getByLabelText('Due time (optional)'));
+    expect(screen.getByTestId('native-time-picker')).toBeTruthy();
+
+    await fireEvent.press(screen.getByText('Create Task'));
+    expect(mockAddTodo).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Write report', dueDate: '2026-10-20', dueTime: '09:00', categoryId: null })
+    );
+    expect(mockAddSubtask.mock.calls).toEqual([
+      ['new-1', 'Outline'],
+      ['new-1', 'Draft'],
+    ]);
+    expect(mockEnableReminders).toHaveBeenCalled();
+  });
+
+  it('offers "No category" and can clear the due date', async () => {
+    await render(<CreateTodoScreen />);
+    expect(screen.getAllByText('No category').length).toBeGreaterThan(0);
+    await fireEvent.press(screen.getByText('pick-date'));
+    await fireEvent.press(screen.getByLabelText('Remove due date'));
+    expect(screen.queryByText('Due time (optional)')).toBeNull();
   });
 });

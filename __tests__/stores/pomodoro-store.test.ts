@@ -27,11 +27,13 @@ jest.mock('@/stores/settings-store', () => ({
 
 const mockIncrementPomodoro = jest.fn();
 const mockResetSessionCombo = jest.fn();
+const mockRecordBreak = jest.fn();
 jest.mock('@/stores/gamification-store', () => ({
   useGamificationStore: {
     getState: jest.fn(() => ({
       incrementPomodoro: mockIncrementPomodoro,
       resetSessionCombo: mockResetSessionCombo,
+      recordBreak: mockRecordBreak,
     })),
   },
 }));
@@ -244,6 +246,50 @@ describe('bug 1: catch-up never ends a phase early', () => {
       startedAt: NOW + 25 * MIN,
       chainIndex: 1,
     });
+  });
+});
+
+describe('quest and achievement credits', () => {
+  it('passes the session start and pauses with a focus credit', () => {
+    usePomodoroStore.setState({ timer: running(), currentSession: session({ pausedDuration: 2 * MIN }) });
+    store().syncTimer({ now: NOW + 26 * MIN });
+
+    expect(mockIncrementPomodoro).toHaveBeenCalledWith(1500, new Date(NOW + 25 * MIN), {
+      startedAt: new Date(NOW),
+      pausedMs: 2 * MIN,
+    });
+  });
+
+  it('credits a break that ran to its end', () => {
+    usePomodoroStore.setState({
+      timer: running({ phase: 'short_break', totalTime: 300, remainingTime: 300, sessionsCompleted: 1 }),
+      currentSession: session({ phase: 'short_break', targetDuration: 300 }),
+    });
+    store().syncTimer({ now: NOW + 6 * MIN });
+
+    expect(mockRecordBreak).toHaveBeenCalledTimes(1);
+    expect(mockRecordBreak).toHaveBeenCalledWith(new Date(NOW + 5 * MIN), false);
+    expect(mockIncrementPomodoro).not.toHaveBeenCalled();
+  });
+
+  it('reports a skipped break, running or not yet started', () => {
+    usePomodoroStore.setState({
+      timer: running({ phase: 'short_break', totalTime: 300, remainingTime: 300, sessionsCompleted: 1 }),
+      currentSession: session({ phase: 'short_break', targetDuration: 300 }),
+    });
+    jest.setSystemTime(NOW + MIN);
+    store().skipToNextPhase();
+    expect(mockRecordBreak).toHaveBeenLastCalledWith(new Date(NOW + MIN), true);
+
+    usePomodoroStore.setState({ timer: { ...INITIAL_TIMER_STATE, phase: 'long_break' }, currentSession: null });
+    store().skipToNextPhase();
+    expect(mockRecordBreak).toHaveBeenCalledTimes(2);
+  });
+
+  it('skipping a focus phase is not a skipped break', () => {
+    usePomodoroStore.setState({ timer: running(), currentSession: session() });
+    store().skipToNextPhase();
+    expect(mockRecordBreak).not.toHaveBeenCalled();
   });
 });
 
