@@ -58,3 +58,41 @@ it('a session that ends late in the evening counts for its local day (it is the 
   expect(getDailySummaryData(DAY).topCategory).toEqual({ name: 'Work', time: 1500 });
   expect(getDailySummaryData('2026-10-15').topCategory).toBeNull();
 });
+
+describe('the summary of yesterday on the first open of the day', () => {
+  const { getPendingSummaryDate, markSummaryShown } = jest.requireActual('@/services/gamification/daily-summary');
+  const morning = new Date(2026, 9, 15, 8, 0); // the day after DAY
+
+  it('is pending once, and not after it was shown', () => {
+    const { dailyStats } = useGamificationStore.getState();
+    expect(getPendingSummaryDate(dailyStats, morning)).toBe(DAY);
+    markSummaryShown(DAY);
+    expect(getPendingSummaryDate(useGamificationStore.getState().dailyStats, morning)).toBeNull();
+  });
+
+  it('is not shown for a day without activity, or at any hour of the same day', () => {
+    expect(getPendingSummaryDate([], morning)).toBeNull();
+    const { dailyStats } = useGamificationStore.getState();
+    expect(getPendingSummaryDate(dailyStats, new Date(2026, 9, 14, 23, 30))).toBe('2026-10-13');
+  });
+});
+
+describe('notification taps', () => {
+  const { routeForAppNotification } = jest.requireActual('@/services/notifications/app-notification-routes');
+  const { useSummaryRequest } = jest.requireActual('@/services/gamification/summary-request');
+  const tap = (data: Record<string, unknown>, date: number, identifier = 'x') =>
+    ({ actionIdentifier: 'default', notification: { date, request: { identifier, content: { data } } } }) as never;
+
+  it("the 23:00 notification opens that day's summary, even when tapped after midnight", () => {
+    const firedAt = new Date(2026, 9, 14, 23, 0).getTime();
+    expect(routeForAppNotification(tap({ kind: 'daily-summary' }, firedAt, 'daily-summary-notification'))).toBe('/');
+    expect(useSummaryRequest.getState().dateKey).toBe(DAY);
+    // The same response delivered twice (launch + listener) is handled once.
+    expect(routeForAppNotification(tap({ kind: 'daily-summary' }, firedAt, 'daily-summary-notification'))).toBeNull();
+  });
+
+  it('a task reminder opens the task; other notifications are not routed here', () => {
+    expect(routeForAppNotification(tap({ kind: 'task-reminder', todoId: 't1' }, 1))).toBe('/todo/t1');
+    expect(routeForAppNotification(tap({ kind: 'pomodoro-phase-end' }, 2))).toBeNull();
+  });
+});

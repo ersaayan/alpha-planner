@@ -17,6 +17,7 @@ import { AppState, Platform } from 'react-native';
 import i18n from '@/services/i18n/i18n-config';
 import { notificationService } from '@/services/notifications';
 import { requestNotificationPermission } from '@/services/notifications/alert-permissions';
+import { routeForAppNotification } from '@/services/notifications/app-notification-routes';
 import { POMODORO_ACTIONS, POMODORO_ROUTE, initializeAlerts } from '@/services/notifications/pomodoro-alerts';
 import { useDailyQuestsStore } from '@/stores/daily-quests-store';
 import { useGamificationStore } from '@/stores/gamification-store';
@@ -138,7 +139,8 @@ export function usePomodoroLifecycle(): void {
     };
 
     const handleResponse = (response: Notifications.NotificationResponse) => {
-      const route = handleTimerResponse(response);
+      // Timer alerts first; daily-summary and task-reminder taps have their own routes.
+      const route = handleTimerResponse(response) ?? routeForAppNotification(response);
       if (route && useSettingsStore.getState().settings.hasCompletedOnboarding) {
         pendingRoute = route;
         flushRoute();

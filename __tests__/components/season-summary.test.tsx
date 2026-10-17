@@ -62,3 +62,22 @@ describe('celebration queue', () => {
     expect(screen.queryByText('First Focus')).toBeNull();
   });
 });
+
+describe('daily summary', () => {
+  it("shows yesterday's summary on the first open of the day, once", async () => {
+    const { act } = require('@testing-library/react-native');
+    const { getDateKey, addDaysToKey } = jest.requireActual('@/utils/date');
+    const yesterday = addDaysToKey(getDateKey(), -1);
+    useGamificationStore.setState({
+      prestige: { ...INITIAL_PRESTIGE_STATE, history: [], acknowledgedMonth: null },
+      pendingNotifications: [],
+      dailyStats: [{ date: yesterday, pomodorosCompleted: 3, focusTime: 4500, tasksCompleted: 1, xpEarned: 60, dailyQuestsCompleted: 0, summaryShownAt: null }],
+    });
+    await render(<CelebrationHost />);
+    expect(screen.getByText('Daily Summary')).toBeTruthy();
+
+    await act(async () => fireEvent.press(screen.getByText('Close')));
+    expect(useGamificationStore.getState().dailyStats.find((d) => d.date === yesterday)!.summaryShownAt).toBeTruthy();
+    expect(screen.queryByText('Daily Summary')).toBeNull();
+  });
+});

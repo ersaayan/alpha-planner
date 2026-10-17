@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import i18n from '@/services/i18n/i18n-config';
+import { APP_NOTIFICATION_KIND } from './app-notification-routes';
 import { GENERAL_CHANNEL_ID, NOTIFICATION_KIND, initializeAlerts } from './pomodoro-alerts';
 
 // Foreground presentation. Timer alerts must be seen and heard even while the app is
@@ -177,6 +178,8 @@ class NotificationService {
         title: i18n.t('notifications.dailySummaryTitle'),
         body: i18n.t('notifications.dailySummaryBody'),
         sound: true,
+        // A tap opens the summary of that day (see app-notification-routes).
+        data: { kind: APP_NOTIFICATION_KIND.dailySummary },
         priority: Notifications.AndroidNotificationPriority.DEFAULT,
       },
       trigger: {

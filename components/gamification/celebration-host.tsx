@@ -1,8 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { DailySummaryModal } from '@/components/dashboard/daily-summary-modal';
+import { useNow } from '@/hooks/use-now';
+import {
+  getDailySummaryData,
+  getMotivationalMessage,
+  getPendingSummaryDate,
+  markSummaryShown,
+} from '@/services/gamification/daily-summary';
 import { achievementDescription, achievementName, levelTitle } from '@/services/gamification/display';
+import { clearDailySummaryRequest, useSummaryRequest } from '@/services/gamification/summary-request';
 import { useGamificationStore, useSettingsStore } from '@/stores';
+import { parseDateKey } from '@/utils/date';
+import { formatLocalized } from '@/utils/locale';
 
 import { AchievementUnlock } from './achievement-unlock';
 import { LevelUpModal } from './level-up-modal';
@@ -14,11 +25,22 @@ const XP_TOAST_GATHER_MS = 400;
 
 /**
  * App-wide gamification moments, shown one at a time over any screen, in this order:
- * the summary of a season that just ended, unlocked achievements (oldest first), a level
- * up, then an XP toast. Mounted once in the root layout.
+ * the summary of a season that just ended, a daily summary (asked for from the 23:00
+ * notification, or yesterday's on the first open of the day), unlocked achievements
+ * (oldest first), a level up, then an XP toast. Mounted once in the root layout.
  */
 export function CelebrationHost() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const now = useNow();
+  const dailyStats = useGamificationStore((state) => state.dailyStats);
+  const requestedSummary = useSummaryRequest((state) => state.dateKey);
+  const summaryDate = requestedSummary ?? getPendingSummaryDate(dailyStats, now);
+  const summary = useMemo(
+    () => (summaryDate ? { date: summaryDate, data: getDailySummaryData(summaryDate) } : null),
+    // Computed once per day shown; it must not change while the user reads it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [summaryDate]
+  );
   const hasCompletedOnboarding = useSettingsStore((state) => state.settings.hasCompletedOnboarding);
   const history = useGamificationStore((state) => state.prestige.history);
   const acknowledgedMonth = useGamificationStore((state) => state.prestige.acknowledgedMonth);
@@ -64,6 +86,22 @@ export function CelebrationHost() {
   const pendingSeason = lastSeason && lastSeason.month !== acknowledgedMonth ? lastSeason : null;
   if (pendingSeason) {
     return <SeasonSummaryModal record={pendingSeason} onClose={() => acknowledgeSeason(pendingSeason.month)} />;
+  }
+
+  if (summary) {
+    const close = () => {
+      markSummaryShown(summary.date);
+      clearDailySummaryRequest();
+    };
+    return (
+      <DailySummaryModal
+        visible
+        onClose={close}
+        data={summary.data}
+        motivationalMessage={getMotivationalMessage(summary.data.motivationLevel, summary.date)}
+        subtitle={formatLocalized(parseDateKey(summary.date), 'EEEE, d MMMM', i18n.language)}
+      />
+    );
   }
 
   const achievement = pendingAchievements[0];

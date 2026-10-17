@@ -5,6 +5,7 @@ import { useDailyQuestsStore } from '@/stores/daily-quests-store';
 import { getWeekKey, useWeeklyGoalsStore } from '@/stores/weekly-goals-store';
 import { addDaysToKey, getDateKey, parseDateKey } from '@/utils/date';
 import i18n from '@/services/i18n/i18n-config';
+import type { DailyStats } from '@/types';
 
 export interface DailySummaryData {
   totalFocusTime: number; // seconds
@@ -128,44 +129,30 @@ export function getDailySummaryData(dateKey: string = getDateKey()): DailySummar
   };
 }
 
-export function getMotivationalMessage(level: 'great' | 'normal' | 'low'): string {
-  const messages = {
-    great: [
-      i18n.t('summary.motivation.great.0'),
-      i18n.t('summary.motivation.great.1'),
-      i18n.t('summary.motivation.great.2'),
-    ],
-    normal: [
-      i18n.t('summary.motivation.normal.0'),
-      i18n.t('summary.motivation.normal.1'),
-      i18n.t('summary.motivation.normal.2'),
-    ],
-    low: [
-      i18n.t('summary.motivation.low.0'),
-      i18n.t('summary.motivation.low.1'),
-      i18n.t('summary.motivation.low.2'),
-    ],
-  };
-  const pool = messages[level];
-  return pool[Math.floor(Math.random() * pool.length)];
+export function getMotivationalMessage(level: 'great' | 'normal' | 'low', seed = ''): string {
+  // The same day always gets the same message (no randomness during render).
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return i18n.t(`summary.motivation.${level}.${hash % 3}`);
 }
 
-export function markSummaryShown(): void {
-  useGamificationStore.getState().updateDailyStats({
-    summaryShownAt: new Date().toISOString(),
-  });
+/**
+ * The day whose summary to show when the app opens: yesterday, once, if anything was done
+ * that day. A summary opened from the 23:00 notification counts as shown.
+ */
+export function getPendingSummaryDate(dailyStats: DailyStats[], now: Date = new Date()): string | null {
+  const yesterday = addDaysToKey(getDateKey(now), -1);
+  const day = dailyStats.find((ds) => ds.date === yesterday);
+  if (!day || day.summaryShownAt) return null;
+  if (day.pomodorosCompleted === 0 && day.tasksCompleted === 0) return null;
+  return yesterday;
 }
 
+export function markSummaryShown(dateKey: string = getDateKey()): void {
+  useGamificationStore.getState().updateDailyStats({ summaryShownAt: new Date().toISOString() }, parseDateKey(dateKey));
+}
+
+/** @deprecated use getPendingSummaryDate */
 export function shouldShowSummary(): boolean {
-  const today = getDateKey();
-  const todayStats = useGamificationStore.getState().dailyStats.find((ds) => ds.date === today);
-
-  // Show if today has activity but summary not yet shown
-  if (!todayStats) return false;
-  if (todayStats.summaryShownAt) return false;
-  if (todayStats.pomodorosCompleted === 0 && todayStats.tasksCompleted === 0) return false;
-
-  // Only show after 23:00 or next day
-  const now = new Date();
-  return now.getHours() >= 23;
+  return getPendingSummaryDate(useGamificationStore.getState().dailyStats) !== null;
 }

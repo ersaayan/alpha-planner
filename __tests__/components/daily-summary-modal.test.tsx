@@ -81,12 +81,12 @@ describe('DailySummaryModal', () => {
 
   it('renders when visible is true', async () => {
     await render(<DailySummaryModal {...defaultProps} />);
-    expect(screen.getByText('Gunun Ozeti')).toBeTruthy();
+    expect(screen.getByText('Daily Summary')).toBeTruthy();
   });
 
   it('does not render content when visible is false', async () => {
     await render(<DailySummaryModal {...defaultProps} visible={false} />);
-    expect(screen.queryByText('Gunun Ozeti')).toBeNull();
+    expect(screen.queryByText('Daily Summary')).toBeNull();
   });
 
   it('displays pomodoro count', async () => {
@@ -94,7 +94,7 @@ describe('DailySummaryModal', () => {
     // AnimatedCounter mock renders the raw value as text
     expect(screen.getByText('6')).toBeTruthy();
     // The label beneath the pomodoro counter
-    expect(screen.getByText('Pomodoro')).toBeTruthy();
+    expect(screen.getByText('Pomodoros')).toBeTruthy();
   });
 
   it('displays motivational message', async () => {
@@ -105,13 +105,25 @@ describe('DailySummaryModal', () => {
   it('calls onClose when close button pressed', async () => {
     const onClose = jest.fn();
     await render(<DailySummaryModal {...defaultProps} onClose={onClose} />);
-    // The AnimatedButton mock renders a Pressable with title "Kapat"
-    await fireEvent.press(screen.getByText('Kapat'));
+    // The AnimatedButton mock renders a Pressable with its title
+    await fireEvent.press(screen.getByText('Close'));
     // handleClose triggers an animation that calls onClose via runOnJS.
     // In the mock environment, runOnJS executes synchronously or the
     // Pressable in the header can be used. The AnimatedButton mock
     // calls onPress (which is handleClose) directly.
     // Since reanimated is mocked, the withTiming callback fires immediately.
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('is translated, shows the day and the focus change in minutes', async () => {
+    await render(<DailySummaryModal {...defaultProps} subtitle="Wednesday, 14 October" />);
+    expect(screen.getByText('Wednesday, 14 October')).toBeTruthy();
+    expect(screen.getByText('2h 0m')).toBeTruthy();
+    // 1800 seconds more than yesterday = 30 minutes
+    expect(screen.getByText('+30m focus')).toBeTruthy();
+    expect(screen.getByText('+2 pomodoros')).toBeTruthy();
+    expect(screen.getByText('-1 tasks')).toBeTruthy();
+    expect(screen.getByText('45%')).toBeTruthy();
+    expect(screen.getByText('Compared to yesterday')).toBeTruthy();
   });
 });
