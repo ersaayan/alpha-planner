@@ -11,7 +11,6 @@ import Animated, {
   withRepeat,
   Easing,
   interpolate,
-  runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { GamificationColors, Palette } from '@/constants/theme';
@@ -25,7 +24,6 @@ interface AnimatedProgressBarProps {
   gradientColors?: [string, string];
   backgroundColor?: string;
   style?: ViewStyle;
-  onFillComplete?: () => void;
 }
 
 export function AnimatedProgressBar({
@@ -35,7 +33,6 @@ export function AnimatedProgressBar({
   gradientColors = [GamificationColors.progressStart, GamificationColors.progressEnd],
   backgroundColor = 'rgba(144, 171, 139, 0.2)',
   style,
-  onFillComplete,
 }: AnimatedProgressBarProps) {
   const animatedProgress = useSharedValue(0);
   const shimmerPosition = useSharedValue(-1);
@@ -46,10 +43,6 @@ export function AnimatedProgressBar({
     animatedProgress.value = withTiming(progress, {
       duration: AnimationDuration.xpFill,
       easing: AnimationEasing.smooth,
-    }, (finished) => {
-      if (finished && progress >= 1 && onFillComplete) {
-        runOnJS(onFillComplete)();
-      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [progress]);

@@ -1,25 +1,16 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
 import { useIsFocused, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming
-} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
+import { Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { priorityColor } from '@/constants/todo-options';
-import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
-import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
+import { useAuthStore, useGamificationStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDue } from '@/utils/todo-dates';
 
 import { SectionHeader } from '@/components/common';
@@ -29,6 +20,7 @@ import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 import { ComboIndicator } from '@/components/gamification/combo-indicator';
+import { TimerStatusCard } from '@/components/dashboard/timer-status-card';
 import { DailyQuestsCard } from '@/components/gamification/daily-quests-card';
 import { SeasonCard } from '@/components/gamification/season-card';
 import { WeeklyGoalsCard } from '@/components/gamification/weekly-goals-card';
@@ -43,49 +35,14 @@ export default function HomeScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const todos = useTodoStore((state) => state.todos);
-  const timerState = usePomodoroStore((state) => state.timer.state);
-  const timerPhase = usePomodoroStore((state) => state.timer.phase);
-  // Live countdown, derived from the timer's timestamps.
-  const remainingTime = usePomodoroClock((state) => state.remainingSeconds);
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
   const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
   const profile = useAuthStore((state) => state.profile);
 
-  // Decorative loops run only while this tab is visible and Reduce Motion is off.
+  // Decorative loops (timer pulse, level glow, XP shimmer) run only while this tab is visible.
   const isFocused = useIsFocused();
-  const ambient = useAmbientMotion(isFocused);
-
-  // Timer pulse animation
-  const timerPulse = useSharedValue(1);
-
-  // Animate timer pulse when running
-  useEffect(() => {
-    if (timerState === 'running' && ambient) {
-      timerPulse.value = withRepeat(
-        withSequence(
-          withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1,
-        true
-      );
-    } else {
-      timerPulse.value = withTiming(1, { duration: 200 });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [timerState, ambient]);
-
-  const timerAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: timerPulse.value }],
-  }));
-
-  const formatTime = useCallback(() => {
-    const minutes = Math.floor(remainingTime / 60);
-    const seconds = remainingTime % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }, [remainingTime]);
 
   const pendingTodos = useMemo(
     () => todos.filter((t) => t.status === 'pending' || t.status === 'in_progress'),
@@ -128,51 +85,8 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Timer Status Card */}
-      {timerState !== 'stopped' && (
-        <Animated.View style={timerAnimatedStyle}>
-          <AnimatedCard
-            variant="elevated"
-            style={styles.timerCard}
-            contentStyle={styles.timerCardContent}
-            onPress={() => router.push('/(tabs)/pomodoro')}
-          >
-            {/* Glow effect when running */}
-            {timerState === 'running' && (
-              <View
-                style={[
-                  styles.timerGlow,
-                  { backgroundColor: colors.primary },
-                ]}
-              />
-            )}
-
-            <View style={styles.timerInfo}>
-              <View style={[styles.phaseBadge, { backgroundColor: colors.primary + '20' }]}>
-                <Icon
-                  name={timerPhase === 'focus' ? 'bulb' : 'coffee'}
-                  fill={colors.primary}
-                  style={styles.phaseIcon}
-                />
-                <Text style={[styles.phaseText, { color: colors.primary }]}>
-                  {timerPhase === 'focus' ? t('dashboard.focusTime') : t('dashboard.breakTime')}
-                </Text>
-              </View>
-              <Text style={[styles.timerTime, { color: colors.text }]}>
-                {formatTime()}
-              </Text>
-            </View>
-
-            <View style={[styles.timerAction, { backgroundColor: colors.primary }]}>
-              <Icon
-                name={timerState === 'running' ? 'pause' : 'play'}
-                fill={colors.onPrimary}
-                style={styles.timerActionIcon}
-              />
-            </View>
-          </AnimatedCard>
-        </Animated.View>
-      )}
+      {/* The running timer (the only per-second part of the Dashboard) */}
+      <TimerStatusCard active={isFocused} />
 
       {/* XP Progress Card */}
       <AnimatedCard
@@ -507,63 +421,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: InterFonts.medium,
     fontSize: FontSize.xs,
-  },
-  timerCard: {
-    marginBottom: Spacing.lg,
-    overflow: 'hidden',
-  },
-  timerCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.lg,
-  },
-  timerGlow: {
-    position: 'absolute',
-    top: -50,
-    right: -50,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    opacity: 0.1,
-  },
-  timerInfo: {
-    flex: 1,
-  },
-  phaseBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.full,
-    marginBottom: Spacing.sm,
-  },
-  phaseIcon: {
-    width: 14,
-    height: 14,
-    marginRight: 6,
-  },
-  phaseText: {
-    fontFamily: InterFonts.semibold,
-    fontSize: FontSize.xs,
-  },
-  timerTime: {
-    fontFamily: InterFonts.light,
-    fontSize: 48,
-    letterSpacing: -1,
-  },
-  timerAction: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.md,
-  },
-  timerActionIcon: {
-    width: 24,
-    height: 24,
   },
   section: {
     marginBottom: Spacing.xl,

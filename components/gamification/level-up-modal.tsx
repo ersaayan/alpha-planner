@@ -2,7 +2,7 @@
  * LevelUpModal - Celebration modal for level advancement
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Modal, useWindowDimensions, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -13,7 +13,6 @@ import Animated, {
   withDelay,
   withRepeat,
   Easing,
-  runOnJS,
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
@@ -109,14 +108,19 @@ export function LevelUpModal({
     transform: [{ rotate: `${confettiRotation.value}deg` }],
   }));
 
+  const closing = useRef(false);
   const handleClose = () => {
+    if (closing.current) return;
+    closing.current = true;
     backdropOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
     modalScale.set(withTiming(0.8, { duration: AnimationDuration.fast }));
-    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }, (finished) => {
-      if (finished) {
-        runOnJS(onClose)();
-      }
-    }));
+    modalOpacity.set(withTiming(0, { duration: AnimationDuration.fast }));
+    // Closed by a timer after the exit animation: completion callbacks do not fire on
+    // every platform (the button did nothing on the web).
+    setTimeout(() => {
+      closing.current = false;
+      onClose();
+    }, AnimationDuration.fast + 50);
   };
 
   if (!visible) return null;

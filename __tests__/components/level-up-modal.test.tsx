@@ -87,13 +87,17 @@ describe('LevelUpModal', () => {
     ).toBeTruthy();
   });
 
-  it('calls onClose when continue button pressed', async () => {
+  it('calls onClose once after the exit animation when continue is pressed', async () => {
+    jest.useFakeTimers();
     const onClose = jest.fn();
     await render(<LevelUpModal {...defaultProps} onClose={onClose} />);
     // The AnimatedButton mock renders a Pressable with title text
     await fireEvent.press(screen.getByText('Continue'));
-    // handleClose triggers animations with runOnJS(onClose).
-    // In the mock environment the callback fires synchronously.
-    expect(onClose).toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Continue'));
+    expect(onClose).not.toHaveBeenCalled();
+    // Closed by a timer, not an animation callback (those did not fire on the web).
+    jest.advanceTimersByTime(500);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
   });
 });

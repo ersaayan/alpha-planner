@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
@@ -93,11 +92,7 @@ export function AchievementUnlock({
           withSpring(0, SpringConfig.bouncy),
           withDelay(
             hideDelay,
-            withTiming(200, { duration: AnimationDuration.medium }, (finished) => {
-              if (finished) {
-                runOnJS(onClose)();
-              }
-            })
+            withTiming(200, { duration: AnimationDuration.medium })
           )
         );
         opacity.value = withSequence(
@@ -116,8 +111,8 @@ export function AchievementUnlock({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, autoDismiss, autoDismissDelay]);
 
-  // The exit animation's callback does not fire on every platform (e.g. the web); a timer
-  // makes sure the next celebration in the queue is shown.
+  // A JS timer (not an animation callback) closes it, so the next celebration in the
+  // queue is shown on every platform (completion callbacks did not fire on the web).
   useEffect(() => {
     if (!visible || !autoDismiss) return;
     const timer = setTimeout(onClose, autoDismissDelay + 150);

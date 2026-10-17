@@ -15,7 +15,7 @@ import { useNow } from '@/hooks/use-now';
 import { getDateKey, parseDateKey } from '@/utils/date';
 import { formatMonthKey } from '@/utils/locale';
 import type { AchievementCategory } from '@/types';
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { formatDuration } from '@/services/i18n/format';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTabBarInset } from '@/hooks/use-tab-bar-inset';
@@ -369,11 +369,15 @@ export default function StatsScreen() {
                   const hidden = achievement.isSecret && !unlocked;
                   const progress = !unlocked && !hidden ? getAchievementProgress(achievement, achievementContext) : null;
                   return (
-                    <AnimatedCard
+                    // A plain view, not an animated card: ~80 of these render at once.
+                    <View
                       key={achievement.id}
-                      variant={unlocked ? 'default' : 'outlined'}
-                      style={styles.achievementCard}
-                      contentStyle={styles.achievementCardContent}
+                      style={[
+                        styles.achievementCard,
+                        unlocked
+                          ? [{ backgroundColor: colors.card }, Shadows.sm]
+                          : { borderWidth: 1, borderColor: colors.border },
+                      ]}
                       // One element per achievement for screen readers, with its state.
                       accessible
                       accessibilityLabel={[
@@ -415,7 +419,7 @@ export default function StatsScreen() {
                           </Text>
                         </View>
                       )}
-                    </AnimatedCard>
+                    </View>
                   );
                 })}
               </View>
@@ -712,10 +716,9 @@ const styles = StyleSheet.create({
   achievementCard: {
     width: '47%',
     flexGrow: 1,
-  },
-  achievementCardContent: {
     alignItems: 'center',
     padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
   },
   achievementDescription: {
     fontFamily: InterFonts.regular,

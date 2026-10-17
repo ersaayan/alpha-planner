@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { SectionList, StyleSheet, View } from 'react-native';
 import { Text, Card } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { ScreenHeader } from '@/components/common/screen-header';
@@ -16,13 +16,24 @@ import { formatTime, getDueDateKey, isPastDue } from '@/utils/todo-dates';
 import { formatLocalized } from '@/utils/locale';
 import { categoryName } from '@/services/gamification/display';
 
+import { Colors, Spacing, BorderRadius } from '@/constants/theme';
+import { priorityColor } from '@/constants/todo-options';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+
 /** Only tasks still to do belong on the timeline (not completed or archived ones). */
 function isOpen(todo: Todo): boolean {
   return todo.status === 'pending' || todo.status === 'in_progress';
 }
-import { Colors, Spacing, BorderRadius } from '@/constants/theme';
-import { priorityColor } from '@/constants/todo-options';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+
+interface TimelineSection {
+  kind: 'day' | 'unscheduled';
+  key: string;
+  label: string;
+  isOverdue: boolean;
+  /** Another day follows (the rail continues). */
+  hasNext: boolean;
+  data: Todo[];
+}
 
 interface TimelineDay {
   key: string;
@@ -110,6 +121,20 @@ export default function TimelineScreen() {
   const unscheduledTodos = useMemo(() => {
     return todos.filter((todo) => !todo.dueDate && isOpen(todo));
   }, [todos]);
+
+  const sections = useMemo<TimelineSection[]>(() => {
+    const daySections: TimelineSection[] = timelineDays.map((day, index) => ({
+      kind: 'day',
+      key: day.key,
+      label: day.label,
+      isOverdue: day.isOverdue,
+      hasNext: index < timelineDays.length - 1,
+      data: day.todos,
+    }));
+    return unscheduledTodos.length > 0
+      ? [...daySections, { kind: 'unscheduled', key: 'unscheduled', label: '', isOverdue: false, hasNext: false, data: unscheduledTodos }]
+      : daySections;
+  }, [timelineDays, unscheduledTodos]);
 
   const handleTodoPress = (todoId: string) => {
     router.push(`/todo/${todoId}`);
@@ -220,85 +245,86 @@ export default function TimelineScreen() {
     >
       <ScreenHeader title={t('views.timeline')} />
 
-      <ScrollView
+      {/* Virtualized: days are sections, their open tasks the items, unscheduled tasks last. */}
+      <SectionList
         style={styles.scrollView}
+        sections={sections}
+        keyExtractor={(todo) => todo.id}
+        stickySectionHeadersEnabled={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Empty State */}
-        {timelineDays.length === 0 && unscheduledTodos.length === 0 && (
-          <EmptyState
-            icon="calendar-outline"
-            title={t('views.timelineEmpty')}
-            subtitle={t('views.timelineEmptyHint')}
-          />
-        )}
-
-        {/* Timeline Days */}
-        {timelineDays.map((day, dayIndex) => (
-          <View key={day.key} style={styles.timelineDay}>
-            {/* Timeline Node */}
-            <View style={styles.timelineNodeContainer}>
-              <View
-                style={[
-                  styles.timelineNode,
-                  {
-                    backgroundColor: day.isOverdue
-                      ? colors.priorityUrgent
-                      : day.key === todayKey
-                        ? colors.primary
-                        : colors.border,
-                  },
-                ]}
-              />
-              {dayIndex < timelineDays.length - 1 && (
-                <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
-              )}
-            </View>
-
-            {/* Day Content */}
-            <View style={styles.dayContent}>
-              <View style={styles.dayHeader}>
-                <Text
-                  category="s1"
-                  style={[
-                    day.isOverdue && { color: colors.priorityUrgent },
-                    day.key === todayKey && { color: colors.primary },
-                  ]}
-                >
-                  {day.label}
-                </Text>
-                <Text category="c2" style={{ color: colors.textMuted }}>
-                  {t('views.taskCount', { count: day.todos.length })}
-                </Text>
-              </View>
-
-              <View style={styles.dayTodos}>
-                {day.todos.map((todo) => renderTodoCard(todo, day.isOverdue))}
-              </View>
-            </View>
-          </View>
-        ))}
-
-        {/* Unscheduled Section */}
-        {unscheduledTodos.length > 0 && (
-          <View style={[styles.unscheduledSection, { borderTopColor: colors.separator }]}>
-            <View style={styles.unscheduledHeader}>
+        ListEmptyComponent={
+          <EmptyState icon="calendar-outline" title={t('views.timelineEmpty')} subtitle={t('views.timelineEmptyHint')} />
+        }
+        renderSectionHeader={({ section }) =>
+          section.kind === 'unscheduled' ? (
+            <View style={[styles.unscheduledHeader, { borderTopColor: colors.separator }]}>
               <Icon name="inbox-outline" fill={colors.textMuted} size={20} />
-              <Text category="s1" style={{ marginLeft: Spacing.sm }}>
+              <Text category="s1" style={{ marginLeft: Spacing.sm }} accessibilityRole="header">
                 {t('views.unscheduled')}
               </Text>
               <Text category="c2" style={{ color: colors.textMuted, marginLeft: Spacing.sm }}>
-                {t('views.taskCount', { count: unscheduledTodos.length })}
+                {t('views.taskCount', { count: section.data.length })}
               </Text>
             </View>
-
-            <View style={styles.unscheduledTodos}>
-              {unscheduledTodos.map((todo) => renderTodoCard(todo, false))}
+          ) : (
+            <View style={styles.timelineRow}>
+              <View style={styles.timelineNodeContainer}>
+                <View
+                  style={[
+                    styles.timelineNode,
+                    {
+                      backgroundColor: section.isOverdue
+                        ? colors.priorityUrgent
+                        : section.key === todayKey
+                          ? colors.primary
+                          : colors.border,
+                    },
+                  ]}
+                />
+                {section.hasNext && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
+              </View>
+              <View style={[styles.dayContent, styles.dayHeader]}>
+                <Text
+                  category="s1"
+                  accessibilityRole="header"
+                  style={[
+                    section.isOverdue && { color: colors.priorityUrgent },
+                    section.key === todayKey && { color: colors.primary },
+                  ]}
+                >
+                  {section.label}
+                </Text>
+                <Text category="c2" style={{ color: colors.textMuted }}>
+                  {t('views.taskCount', { count: section.data.length })}
+                </Text>
+              </View>
             </View>
-          </View>
-        )}
-      </ScrollView>
+          )
+        }
+        renderItem={({ item, section }) =>
+          section.kind === 'unscheduled' ? (
+            <View style={styles.unscheduledItem}>{renderTodoCard(item, false)}</View>
+          ) : (
+            <View style={styles.timelineRow}>
+              {/* The rail continues past the day's tasks to the next day */}
+              <View style={styles.timelineNodeContainer}>
+                {section.hasNext && <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />}
+              </View>
+              <View style={[styles.dayContent, styles.dayItem]}>{renderTodoCard(item, section.isOverdue)}</View>
+            </View>
+          )
+        }
+        renderSectionFooter={({ section }) =>
+          section.kind === 'day' && section.hasNext ? (
+            <View style={styles.timelineRow}>
+              <View style={[styles.timelineNodeContainer, styles.dayGap]}>
+                <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
+              </View>
+            </View>
+          ) : null
+        }
+      />
     </View>
   );
 }
@@ -314,9 +340,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xl,
   },
-  timelineDay: {
+  timelineRow: {
     flexDirection: 'row',
-    marginBottom: Spacing.lg,
   },
   timelineNodeContainer: {
     alignItems: 'center',
@@ -331,7 +356,6 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 2,
     flex: 1,
-    marginTop: Spacing.xs,
   },
   dayContent: {
     flex: 1,
@@ -340,10 +364,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
-  dayTodos: {
-    gap: Spacing.sm,
+  dayItem: {
+    paddingBottom: Spacing.sm,
+  },
+  dayGap: {
+    height: Spacing.lg,
   },
   todoCard: {
     borderRadius: BorderRadius.md,
@@ -398,17 +425,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  unscheduledSection: {
-    marginTop: Spacing.xl,
-    paddingTop: Spacing.lg,
-    borderTopWidth: 1,
-  },
   unscheduledHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.md,
+    borderTopWidth: 1,
   },
-  unscheduledTodos: {
-    gap: Spacing.sm,
+  unscheduledItem: {
+    paddingBottom: Spacing.sm,
   },
 });

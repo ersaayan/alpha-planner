@@ -43,7 +43,8 @@ export default function TodoDetailScreen() {
   const deleteSubtask = useTodoStore((state) => state.deleteSubtask);
   const categories = useCategoryStore((state) => state.categories);
   const linkTodo = usePomodoroStore((state) => state.linkTodo);
-  const timer = usePomodoroStore((state) => state.timer);
+  // Only the linked task matters here (the timer object changes on every start/pause).
+  const linkedTodoId = usePomodoroStore((state) => state.timer.linkedTodoId);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
   const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
 
@@ -416,7 +417,7 @@ export default function TodoDetailScreen() {
             >
               {t('todo.detail.edit')}
             </Button>
-            {timer.linkedTodoId === id ? (
+            {linkedTodoId === id ? (
               <Button
                 appearance="ghost"
                 status="basic"

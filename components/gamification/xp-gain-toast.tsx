@@ -11,7 +11,6 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
 import { useTranslation } from 'react-i18next';
@@ -51,11 +50,7 @@ export function XPGainToast({
         withSpring(0, SpringConfig.bouncy),
         withDelay(
           duration - AnimationDuration.medium,
-          withTiming(-100, { duration: AnimationDuration.medium }, (finished) => {
-            if (finished) {
-              runOnJS(onHide)();
-            }
-          })
+          withTiming(-100, { duration: AnimationDuration.medium })
         )
       );
       opacity.value = withSequence(
@@ -73,7 +68,8 @@ export function XPGainToast({
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
   }, [visible, duration]);
 
-  // The exit animation's callback does not fire on every platform; a timer hides the toast.
+  // A JS timer (not an animation callback) hides the toast: it fires on every platform
+  // (Reanimated completion callbacks did not on the web) and only once.
   useEffect(() => {
     if (!visible) return;
     const timer = setTimeout(onHide, duration + 150);

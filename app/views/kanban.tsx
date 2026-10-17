@@ -3,7 +3,7 @@ import { ScreenHeader } from '@/components/common/screen-header';
 import { Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, Spacing } from '@/constants/theme';
@@ -188,31 +188,33 @@ export default function KanbanScreen() {
               {/* Column Header */}
               <View style={styles.columnHeader}>
                 <View style={[styles.columnDot, { backgroundColor: columnColor }]} />
-                <Text category="s1">{t(STATUS_LABEL_KEYS[column])}</Text>
+                <Text category="s1" accessibilityRole="header">
+                  {t(STATUS_LABEL_KEYS[column])}
+                </Text>
                 <View style={[styles.countBadge, { backgroundColor: columnColor + '20' }]}>
-                  <Text category="c2" style={{ color: columnColor }}>
+                  <Text category="c2" style={{ color: colors.text }}>
                     {columnTodos.length}
                   </Text>
                 </View>
               </View>
 
-              {/* Column Content */}
-              <ScrollView
+              {/* Column Content (virtualized: a column can hold many tasks) */}
+              <FlatList
                 style={styles.columnContent}
+                data={columnTodos}
+                keyExtractor={(todo) => todo.id}
+                renderItem={({ item }) => renderTodoCard(item)}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[styles.columnScrollContent, { paddingBottom: insets.bottom + Spacing.xl }]}
-              >
-                {columnTodos.length === 0 ? (
+                ListEmptyComponent={
                   <View style={styles.emptyColumn}>
                     <Icon name="inbox-outline" fill={colors.textMuted} size={32} />
                     <Text category="c1" style={{ color: colors.textMuted, marginTop: Spacing.sm }}>
-                      {t('dashboard.noActiveTasks')}
+                      {t('views.emptyColumn')}
                     </Text>
                   </View>
-                ) : (
-                  columnTodos.map(renderTodoCard)
-                )}
-              </ScrollView>
+                }
+              />
             </View>
           );
         })}
