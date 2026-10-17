@@ -14,6 +14,8 @@ import {
 
 import { useTodoStore, useCategoryStore } from '@/stores';
 import type { Todo } from '@/types';
+import { parseDateKey } from '@/utils/date';
+import { getDueDateKey } from '@/utils/todo-dates';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -74,7 +76,8 @@ export default function TimelineScreen() {
     const dateMap = new Map<string, Todo[]>();
 
     todosWithDueDate.forEach((todo) => {
-      const dateKey = startOfDay(new Date(todo.dueDate!)).toISOString();
+      const dateKey = getDueDateKey(todo.dueDate);
+      if (!dateKey) return;
       if (!dateMap.has(dateKey)) {
         dateMap.set(dateKey, []);
       }
@@ -86,7 +89,7 @@ export default function TimelineScreen() {
     const today = new Date(todayKey);
 
     dateMap.forEach((dayTodos, dateKey) => {
-      const date = new Date(dateKey);
+      const date = parseDateKey(dateKey);
       days.push({
         date,
         label: getDateLabel(date),

@@ -77,7 +77,11 @@ describe('daily summary', () => {
     expect(screen.getByText('Daily Summary')).toBeTruthy();
 
     await act(async () => fireEvent.press(screen.getByText('Close')));
-    expect(useGamificationStore.getState().dailyStats.find((d) => d.date === yesterday)!.summaryShownAt).toBeTruthy();
-    expect(screen.queryByText('Daily Summary')).toBeNull();
+    // The modal closes at the end of its exit animation.
+    const { waitFor } = require('@testing-library/react-native');
+    await waitFor(() =>
+      expect(useGamificationStore.getState().dailyStats.find((d) => d.date === yesterday)!.summaryShownAt).toBeTruthy()
+    );
+    await waitFor(() => expect(screen.queryByText('Daily Summary')).toBeNull());
   });
 });

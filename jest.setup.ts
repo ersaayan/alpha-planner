@@ -58,6 +58,14 @@ jest.mock('@/services/supabase/client', () => ({
   supabase: null,
 }));
 
+// The native date/time picker: a plain view in tests (DateTimePickerAndroid.open is a spy).
+jest.mock('@react-native-community/datetimepicker', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const DateTimePicker = (props: Record<string, unknown>) => React.createElement(View, { testID: 'native-time-picker', ...props });
+  return { __esModule: true, default: DateTimePicker, DateTimePickerAndroid: { open: jest.fn(), dismiss: jest.fn() } };
+});
+
 // Mock notification service
 jest.mock('@/services/notifications', () => ({
   notificationService: {
@@ -67,7 +75,6 @@ jest.mock('@/services/notifications', () => ({
     cancelDailySummaryNotification: jest.fn().mockResolvedValue(undefined),
     syncDailySummary: jest.fn().mockResolvedValue(undefined),
     cancelNotification: jest.fn().mockResolvedValue(undefined),
-    scheduledTaskDueNotifications: new Map(),
   },
 }));
 

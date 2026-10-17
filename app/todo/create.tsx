@@ -1,43 +1,52 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
-import { Text, Button, Input, Select, SelectItem, IndexPath, Datepicker } from '@ui-kitten/components';
+import { Text, Button, Input } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { CategorySelect } from '@/components/todos/category-select';
+import { DueDateFields } from '@/components/todos/due-date-fields';
+import { enableTaskReminders } from '@/hooks/use-task-reminders';
 import { useTodoStore, useCategoryStore } from '@/stores';
 import type { TodoPriority } from '@/types';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-const PRIORITIES: { value: TodoPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Low', color: '#90AB8B' },
-  { value: 'medium', label: 'Medium', color: '#B5A45E' },
-  { value: 'high', label: 'High', color: '#E47F7F' },
-  { value: 'urgent', label: 'Urgent', color: '#D85656' },
+const PRIORITIES: { value: TodoPriority; labelKey: string; color: string }[] = [
+  { value: 'low', labelKey: 'todo.create.priorityLow', color: '#90AB8B' },
+  { value: 'medium', labelKey: 'todo.create.priorityMedium', color: '#B5A45E' },
+  { value: 'high', labelKey: 'todo.create.priorityHigh', color: '#E47F7F' },
+  { value: 'urgent', labelKey: 'todo.create.priorityUrgent', color: '#D85656' },
 ];
 
 export default function CreateTodoScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
   const addTodo = useTodoStore((state) => state.addTodo);
-  const todos = useTodoStore((state) => state.todos);
+  const addSubtask = useTodoStore((state) => state.addSubtask);
   const categories = useCategoryStore((state) => state.categories);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCategoryIndex, setSelectedCategoryIndex] = useState<IndexPath | undefined>();
-  const [selectedPriorityIndex, setSelectedPriorityIndex] = useState<IndexPath>(new IndexPath(1));
-  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [priority, setPriority] = useState<TodoPriority>('medium');
+  const [due, setDue] = useState<{ dueDate: string | null; dueTime: string | null }>({ dueDate: null, dueTime: null });
   const [estimatedPomodoros, setEstimatedPomodoros] = useState('');
+  const [subtasks, setSubtasks] = useState<string[]>([]);
+  const [newSubtask, setNewSubtask] = useState('');
 
-  const selectedCategory = selectedCategoryIndex
-    ? categories[selectedCategoryIndex.row]
-    : null;
-  const selectedPriority = PRIORITIES[selectedPriorityIndex.row];
+  const addDraftSubtask = () => {
+    const subtaskTitle = newSubtask.trim();
+    if (!subtaskTitle) return;
+    setSubtasks((current) => [...current, subtaskTitle]);
+    setNewSubtask('');
+  };
 
   const handleCreate = () => {
     if (!title.trim()) return;
@@ -46,17 +55,22 @@ export default function CreateTodoScreen() {
     const estimatedPomodorosValue =
       Number.isFinite(parsedPomodoros) && parsedPomodoros > 0 ? parsedPomodoros : null;
 
-    addTodo({
+    const todo = addTodo({
       title: title.trim(),
       description: description.trim() || null,
-      dueDate: dueDate?.toISOString() || null,
+      dueDate: due.dueDate,
+      dueTime: due.dueTime,
       status: 'pending',
-      categoryId: selectedCategory?.id || null,
-      priority: selectedPriority.value,
+      categoryId,
+      priority,
       estimatedPomodoros: estimatedPomodorosValue,
-      completedAt: null,
-      order: todos.length,
     });
+    // A subtask still in the input counts too.
+    const pendingSubtask = newSubtask.trim();
+    for (const subtaskTitle of pendingSubtask ? [...subtasks, pendingSubtask] : subtasks) {
+      addSubtask(todo.id, subtaskTitle);
+    }
+    if (due.dueTime) void enableTaskReminders();
 
     router.back();
   };
@@ -76,8 +90,8 @@ export default function CreateTodoScreen() {
       >
       {/* Title */}
       <Input
-        label="Task Title"
-        placeholder="What do you need to do?"
+        label={t('todo.create.taskTitle')}
+        placeholder={t('todo.create.taskTitlePlaceholder')}
         value={title}
         onChangeText={setTitle}
         style={styles.input}
@@ -87,8 +101,8 @@ export default function CreateTodoScreen() {
 
       {/* Description */}
       <Input
-        label="Description (optional)"
-        placeholder="Add more details..."
+        label={t('todo.create.description')}
+        placeholder={t('todo.create.descriptionPlaceholder')}
         value={description}
         onChangeText={setDescription}
         style={styles.input}
@@ -98,94 +112,101 @@ export default function CreateTodoScreen() {
       />
 
       {/* Category */}
-      <Select
-        label="Category"
-        placeholder="Select a category"
-        value={selectedCategory?.name}
-        selectedIndex={selectedCategoryIndex}
-        onSelect={(index) => setSelectedCategoryIndex(index as IndexPath)}
+      <CategorySelect
+        label={t('todo.create.category')}
+        categories={categories}
+        value={categoryId}
+        onChange={setCategoryId}
         style={styles.input}
-        accessoryLeft={
-          selectedCategory
-            ? () => (
-                <View
-                  style={[
-                    styles.categoryDot,
-                    { backgroundColor: selectedCategory.color },
-                  ]}
-                />
-              )
-            : undefined
-        }
-      >
-        {categories.map((category) => (
-          <SelectItem
-            key={category.id}
-            title={category.name}
-            accessoryLeft={() => (
-              <View
-                style={[styles.categoryDot, { backgroundColor: category.color }]}
-              />
-            )}
-          />
-        ))}
-      </Select>
+      />
 
       {/* Priority */}
       <Text category="label" style={[styles.label, { color: colors.textMuted }]}>
-        Priority
+        {t('todo.create.priority')}
       </Text>
       <View style={styles.priorityContainer}>
-        {PRIORITIES.map((priority, index) => (
-          <Pressable
-            key={priority.value}
-            style={[
-              styles.priorityButton,
-              {
-                backgroundColor:
-                  selectedPriorityIndex.row === index
-                    ? priority.color + '20'
-                    : colors.card,
-                borderColor:
-                  selectedPriorityIndex.row === index ? priority.color : colors.border,
-              },
-            ]}
-            onPress={() => setSelectedPriorityIndex(new IndexPath(index))}
-          >
-            <View style={[styles.priorityDot, { backgroundColor: priority.color }]} />
-            <Text
-              category="c1"
-              style={{
-                color: selectedPriorityIndex.row === index ? priority.color : colors.text,
-              }}
+        {PRIORITIES.map((option) => {
+          const selected = option.value === priority;
+          return (
+            <Pressable
+              key={option.value}
+              style={[
+                styles.priorityButton,
+                {
+                  backgroundColor: selected ? option.color + '20' : colors.card,
+                  borderColor: selected ? option.color : colors.border,
+                },
+              ]}
+              onPress={() => setPriority(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
             >
-              {priority.label}
-            </Text>
-          </Pressable>
-        ))}
+              <View style={[styles.priorityDot, { backgroundColor: option.color }]} />
+              <Text category="c1" style={{ color: selected ? option.color : colors.text }}>
+                {t(option.labelKey)}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {/* Due Date */}
-      <Datepicker
-        label="Due Date (optional)"
-        placeholder="Pick a date"
-        date={dueDate}
-        onSelect={(date) => setDueDate(date)}
-        style={styles.input}
-        accessoryRight={(props) => <Icon {...props} name="calendar-outline" />}
-        min={new Date()}
+      {/* Due date and time */}
+      <DueDateFields
+        label={t('todo.create.dueDate')}
+        dueDate={due.dueDate}
+        dueTime={due.dueTime}
+        onChange={setDue}
       />
 
       {/* Estimated Pomodoros */}
       <Input
-        label="Estimated Pomodoros (optional)"
-        placeholder="e.g., 4"
+        label={t('todo.create.estimatedPomodoros')}
+        placeholder={t('todo.create.estimatedPomodorosPlaceholder')}
         value={estimatedPomodoros}
         onChangeText={setEstimatedPomodoros}
         style={styles.input}
         keyboardType="number-pad"
         accessoryLeft={(props) => <Icon {...props} name="clock-outline" />}
       />
+
+      {/* Subtasks */}
+      <Text category="label" style={[styles.label, { color: colors.textMuted }]}>
+        {t('todo.detail.subtasks')}
+      </Text>
+      {subtasks.map((subtaskTitle, index) => (
+        <View key={`${index}-${subtaskTitle}`} style={styles.subtaskRow}>
+          <Icon name="radio-button-off" fill={colors.textMuted} style={styles.subtaskIcon} />
+          <Text category="p2" style={styles.subtaskText}>
+            {subtaskTitle}
+          </Text>
+          <Pressable
+            onPress={() => setSubtasks((current) => current.filter((_, i) => i !== index))}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('todo.form.removeSubtask', { title: subtaskTitle })}
+          >
+            <Icon name="close-outline" fill={colors.textMuted} style={styles.subtaskIcon} />
+          </Pressable>
+        </View>
+      ))}
+      <View style={styles.subtaskRow}>
+        <Input
+          placeholder={t('todo.detail.addSubtask')}
+          value={newSubtask}
+          onChangeText={setNewSubtask}
+          onSubmitEditing={addDraftSubtask}
+          style={styles.subtaskInput}
+          accessibilityLabel={t('todo.detail.addSubtask')}
+        />
+        <Button
+          size="small"
+          appearance="ghost"
+          accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
+          onPress={addDraftSubtask}
+          disabled={!newSubtask.trim()}
+          accessibilityLabel={t('todo.detail.addSubtask')}
+        />
+      </View>
 
       {/* Create Button */}
       <Button
@@ -195,7 +216,7 @@ export default function CreateTodoScreen() {
         disabled={!title.trim()}
         accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
       >
-        Create Task
+        {t('todo.create.createButton')}
       </Button>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -233,11 +254,21 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  categoryDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: Spacing.xs,
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  subtaskIcon: {
+    width: 18,
+    height: 18,
+  },
+  subtaskText: {
+    flex: 1,
+  },
+  subtaskInput: {
+    flex: 1,
   },
   createButton: {
     marginTop: Spacing.lg,

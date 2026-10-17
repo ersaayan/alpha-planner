@@ -22,6 +22,7 @@ import { BorderRadius, Colors, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useCategoryStore, useSettingsStore, useTodoStore } from '@/stores';
 import type { Todo } from '@/types';
+import { getDueDateKey } from '@/utils/todo-dates';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -67,7 +68,8 @@ export default function CalendarScreen() {
     const map = new Map<string, Todo[]>();
     todos.forEach((todo) => {
       if (!todo.dueDate) return;
-      const dateKey = format(new Date(todo.dueDate), 'yyyy-MM-dd');
+      const dateKey = getDueDateKey(todo.dueDate);
+      if (!dateKey) return;
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }

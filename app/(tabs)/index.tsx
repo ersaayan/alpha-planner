@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
-import { formatDate } from '@/utils/date';
+import { formatDue } from '@/utils/todo-dates';
 
 import { SectionHeader } from '@/components/common';
 import { LevelBadge } from '@/components/animated/animated-badge';
@@ -46,6 +46,7 @@ export default function HomeScreen() {
   const stats = useGamificationStore((state) => state.stats);
   const getXpProgress = useGamificationStore((state) => state.getXpProgress);
   const dateFormat = useSettingsStore((state) => state.settings.dateFormat);
+  const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
   const profile = useAuthStore((state) => state.profile);
 
   // Timer pulse animation
@@ -323,7 +324,7 @@ export default function HomeScreen() {
                         style={styles.dueDateIcon}
                       />
                       <Text style={[styles.dueDateText, { color: colors.textMuted }]}>
-                        {formatDate(new Date(todo.dueDate), dateFormat)}
+                        {formatDue(todo.dueDate, todo.dueTime, dateFormat, timeFormat)}
                       </Text>
                     </View>
                   )}

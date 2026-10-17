@@ -23,6 +23,7 @@ import { alphaDarkTheme, alphaTheme } from '@/constants/eva-theme';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { usePomodoroLifecycle } from '@/hooks/use-pomodoro-lifecycle';
+import { useTaskReminders } from '@/hooks/use-task-reminders';
 import { useSync } from '@/hooks/use-sync';
 import { useAppBootstrap } from '@/hooks/use-app-bootstrap';
 import { usePomodoroStore, useSettingsStore } from '@/stores';
@@ -66,6 +67,7 @@ const AlphaDarkTheme = {
 
 export default function RootLayout() {
   usePomodoroLifecycle();
+  useTaskReminders();
   useSync();
 
   const colorScheme = useColorScheme();

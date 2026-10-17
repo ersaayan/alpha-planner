@@ -159,10 +159,12 @@ describe('upgrading from the previous release', () => {
     expect(settings.pomodoroSettings.focusDuration).toBe(1800);
     expect(settings.pomodoroSettings.shortBreakDuration).toBeGreaterThan(0);
 
-    // Intact, plus the v2 reward markers (the completed subtask was already paid for).
+    // Intact, plus the v2 reward markers (the completed subtask was already paid for)
+    // and the v3 due time.
     expect(stores.todos.getState().todos).toEqual([
       {
         ...OLD_TODO,
+        dueTime: null,
         xpAwardedAt: null,
         subtasks: [{ ...OLD_TODO.subtasks[0], xpAwardedAt: OLD_TODO.subtasks[0].createdAt }],
       },

@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import i18n from '@/services/i18n/i18n-config';
 import { APP_NOTIFICATION_KIND } from './app-notification-routes';
@@ -32,45 +31,13 @@ class NotificationService {
   private hasPermission = false;
   private permissionCacheTime = 0;
   private static PERMISSION_CACHE_TTL = 60000; // 1 minute
-  // Track scheduled task-due notifications by todoId to prevent duplicates
-  private scheduledTaskDueNotifications = new Map<string, string>();
-  private static TASK_NOTIFICATION_KEY = 'task-due-notifications';
-  private taskNotificationsLoaded = false;
-
   /**
    * Creates channels and action categories. Never shows the permission prompt: the
    * Pomodoro screen asks at the first Start (see services/notifications/alert-permissions).
    */
   async initialize(): Promise<boolean> {
     await initializeAlerts();
-    await this.loadTaskNotifications();
     return this.checkPermission();
-  }
-
-  // Load persisted task-due notification map from storage
-  private async loadTaskNotifications(): Promise<void> {
-    if (this.taskNotificationsLoaded) return;
-    try {
-      const raw = await AsyncStorage.getItem(NotificationService.TASK_NOTIFICATION_KEY);
-      if (raw) {
-        this.scheduledTaskDueNotifications = new Map(JSON.parse(raw));
-      }
-    } catch {
-      // best-effort
-    }
-    this.taskNotificationsLoaded = true;
-  }
-
-  // Save task-due notification map to storage
-  private async saveTaskNotifications(): Promise<void> {
-    try {
-      await AsyncStorage.setItem(
-        NotificationService.TASK_NOTIFICATION_KEY,
-        JSON.stringify([...this.scheduledTaskDueNotifications.entries()])
-      );
-    } catch {
-      // best-effort
-    }
   }
 
   // Re-check notification permissions with TTL cache to avoid excessive native bridge calls
@@ -111,54 +78,6 @@ class NotificationService {
       },
       trigger: { channelId: GENERAL_CHANNEL_ID },
     });
-  }
-
-  // Schedule a notification for a specific time (for task due dates)
-  async scheduleTaskDueNotification(
-    todoId: string,
-    todoTitle: string,
-    dueDate: Date
-  ): Promise<string | null> {
-    await this.checkPermission();
-    if (!this.hasPermission) return null;
-
-    // Cancel any existing notification for this todo to prevent duplicates
-    const existingId = this.scheduledTaskDueNotifications.get(todoId);
-    if (existingId) {
-      try {
-        await Notifications.cancelScheduledNotificationAsync(existingId);
-      } catch {
-        // Notification may have already fired or been dismissed
-      }
-      this.scheduledTaskDueNotifications.delete(todoId);
-      await this.saveTaskNotifications();
-    }
-
-    // Schedule 1 hour before due
-    const triggerDate = new Date(dueDate.getTime() - 60 * 60 * 1000);
-
-    if (triggerDate <= new Date()) {
-      return null; // Don't schedule if already past
-    }
-
-    const identifier = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: i18n.t('notifications.taskDueSoon'),
-        body: i18n.t('notifications.taskDueSoonBody', { title: todoTitle }),
-        data: { todoId },
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: triggerDate,
-        channelId: GENERAL_CHANNEL_ID,
-      },
-    });
-
-    this.scheduledTaskDueNotifications.set(todoId, identifier);
-    await this.saveTaskNotifications();
-
-    return identifier;
   }
 
   async cancelNotification(identifier: string): Promise<void> {
