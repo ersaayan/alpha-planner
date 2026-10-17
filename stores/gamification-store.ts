@@ -1,5 +1,5 @@
 import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpProgressFor, type XpProgress } from '@/constants/gamification';
-import { calculateComboXp } from '@/constants/combo';
+import { calculateComboXp, getDailyComboMultiplier, getSessionComboMultiplier, liveSessionCombo, sessionComboMaxGapMs } from '@/constants/combo';
 import { DAILY_QUEST_ALL_COMPLETE_BONUS, DAILY_QUEST_COUNT, type QuestEvent } from '@/constants/daily-quests';
 import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, TodoPriority, UserAchievement, UserStats } from '@/types';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
@@ -32,7 +32,13 @@ interface GamificationState {
   recordTaskCreated: (at?: Date) => void;
   /** A daily quest was completed; `perfectDay` when it was the last one of its day. */
   recordQuestCompleted: (at: Date, perfectDay: boolean) => void;
-  updateStreak: () => void;
+  /** Counts the day of `at` (default: now) for the streak. */
+  updateStreak: (at?: Date) => void;
+  /**
+   * Brings date-dependent state up to `now`: a streak that was not continued yesterday is
+   * shown as 0. Run on hydration, on resume and when the day changes.
+   */
+  refreshDayState: (now?: Date) => void;
 
   /** A weekly goal was completed (feeds the "quests and goal in one day" achievement). */
   recordWeeklyGoalCompleted: (at: Date) => void;
@@ -44,9 +50,11 @@ interface GamificationState {
   unlockAchievement: (achievementId: string, at?: Date) => void;
 
   // Combo
-  incrementSessionCombo: () => void;
+  incrementSessionCombo: (at?: Date) => void;
   resetSessionCombo: () => void;
-  checkDailyCombo: () => void;
+  checkDailyCombo: (at?: Date) => void;
+  /** The combos that still apply at `now`, with their multipliers. */
+  getComboStatus: (now?: Date) => ComboStatus;
 
   // Prestige
   checkPrestigeReset: () => void;
@@ -58,6 +66,23 @@ interface GamificationState {
   // Utility
   getXpProgress: () => XpProgress;
   isAchievementUnlocked: (achievementId: string) => boolean;
+}
+
+export interface ComboStatus {
+  sessionCombo: number;
+  sessionMultiplier: number;
+  dailyCombo: number;
+  dailyMultiplier: number;
+}
+
+/** The session combo gap allowed with the current long-break setting. */
+function comboGapMs(): number {
+  try {
+    const { useSettingsStore } = require('./settings-store') as typeof import('./settings-store');
+    return sessionComboMaxGapMs(useSettingsStore.getState().pomodoroSettings.longBreakDuration);
+  } catch {
+    return sessionComboMaxGapMs();
+  }
 }
 
 export interface FocusDetails {
@@ -192,15 +217,23 @@ export const useGamificationStore = create<GamificationState>()(
             },
           }));
 
+          const pausedMs = Math.max(0, details?.pausedMs ?? 0);
+          const startedAt = details?.startedAt ?? new Date(completionDate.getTime() - focusTime * 1000 - pausedMs);
+
+          // A session that started too long after the previous one starts a new combo.
+          if (liveSessionCombo(get().combo, startedAt.getTime(), comboGapMs()) === 0 && get().combo.sessionCombo !== 0) {
+            get().resetSessionCombo();
+          }
+
           // Apply combo multiplier to pomodoro XP
           const { combo } = get();
           const dailyCombo = effectiveDailyCombo(combo, getDateKey(completionDate));
           const xp = calculateComboXp(XP_VALUES.POMODORO_COMPLETE, combo.sessionCombo, dailyCombo, true);
           get().addXp(xp, completionDate);
           get().updateDailyStats({ pomodorosCompleted: 1, focusTime }, completionDate);
-          get().updateStreak();
-          get().incrementSessionCombo();
-          get().checkDailyCombo();
+          get().updateStreak(completionDate);
+          get().incrementSessionCombo(completionDate);
+          get().checkDailyCombo(completionDate);
 
           // Time-based achievements
           const hour = completionDate.getHours();
@@ -209,11 +242,10 @@ export const useGamificationStore = create<GamificationState>()(
           if (hour >= 0 && hour < 5) get().unlockAchievement('night_shift', completionDate);
           if (hour === 0) get().unlockAchievement('midnight_oil', completionDate);
 
-          const pausedMs = Math.max(0, details?.pausedMs ?? 0);
           emitQuestEvent({
             type: 'focus_completed',
             at: completionDate,
-            startedAt: details?.startedAt ?? new Date(completionDate.getTime() - focusTime * 1000 - pausedMs),
+            startedAt,
             seconds: focusTime,
             pausedMs,
           });
@@ -245,8 +277,8 @@ export const useGamificationStore = create<GamificationState>()(
           const xp = calculateComboXp(XP_VALUES.TASK_COMPLETE, 0, dailyCombo, false);
           get().addXp(xp, at);
           get().updateDailyStats({ tasksCompleted: 1 }, at);
-          get().updateStreak();
-          get().checkDailyCombo();
+          get().updateStreak(at);
+          get().checkDailyCombo(at);
 
           emitQuestEvent({
             type: 'task_completed',
@@ -303,39 +335,62 @@ export const useGamificationStore = create<GamificationState>()(
           get().checkAchievements(at);
         },
 
-        updateStreak: () => {
-          const today = getDateKey();
-          const { stats } = get();
+        updateStreak: (at = new Date()) => {
+          const day = getDateKey(at);
+          const { stats, dailyStats } = get();
           const lastActive = stats.lastActiveDate;
+          const length = stats.streakLength ?? stats.currentStreak;
+          if (lastActive === day) return;
 
-          if (lastActive === today) return;
-
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = getDateKey(yesterday);
-
-          const isConsecutive = lastActive === yesterdayStr;
-          const shouldAwardStreakXp = isConsecutive;
-
-          set((state) => {
-            const currentStreak = isConsecutive
-              ? state.stats.currentStreak + 1
-              : 1;
-            return {
-              stats: {
-                ...state.stats,
-                currentStreak,
-                longestStreak: Math.max(state.stats.longestStreak, currentStreak),
-                lastActiveDate: today,
-              },
-            };
-          });
-
-          if (shouldAwardStreakXp) {
-            get().addXp(XP_VALUES.DAILY_STREAK);
+          if (lastActive && day < lastActive) {
+            // A late credit for an earlier day (e.g. a session that ended before midnight,
+            // credited after a task today) may join two runs.
+            const active = new Set(dailyStats.filter(isActiveDay).map((ds) => ds.date));
+            let run = 0;
+            for (let key = lastActive; active.has(key); key = addDaysToKey(key, -1)) run++;
+            if (run > length) {
+              set((state) => ({
+                stats: {
+                  ...state.stats,
+                  streakLength: run,
+                  currentStreak: run,
+                  longestStreak: Math.max(state.stats.longestStreak, run),
+                  // The gap that was counted as a break is filled now.
+                  streakBreaks: Math.max(0, (state.stats.streakBreaks ?? 0) - 1),
+                },
+              }));
+            }
+            return;
           }
 
-          get().checkAchievements();
+          const isConsecutive = lastActive === addDaysToKey(day, -1);
+          const isBreak = !isConsecutive && Boolean(lastActive) && length > 0;
+          const streakLength = isConsecutive ? length + 1 : 1;
+          set((state) => ({
+            stats: {
+              ...state.stats,
+              streakLength,
+              currentStreak: streakLength,
+              longestStreak: Math.max(state.stats.longestStreak, streakLength),
+              lastActiveDate: day,
+              streakBreaks: (state.stats.streakBreaks ?? 0) + (isBreak ? 1 : 0),
+            },
+          }));
+
+          if (isConsecutive) {
+            get().addXp(XP_VALUES.DAILY_STREAK, at);
+          }
+
+          get().checkAchievements(at);
+        },
+
+        refreshDayState: (now = new Date()) => {
+          const { stats } = get();
+          const alive = Boolean(stats.lastActiveDate) && stats.lastActiveDate >= addDaysToKey(getDateKey(now), -1);
+          const currentStreak = alive ? (stats.streakLength ?? stats.currentStreak) : 0;
+          if (currentStreak !== stats.currentStreak) {
+            set((state) => ({ stats: { ...state.stats, currentStreak } }));
+          }
         },
 
         checkAchievements: (at = new Date()) => {
@@ -348,7 +403,7 @@ export const useGamificationStore = create<GamificationState>()(
           const { useCategoryStore } = require('./category-store') as typeof import('./category-store');
           const context = {
             stats,
-            sessionCombo: combo.sessionCombo,
+            sessionCombo: liveSessionCombo(combo, at.getTime(), comboGapMs()),
             dailyCombo: effectiveDailyCombo(combo, dateKey),
             prestigeCount: prestige.count,
             dailyStats,
@@ -386,11 +441,12 @@ export const useGamificationStore = create<GamificationState>()(
         },
 
         // Combo actions
-        incrementSessionCombo: () => {
+        incrementSessionCombo: (at = new Date()) => {
           set((state) => ({
             combo: {
               ...state.combo,
               sessionCombo: state.combo.sessionCombo + 1,
+              lastSessionAt: at.toISOString(),
             },
           }));
         },
@@ -404,30 +460,38 @@ export const useGamificationStore = create<GamificationState>()(
           }));
         },
 
-        checkDailyCombo: () => {
-          const today = getDateKey();
+        checkDailyCombo: (at = new Date()) => {
+          const day = getDateKey(at);
           const { combo, dailyStats } = get();
 
-          // Check if today has both a pomodoro and a task
-          const todayStats = dailyStats.find((ds) => ds.date === today);
-          if (!todayStats || todayStats.pomodorosCompleted < 1 || todayStats.tasksCompleted < 1) return;
+          // A combo day has both a pomodoro and a task.
+          const dayStats = dailyStats.find((ds) => ds.date === day);
+          if (!dayStats || dayStats.pomodorosCompleted < 1 || dayStats.tasksCompleted < 1) return;
 
-          // Already counted today
-          if (combo.lastDailyComboDate === today) return;
+          // Already counted, or a later day was already counted.
+          if (combo.lastDailyComboDate && combo.lastDailyComboDate >= day) return;
 
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = getDateKey(yesterday);
-
-          const isConsecutive = combo.lastDailyComboDate === yesterdayStr;
+          const isConsecutive = combo.lastDailyComboDate === addDaysToKey(day, -1);
 
           set((state) => ({
             combo: {
               ...state.combo,
               dailyComboStreak: isConsecutive ? state.combo.dailyComboStreak + 1 : 1,
-              lastDailyComboDate: today,
+              lastDailyComboDate: day,
             },
           }));
+        },
+
+        getComboStatus: (now = new Date()) => {
+          const { combo } = get();
+          const sessionCombo = liveSessionCombo(combo, now.getTime(), comboGapMs());
+          const dailyCombo = effectiveDailyCombo(combo, getDateKey(now));
+          return {
+            sessionCombo,
+            sessionMultiplier: getSessionComboMultiplier(sessionCombo),
+            dailyCombo,
+            dailyMultiplier: getDailyComboMultiplier(dailyCombo),
+          };
         },
 
         // Prestige
@@ -462,6 +526,7 @@ export const useGamificationStore = create<GamificationState>()(
               sessionCombo: 0,
               dailyComboStreak: 0,
               lastDailyComboDate: null,
+              lastSessionAt: null,
             },
           }));
         },
@@ -563,6 +628,7 @@ export function migrateGamificationState(persisted: unknown, fromVersion: number
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const pastSeasonsXp = asRecordArray(prestige.history).reduce((sum, record) => sum + (Number(record.totalXp) || 0), 0);
     Object.assign(stats, {
+      streakLength: Number(stats.currentStreak) || 0,
       activeDays: dailyStats.filter((day) => Number(day.pomodorosCompleted) > 0 || Number(day.tasksCompleted) > 0).length,
       perfectQuestDays: dailyStats.filter((day) => day.perfectQuestDay === true).length,
       lifetimeXp: (Number(stats.totalXp) || 0) + pastSeasonsXp,

@@ -184,6 +184,7 @@ describe('Prestige reset integration', () => {
         sessionCombo: 5,
         dailyComboStreak: 7,
         lastDailyComboDate: '2026-01-30',
+        lastSessionAt: null,
       },
     });
 

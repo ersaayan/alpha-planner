@@ -152,6 +152,7 @@ describe('useGamificationStore', () => {
       stats: {
         ...state.stats,
         currentStreak: 3,
+        streakLength: 3,
         longestStreak: 3,
         lastActiveDate: yyyymmdd,
       },
@@ -174,6 +175,7 @@ describe('useGamificationStore', () => {
       stats: {
         ...state.stats,
         currentStreak: 5,
+        streakLength: 5,
         longestStreak: 5,
         lastActiveDate: yyyymmdd,
       },

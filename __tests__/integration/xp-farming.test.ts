@@ -148,7 +148,7 @@ describe('a subtask is rewarded once', () => {
 
 describe('the daily combo multiplier', () => {
   it('applies to subtask XP while the combo is alive', () => {
-    useGamificationStore.setState({ combo: { sessionCombo: 0, dailyComboStreak: 3, lastDailyComboDate: addDaysToKey(TODAY, -1) } });
+    useGamificationStore.setState({ combo: { sessionCombo: 0, dailyComboStreak: 3, lastDailyComboDate: addDaysToKey(TODAY, -1), lastSessionAt: null } });
     const { id } = addTodo();
     useTodoStore.getState().addSubtask(id, 'a');
     useTodoStore.getState().addSubtask(id, 'b');
@@ -157,7 +157,7 @@ describe('the daily combo multiplier', () => {
   });
 
   it('no longer applies after a day without a combo', () => {
-    useGamificationStore.setState({ combo: { sessionCombo: 0, dailyComboStreak: 7, lastDailyComboDate: addDaysToKey(TODAY, -2) } });
+    useGamificationStore.setState({ combo: { sessionCombo: 0, dailyComboStreak: 7, lastDailyComboDate: addDaysToKey(TODAY, -2), lastSessionAt: null } });
     const { id } = addTodo();
     useTodoStore.getState().toggleTodoStatus(id);
     // Base task XP, not multiplied.

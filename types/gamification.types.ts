@@ -64,7 +64,10 @@ export interface UserStats {
   totalPomodoros: number;
   totalFocusTime: number;
   totalTasksCompleted: number;
+  /** The streak as shown: streakLength while it is alive (active today or yesterday), else 0. */
   currentStreak: number;
+  /** Length of the run of active days ending at lastActiveDate. */
+  streakLength: number;
   longestStreak: number;
   level: number;
   currentXp: number;
@@ -113,6 +116,8 @@ export interface ComboState {
   sessionCombo: number;
   dailyComboStreak: number;
   lastDailyComboDate: string | null;
+  /** End of the last focus session that counted for the session combo (ISO). */
+  lastSessionAt: string | null;
 }
 
 // --- Prestige ---
@@ -161,6 +166,7 @@ export const INITIAL_USER_STATS: UserStats = {
   totalFocusTime: 0,
   totalTasksCompleted: 0,
   currentStreak: 0,
+  streakLength: 0,
   longestStreak: 0,
   level: 1,
   currentXp: 0,
@@ -179,6 +185,7 @@ export const INITIAL_COMBO_STATE: ComboState = {
   sessionCombo: 0,
   dailyComboStreak: 0,
   lastDailyComboDate: null,
+  lastSessionAt: null,
 };
 
 export const INITIAL_PRESTIGE_STATE: PrestigeState = {

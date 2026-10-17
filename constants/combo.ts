@@ -11,6 +11,25 @@ export const SESSION_COMBO_MULTIPLIERS: Record<number, number> = {
 };
 export const SESSION_COMBO_MAX_MULTIPLIER = 3; // 5+ sessions
 
+/**
+ * Longest gap between the end of one focus session and the start of the next that keeps
+ * the session combo going: an hour, or the long break plus 15 minutes if that is longer.
+ */
+export function sessionComboMaxGapMs(longBreakSeconds = 0): number {
+  return Math.max(60 * 60_000, (longBreakSeconds + 15 * 60) * 1000);
+}
+
+/** The session combo that still counts at `atMs` (0 once the gap is too long). */
+export function liveSessionCombo(
+  combo: { sessionCombo: number; lastSessionAt?: string | null },
+  atMs: number,
+  maxGapMs = sessionComboMaxGapMs()
+): number {
+  if (!combo.lastSessionAt) return 0;
+  const last = Date.parse(combo.lastSessionAt);
+  return Number.isFinite(last) && atMs - last <= maxGapMs ? combo.sessionCombo : 0;
+}
+
 export function getSessionComboMultiplier(combo: number): number {
   if (combo >= 5) return SESSION_COMBO_MAX_MULTIPLIER;
   return SESSION_COMBO_MULTIPLIERS[combo] ?? 1;
