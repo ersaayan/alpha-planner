@@ -82,7 +82,7 @@ export default function RegisterScreen() {
       >
         <Animated.View entering={FadeInDown.delay(200).duration(600)} style={styles.header}>
           <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-            <Icon name="leaf-outline" fill="#fff" size={32} />
+            <Icon name="leaf-outline" fill={colors.onPrimary} size={32} />
           </View>
           <Text category="h3" style={{ color: colors.text, marginTop: Spacing.md }}>
             {t('auth.joinTitle')}
@@ -136,9 +136,9 @@ export default function RegisterScreen() {
             ]}
           >
             {isLoading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
-              <Text category="s1" style={{ color: '#fff' }}>{t('auth.createAccount')}</Text>
+              <Text category="s1" style={{ color: colors.onPrimary }}>{t('auth.createAccount')}</Text>
             )}
           </Pressable>
 

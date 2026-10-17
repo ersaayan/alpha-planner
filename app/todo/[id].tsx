@@ -327,7 +327,7 @@ export default function TodoDetailScreen() {
                 style={[
                   styles.checkbox,
                   {
-                    borderColor: subtask.isCompleted ? colors.primary : colors.border,
+                    borderColor: subtask.isCompleted ? colors.primary : colors.textMuted,
                     backgroundColor: subtask.isCompleted ? colors.primary : 'transparent',
                   },
                 ]}
@@ -339,7 +339,7 @@ export default function TodoDetailScreen() {
                 accessibilityHint={subtask.isCompleted ? t('todo.form.markIncompleteHint') : t('todo.form.markCompleteHint')}
               >
                 {subtask.isCompleted && (
-                  <Icon name="checkmark-outline" fill="#fff" style={styles.checkIcon} />
+                  <Icon name="checkmark-outline" fill={colors.onPrimary} style={styles.checkIcon} />
                 )}
               </Pressable>
               {renaming?.id === subtask.id ? (

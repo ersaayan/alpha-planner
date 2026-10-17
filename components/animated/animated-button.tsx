@@ -66,16 +66,16 @@ export function AnimatedButton({
             backgroundColor: colors.primary,
             ...Shadows.sm,
           },
-          text: { color: '#fff' },
-          iconColor: '#fff',
+          text: { color: colors.onPrimary },
+          iconColor: colors.onPrimary,
         };
       case 'secondary':
         return {
           container: {
-            backgroundColor: colors.secondary,
+            backgroundColor: colors.backgroundSecondary,
           },
-          text: { color: colors.text },
-          iconColor: colors.text,
+          text: { color: colors.primary },
+          iconColor: colors.primary,
         };
       case 'outline':
         return {
@@ -101,14 +101,14 @@ export function AnimatedButton({
             backgroundColor: colors.error,
             ...Shadows.sm,
           },
-          text: { color: '#fff' },
-          iconColor: '#fff',
+          text: { color: colors.onError },
+          iconColor: colors.onError,
         };
       default:
         return {
           container: { backgroundColor: colors.primary },
-          text: { color: '#fff' },
-          iconColor: '#fff',
+          text: { color: colors.onPrimary },
+          iconColor: colors.onPrimary,
         };
     }
   };

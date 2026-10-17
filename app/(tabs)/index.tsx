@@ -241,7 +241,7 @@ export default function HomeScreen() {
             <View style={[styles.timerAction, { backgroundColor: colors.primary }]}>
               <Icon
                 name={timerState === 'running' ? 'pause' : 'play'}
-                fill="#fff"
+                fill={colors.onPrimary}
                 style={styles.timerActionIcon}
               />
             </View>

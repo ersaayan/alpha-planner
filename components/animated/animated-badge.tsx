@@ -15,7 +15,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { Text } from '@ui-kitten/components';
-import { Colors, GamificationColors, Shadows, InterFonts, FontSize, Palette } from '@/constants/theme';
+import { Colors, GamificationColors, Shadows, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAmbientMotion } from '@/hooks/use-ambient-motion';
@@ -176,7 +176,7 @@ export function LevelBadge({
             styles.levelNumber,
             {
               fontSize: config.font,
-              color: Palette.white,
+              color: colors.onPrimary,
             },
           ]}
         >

@@ -116,7 +116,8 @@ export function AnimatedCheckbox({
 
     return {
       backgroundColor: backgroundColor > 0.5 ? checkColor : 'transparent',
-      borderColor: checkProgress.value > 0.5 ? checkColor : colors.border,
+      // Unchecked outline: 3:1 against the card (WCAG non-text contrast).
+      borderColor: checkProgress.value > 0.5 ? checkColor : colors.textMuted,
     };
   });
 
@@ -176,7 +177,7 @@ export function AnimatedCheckbox({
           >
             <AnimatedPath
               d="M4 12.5L9.5 18L20 6"
-              stroke="#fff"
+              stroke={colors.onPrimary}
               strokeWidth={3}
               strokeLinecap="round"
               strokeLinejoin="round"

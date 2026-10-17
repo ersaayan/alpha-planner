@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
-import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface ProgressRowProps {
@@ -40,7 +40,7 @@ export function ProgressRow({ title, description, valueLabel, progress, done, re
             {title}
           </Text>
           {rewardLabel ? (
-            <Text style={[styles.reward, { color: GamificationColors.levelBadge }]}>{rewardLabel}</Text>
+            <Text style={[styles.reward, { color: colors.xp }]}>{rewardLabel}</Text>
           ) : null}
         </View>
         <Text style={[styles.description, { color: colors.textMuted }]}>{description}</Text>

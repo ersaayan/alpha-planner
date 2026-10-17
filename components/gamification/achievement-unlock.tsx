@@ -58,6 +58,13 @@ export function AchievementUnlock({
     epic: GamificationColors.achievementGold,
     legendary: '#9B59B6',
   };
+  // Readable versions for text on the card.
+  const rarityTextColors = {
+    common: colors.rarityCommon,
+    rare: colors.rarityRare,
+    epic: colors.rarityEpic,
+    legendary: colors.rarityLegendary,
+  };
 
   const { t } = useTranslation();
   const rarityLabels = {
@@ -157,7 +164,7 @@ export function AchievementUnlock({
             fill={rarityColors[rarity]}
             style={styles.unlockIcon}
           />
-          <Text style={[styles.headerText, { color: rarityColors[rarity] }]}>
+          <Text style={[styles.headerText, { color: rarityTextColors[rarity] }]}>
             {t('gamification.achievementUnlocked')}
           </Text>
         </View>
@@ -187,7 +194,7 @@ export function AchievementUnlock({
           {/* Rarity and XP */}
           <View style={styles.rewardsRow}>
             <View style={[styles.rarityBadge, { backgroundColor: rarityColors[rarity] + '20' }]}>
-              <Text style={[styles.rarityText, { color: rarityColors[rarity] }]}>
+              <Text style={[styles.rarityText, { color: rarityTextColors[rarity] }]}>
                 {rarityLabels[rarity]}
               </Text>
             </View>
@@ -197,7 +204,7 @@ export function AchievementUnlock({
                 fill={GamificationColors.xp}
                 style={styles.xpIcon}
               />
-              <Text style={[styles.xpText, { color: GamificationColors.xp }]}>
+              <Text style={[styles.xpText, { color: colors.xp }]}>
                 {t('gamification.xpEarned', { amount: xpReward })}
               </Text>
             </View>

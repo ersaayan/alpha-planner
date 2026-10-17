@@ -266,7 +266,7 @@ export function DailySummaryModal({
             {data.comboMultiplier > 1 && (
               <View style={[styles.comboBadge, { backgroundColor: GamificationColors.xp + '1A' }]}>
                 <Icon name="flash" fill={GamificationColors.xp} size={18} />
-                <Text style={[styles.comboText, { color: GamificationColors.xp }]}>
+                <Text style={[styles.comboText, { color: colors.xp }]}>
                   {t('summary.combo', { value: data.comboMultiplier })}
                 </Text>
               </View>

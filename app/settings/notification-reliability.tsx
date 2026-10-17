@@ -196,7 +196,7 @@ export default function NotificationReliabilityScreen() {
           style={[styles.refreshButton, { backgroundColor: colors.primary }]}
           accessibilityRole="button"
         >
-          <Text style={styles.refreshText}>{t('reliability.refresh')}</Text>
+          <Text style={[styles.refreshText, { color: colors.onPrimary }]}>{t('reliability.refresh')}</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -257,7 +257,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   refreshText: {
-    color: '#fff',
     fontFamily: InterFonts.semibold,
     fontSize: FontSize.md,
   },

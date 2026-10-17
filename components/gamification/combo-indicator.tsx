@@ -59,7 +59,7 @@ export function ComboIndicator() {
       ) : (
         chips.map((chip) => (
           <View key={chip.key} style={[styles.chip, { backgroundColor: GamificationColors.streak + '20' }]}>
-            <Text style={[styles.chipText, { color: GamificationColors.streak }]}>
+            <Text style={[styles.chipText, { color: colors.streak }]}>
               {chip.label} · {chip.detail}
             </Text>
           </View>

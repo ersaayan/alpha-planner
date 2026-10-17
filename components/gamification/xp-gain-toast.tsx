@@ -102,14 +102,14 @@ export function XPGainToast({
         <View style={[styles.iconContainer, { backgroundColor: GamificationColors.xp }]}>
           <Icon
             name="star"
-            fill={Palette.white}
+            fill={Palette.slate}
             style={styles.icon}
           />
         </View>
 
         {/* Content */}
         <View style={styles.content}>
-          <Text style={[styles.amount, { color: GamificationColors.xp }]}>
+          <Text style={[styles.amount, { color: colors.xp }]}>
             {t('gamification.xpEarned', { amount })}
           </Text>
           {reason && (

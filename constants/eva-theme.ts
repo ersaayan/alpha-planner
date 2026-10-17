@@ -8,11 +8,11 @@ export const alphaTheme = {
   'color-primary-100': '#E8F0E6',
   'color-primary-200': '#D1E1CD',
   'color-primary-300': '#B0CAA9',
-  'color-primary-400': '#7A9A78',
-  'color-primary-500': '#5A7868',
-  'color-primary-600': '#4A6556',
-  'color-primary-700': '#3B5145',
-  'color-primary-800': '#2D3E34',
+  'color-primary-400': '#6E8C7B',
+  'color-primary-500': '#4D6759',
+  'color-primary-600': '#435A4E',
+  'color-primary-700': '#374A40',
+  'color-primary-800': '#2B3A32',
   'color-primary-900': '#1E2A23',
 
   // Success - Sage Green
@@ -52,9 +52,9 @@ export const alphaTheme = {
   'color-danger-100': '#FCE8E8',
   'color-danger-200': '#F9D1D1',
   'color-danger-300': '#F0A8A8',
-  'color-danger-400': '#E47F7F',
-  'color-danger-500': '#D85656',
-  'color-danger-600': '#B84848',
+  'color-danger-400': '#D85656',
+  'color-danger-500': '#B72A2A',
+  'color-danger-600': '#9A2222',
   'color-danger-700': '#983A3A',
   'color-danger-800': '#782D2D',
   'color-danger-900': '#581F1F',
@@ -83,7 +83,7 @@ export const alphaTheme = {
   'text-alternate-color': '#FFFFFF',
   'text-control-color': '#FFFFFF',
   'text-disabled-color': '#90AB8B',
-  'text-hint-color': '#5A7868',
+  'text-hint-color': '#4D6759',
 
   // Border
   'border-basic-color-1': '#DDE8D5',
@@ -93,21 +93,25 @@ export const alphaTheme = {
   'border-basic-color-5': '#3B4953',
 
   // Outline
-  'outline-color': '#5A7868',
+  'outline-color': '#4D6759',
 };
 
 export const alphaDarkTheme = {
   ...alphaTheme,
 
-  // Dark mode overrides
+  // Dark mode overrides (same surfaces as constants/theme.ts Colors.dark)
   'background-basic-color-1': '#1A2024',
-  'background-basic-color-2': '#2A3338',
-  'background-basic-color-3': '#3B4953',
-  'background-basic-color-4': '#4A5A63',
+  'background-basic-color-2': '#222A30',
+  'background-basic-color-3': '#2A353C',
+  'background-basic-color-4': '#3B4953',
 
   'text-basic-color': '#EBF4DD',
   'text-hint-color': '#90AB8B',
   'text-disabled-color': '#5A7868',
+  // Filled buttons keep the forest fill with white text (6:1); text-colored controls
+  // (ghost/outline buttons, links) need lighter shades on the dark surfaces.
+  'text-primary-color': '#9EB69A',
+  'text-danger-color': '#F69593',
 
   'border-basic-color-1': '#3B4953',
   'border-basic-color-2': '#4A5A63',

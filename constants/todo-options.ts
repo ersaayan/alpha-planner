@@ -1,5 +1,5 @@
 import type { TodoPriority, TodoStatus } from '@/types';
-import type { Colors } from './theme';
+import type { ThemeColors } from './theme';
 
 /** Priorities from lowest to highest, as offered in the forms. */
 export const PRIORITIES: readonly TodoPriority[] = ['low', 'medium', 'high', 'urgent'];
@@ -20,8 +20,6 @@ export const STATUS_LABEL_KEYS: Record<TodoStatus, string> = {
   completed: 'todos.statusDone',
   archived: 'todos.statusArchived',
 };
-
-type ThemeColors = (typeof Colors)['light'] | (typeof Colors)['dark'];
 
 /** The theme color of a priority (dots, accents, selected pills). */
 export function priorityColor(priority: TodoPriority, colors: ThemeColors): string {

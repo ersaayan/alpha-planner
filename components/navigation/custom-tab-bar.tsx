@@ -13,7 +13,7 @@ import Animated, {
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarHeightCallbackContext, BottomTabBarProps } from 'expo-router/js-tabs';
-import { Colors, BorderRadius, Shadows, Spacing, InterFonts, Palette } from '@/constants/theme';
+import { Colors, BorderRadius, Shadows, Spacing, InterFonts } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Icon } from '@/components/icon';
@@ -135,7 +135,7 @@ function TabItem({
         {/* Badge */}
         {badge !== undefined && badge > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.error }]}>
-            <Animated.Text style={styles.badgeText}>
+            <Animated.Text style={[styles.badgeText, { color: colors.onError }]}>
               {badge > 99 ? '99+' : badge}
             </Animated.Text>
           </View>
@@ -286,7 +286,6 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: InterFonts.semibold,
     fontSize: 10,
-    color: Palette.white,
   },
 });
 

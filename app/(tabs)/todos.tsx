@@ -143,7 +143,7 @@ export default function TodosScreen() {
                         { backgroundColor: getCategoryColor(item.categoryId) },
                       ]}
                     />
-                    <Text style={[styles.categoryText, { color: getCategoryColor(item.categoryId) }]}>
+                    <Text style={[styles.categoryText, { color: colors.text }]}>
                       {getCategoryName(item.categoryId) ?? ''}
                     </Text>
                   </View>

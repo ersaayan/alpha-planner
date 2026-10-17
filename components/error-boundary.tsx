@@ -1,6 +1,10 @@
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Alert, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, useColorScheme as useSystemColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
 import i18n from '@/services/i18n/i18n-config';
+import { useSettingsStore } from '@/stores/settings-store';
 
 interface Props {
   children: ReactNode;
@@ -35,21 +39,38 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <View style={styles.container}>
-          <Text style={styles.title}>{i18n.t('errors.somethingWrong')}</Text>
-          <Text style={styles.subtitle}>
-            {i18n.t('errors.unexpectedError')}
-          </Text>
-          <Pressable style={styles.button} onPress={this.handleReload} accessibilityRole="button">
-            <Text style={styles.buttonText}>{i18n.t('common.retry')}</Text>
-          </Pressable>
-        </View>
-      );
+      return <ErrorFallback onRetry={this.handleReload} />;
     }
 
     return this.props.children;
   }
+}
+
+/**
+ * The fallback screen. It sits outside the UI Kitten and navigation providers (they
+ * may be what crashed), so it uses plain React Native views with the app's theme.
+ */
+function ErrorFallback({ onRetry }: { onRetry: () => void }) {
+  const systemScheme = useSystemColorScheme();
+  const themeSetting = useSettingsStore((state) => state.settings.theme);
+  const scheme = themeSetting === 'light' || themeSetting === 'dark' ? themeSetting : systemScheme === 'dark' ? 'dark' : 'light';
+  const colors = Colors[scheme];
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
+        {i18n.t('errors.somethingWrong')}
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{i18n.t('errors.unexpectedError')}</Text>
+      <Pressable
+        style={({ pressed }) => [styles.button, { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 }]}
+        onPress={onRetry}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.buttonText, { color: colors.onPrimary }]}>{i18n.t('common.retry')}</Text>
+      </Pressable>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -57,30 +78,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#f5f5f5',
+    padding: Spacing.lg,
   },
   title: {
-    fontSize: 20,
+    fontSize: FontSize.xl,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: FontSize.sm,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: Spacing.lg,
   },
   button: {
-    backgroundColor: '#6366f1',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 16,
+    fontSize: FontSize.md,
     fontWeight: '600',
   },
 });

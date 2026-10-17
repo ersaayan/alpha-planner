@@ -365,7 +365,7 @@ export default function PomodoroScreen() {
               },
             ]}
           >
-            {i < cycleSessionIndex && <Icon name="checkmark" fill="#fff" style={styles.dotCheck} />}
+            {i < cycleSessionIndex && <Icon name="checkmark" fill={colors.onPrimary} style={styles.dotCheck} />}
           </Animated.View>
         ))}
       </View>

@@ -31,7 +31,7 @@ export default function WelcomeScreen() {
       {/* Logo Area */}
       <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.logoArea}>
         <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
-          <Icon name="leaf-outline" fill="#fff" style={styles.logoIcon} />
+          <Icon name="leaf-outline" fill={colors.onPrimary} style={styles.logoIcon} />
         </View>
         <Text category="h3" style={[styles.title, { color: colors.text }]}>
           {t('onboarding.welcome.title')}

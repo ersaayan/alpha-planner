@@ -94,7 +94,7 @@ export default function StatsScreen() {
     return [
       { label: t('stats.focus'), value: total('focus'), color: colors.timerFocus },
       { label: t('stats.shortBreak'), value: total('short_break'), color: colors.timerBreak },
-      { label: t('stats.longBreak'), value: total('long_break'), color: '#B5A45E' },
+      { label: t('stats.longBreak'), value: total('long_break'), color: colors.priorityMedium },
     ];
   }, [sessions, colors, t]);
 
@@ -177,7 +177,7 @@ export default function StatsScreen() {
           <View style={styles.xpInfo}>
             <View style={[styles.xpBadge, { backgroundColor: GamificationColors.xp + '20' }]}>
               <Icon name="star" fill={GamificationColors.xp} style={styles.xpIcon} />
-              <Text style={[styles.xpValue, { color: GamificationColors.xp }]}>
+              <Text style={[styles.xpValue, { color: colors.xp }]}>
                 {t('stats.totalXpValue', { xp: stats.totalXp })}
               </Text>
             </View>
@@ -408,7 +408,7 @@ export default function StatsScreen() {
                       )}
                       {unlocked && (
                         <View style={[styles.achievementXp, { backgroundColor: GamificationColors.xp + '20' }]}>
-                          <Text style={[styles.achievementXpText, { color: GamificationColors.xp }]}>
+                          <Text style={[styles.achievementXpText, { color: colors.xp }]}>
                             {t('gamification.xpEarned', { amount: achievement.xpReward })}
                           </Text>
                         </View>

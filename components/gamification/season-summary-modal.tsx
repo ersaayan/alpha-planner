@@ -60,7 +60,7 @@ export function SeasonSummaryModal({ record, onClose }: SeasonSummaryModalProps)
                 {reward ? t(reward.nameKey, { month }) : id}
               </Text>
               {reward ? (
-                <Text style={[styles.xp, { color: GamificationColors.levelBadge }]}>
+                <Text style={[styles.xp, { color: colors.xp }]}>
                   {t('gamification.xpEarned', { amount: reward.xp })}
                 </Text>
               ) : null}

@@ -54,7 +54,7 @@ export function SeasonCard() {
         </View>
         {prestige.count > 0 && (
           <View style={[styles.badge, { backgroundColor: GamificationColors.xp + '30' }]}>
-            <Text style={[styles.badgeText, { color: GamificationColors.levelBadge }]}>
+            <Text style={[styles.badgeText, { color: colors.xp }]}>
               {t('gamification.prestigeLevel', { count: prestige.count })}
             </Text>
           </View>
@@ -89,7 +89,7 @@ export function SeasonCard() {
               style={styles.rewardIcon}
             />
             <Text style={[styles.rewardText, { color: colors.text }]}>{t(reward.hintKey)}</Text>
-            <Text style={[styles.rewardXp, { color: GamificationColors.levelBadge }]}>
+            <Text style={[styles.rewardXp, { color: colors.xp }]}>
               {t('gamification.xpEarned', { amount: reward.xp })}
             </Text>
           </View>

@@ -8,6 +8,7 @@ jest.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => 'light',
 }));
 
+import { Colors } from '@/constants/theme';
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { SyncStatus } from '@/components/common/sync-status';
@@ -46,9 +47,8 @@ describe('SyncStatus', () => {
     const tree = toJSON();
     expect(tree).not.toBeNull();
     // The rendered tree should contain a View with the error backgroundColor
-    // Colors.light.error is '#F44336'
     const json = JSON.stringify(tree);
-    expect(json).toContain('#F44336');
+    expect(json).toContain(Colors.light.error);
   });
 
   it('renders warning dot when pending operations exist', async () => {
@@ -63,8 +63,7 @@ describe('SyncStatus', () => {
     const tree = toJSON();
     expect(tree).not.toBeNull();
     // The rendered tree should contain a View with the warning backgroundColor
-    // Colors.light.warning is '#FF9800'
     const json = JSON.stringify(tree);
-    expect(json).toContain('#FF9800');
+    expect(json).toContain(Colors.light.warning);
   });
 });

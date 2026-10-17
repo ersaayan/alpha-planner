@@ -205,7 +205,7 @@ export function LevelUpModal({
             <Text style={[styles.congratsText, { color: colors.textSecondary }]}>
               {t('gamification.congratulations')}
             </Text>
-            <Text style={[styles.levelUpText, { color: GamificationColors.xp }]}>
+            <Text style={[styles.levelUpText, { color: colors.xp }]}>
               {t('gamification.levelUp')}
             </Text>
             <Text style={[styles.levelTitle, { color: colors.text }]}>

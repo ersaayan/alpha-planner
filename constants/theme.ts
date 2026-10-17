@@ -15,90 +15,126 @@ export const Palette = {
   black: '#000000',
 } as const;
 
+/**
+ * Theme tokens. Every text token meets WCAG AA (4.5:1) on `background`,
+ * `backgroundSecondary` and `card`, and on its own 12% tint (pills, badges);
+ * UI tokens (icons, tracks, rings) meet 3:1. `onPrimary` is the text/icon color on a
+ * `primary` fill. __tests__/constants/contrast.test.ts checks all of it, in both modes.
+ *
+ * The palette's sage (#90AB8B) is too light for text on cream and white, so text and
+ * controls use darker shades of the same greens; sage stays for decoration.
+ */
 export const Colors = {
   light: {
     // Core colors
     text: Palette.slate,
-    textSecondary: Palette.forest,
-    textMuted: Palette.sage,
+    textSecondary: '#4D6759',
+    textMuted: '#616F65',
     background: Palette.cream,
     backgroundSecondary: '#F7F9F5',
     card: Palette.white,
     cardBorder: '#DDE8D5',
 
     // Brand colors
-    primary: Palette.forest,
-    primaryLight: Palette.sage,
-    secondary: Palette.sage,
+    primary: '#4D6759',
+    onPrimary: Palette.white,
+    primaryLight: Palette.sage, // decorative only (not for text)
+    secondary: '#72946C',
     accent: Palette.slate,
 
     // Semantic colors
-    success: '#4CAF50',
-    warning: '#FF9800',
-    error: '#F44336',
-    info: Palette.forest,
+    success: '#306F33',
+    warning: '#8E5400',
+    error: '#B72A2A',
+    info: '#4D6759',
 
     // UI elements
-    tint: Palette.forest,
-    icon: Palette.forest,
-    tabIconDefault: Palette.sage,
-    tabIconSelected: Palette.forest,
+    tint: '#4D6759',
+    icon: '#4D6759',
+    tabIconDefault: '#616F65',
+    tabIconSelected: '#4D6759',
     border: '#DDE8D5',
     separator: '#E8F0E6',
 
     // Pomodoro specific
-    timerFocus: Palette.forest,
-    timerBreak: Palette.sage,
+    timerFocus: '#4D6759',
+    timerBreak: '#72946C',
     timerIdle: Palette.slate,
 
     // Priority colors
-    priorityLow: Palette.sage,
-    priorityMedium: '#B5A45E',
-    priorityHigh: '#E47F7F',
-    priorityUrgent: '#D85656',
+    priorityLow: '#51694C',
+    priorityMedium: '#6E6233',
+    priorityHigh: '#A04919',
+    priorityUrgent: '#B72A2A',
+
+    // Text/icons on an `error` fill (destructive buttons, badges)
+    onError: Palette.white,
+
+    // Gamification text (readable versions of GamificationColors)
+    xp: '#765607',
+    streak: '#B22F00',
+    rarityCommon: '#895521',
+    rarityRare: '#586370',
+    rarityEpic: '#736100',
+    rarityLegendary: '#8646A0',
   },
   dark: {
     // Core colors
     text: Palette.cream,
     textSecondary: Palette.sage,
-    textMuted: '#6B8878',
+    textMuted: '#8CA095',
     background: '#1A2024',
-    backgroundSecondary: '#2A3338',
-    card: Palette.slate,
-    cardBorder: '#4A5A63',
+    backgroundSecondary: '#222A30',
+    card: '#2A353C',
+    cardBorder: '#3B4953',
 
     // Brand colors
-    primary: Palette.sage,
-    primaryLight: '#A8C1A3',
-    secondary: Palette.forest,
+    primary: '#9EB69A',
+    onPrimary: '#1A2024',
+    primaryLight: '#B5CAB1',
+    secondary: '#638472',
     accent: Palette.cream,
 
     // Semantic colors
-    success: '#66BB6A',
-    warning: '#FFA726',
-    error: '#EF5350',
+    success: '#71C075',
+    warning: '#F99400',
+    error: '#F69593',
     info: Palette.sage,
 
     // UI elements
-    tint: Palette.sage,
-    icon: Palette.sage,
-    tabIconDefault: '#6B8878',
-    tabIconSelected: Palette.sage,
-    border: '#4A5A63',
+    tint: '#9EB69A',
+    icon: '#9EB69A',
+    tabIconDefault: '#8CA095',
+    tabIconSelected: '#9EB69A',
+    border: '#3B4953',
     separator: '#3B4953',
 
     // Pomodoro specific
-    timerFocus: Palette.sage,
-    timerBreak: Palette.forest,
-    timerIdle: '#6B8878',
+    timerFocus: '#9EB69A',
+    timerBreak: '#638472',
+    timerIdle: '#8CA095',
 
     // Priority colors
-    priorityLow: Palette.sage,
-    priorityMedium: '#C9BC87',
-    priorityHigh: '#F0A8A8',
-    priorityUrgent: '#E47F7F',
+    priorityLow: '#9EB69A',
+    priorityMedium: '#BEAE6E',
+    priorityHigh: '#EF9863',
+    priorityUrgent: '#F29494',
+
+    // Text/icons on an `error` fill (destructive buttons, badges)
+    onError: '#1A2024',
+
+    // Gamification text (readable versions of GamificationColors)
+    xp: '#DDBA00',
+    streak: '#FF8E65',
+    rarityCommon: '#DCA46D',
+    rarityRare: '#A9B2BC',
+    rarityEpic: '#CDAD00',
+    rarityLegendary: '#C8A3D6',
   },
 } as const;
+
+/** The tokens of one color scheme. */
+export type ThemeColors = (typeof Colors)['light'] | (typeof Colors)['dark'];
 
 // Inter font family names (loaded via expo-google-fonts)
 export const InterFonts = {
