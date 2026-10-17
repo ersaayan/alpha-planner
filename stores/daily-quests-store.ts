@@ -1,10 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { DailyQuest } from '@/types';
-import { QUEST_TEMPLATES, DAILY_QUEST_COUNT, DAILY_QUEST_ALL_COMPLETE_BONUS, scaleQuestTarget } from '@/constants/daily-quests';
-import { XP_VALUES } from '@/constants/gamification';
+import {
+  DAILY_QUEST_COUNT,
+  getQuestTemplate,
+  pickQuests,
+  type QuestContext,
+  type QuestEvent,
+} from '@/constants/daily-quests';
 import { generateId } from '@/utils/uuid';
 import { getDateKey } from '@/utils/date';
+import { isPastDue } from '@/utils/todo-dates';
 import { useGamificationStore } from './gamification-store';
 import { asRecord, asRecordArray, createPersistOptions } from './persist';
 import { useSyncStore } from './sync-store';
@@ -14,146 +20,188 @@ interface DailyQuestsStore {
   lastGeneratedDate: string | null;
 
   // Actions
-  ensureTodayQuests: () => void;
-  updateQuestProgress: (questType: string, delta: number) => void;
+  /** Generates today's quests once per day. `context` overrides parts of what is read from the other stores. */
+  ensureTodayQuests: (context?: Partial<QuestContext>) => void;
+  /** Moves the quests of the event's day forward. */
+  recordQuestEvent: (event: QuestEvent) => void;
+  /** Adds `delta` to the quests of one type on the day of `at` (default: now). */
+  updateQuestProgress: (questType: string, delta: number, at?: Date) => void;
   getTodayQuests: () => DailyQuest[];
   getCompletedCount: () => number;
 }
 
-function pickRandomQuests(count: number, recentAvgs: Map<string, number>): DailyQuest[] {
-  const today = getDateKey();
-  const shuffled = [...QUEST_TEMPLATES].sort(() => Math.random() - 0.5);
-  const picked = shuffled.slice(0, count);
+/** Days of history kept (3 quests a day). */
+const QUEST_HISTORY_LIMIT = 90;
 
-  return picked.map((template) => ({
-    id: generateId(),
-    date: today,
-    questType: template.type,
-    questParams: {},
-    targetValue: scaleQuestTarget(template, recentAvgs.get(template.type) ?? 0),
-    currentValue: 0,
-    isCompleted: false,
-    xpReward: template.baseXp,
-  }));
+/**
+ * Reads what quest generation needs from the other stores. Loaded lazily: the todo and
+ * settings stores import the gamification store, which updates quests.
+ */
+export function buildQuestContext(now: Date = new Date()): QuestContext {
+  const { useSettingsStore } = require('./settings-store') as typeof import('./settings-store');
+  const { useTodoStore } = require('./todo-store') as typeof import('./todo-store');
+  const { pomodoroSettings } = useSettingsStore.getState();
+
+  const openTasks = useTodoStore
+    .getState()
+    .todos.filter((todo) => todo.status === 'pending' || todo.status === 'in_progress')
+    .map((todo) => ({
+      priority: todo.priority,
+      categoryId: todo.categoryId,
+      isOverdue: isPastDue(todo.dueDate, now, todo.dueTime),
+      openSubtasks: todo.subtasks.filter((subtask) => !subtask.isCompleted).length,
+    }));
+
+  // Averages per calendar day over the 7 days before today.
+  const statsByDate = new Map(useGamificationStore.getState().dailyStats.map((ds) => [ds.date, ds]));
+  const totals = { pomodoros: 0, tasks: 0, focusMinutes: 0 };
+  for (let daysAgo = 1; daysAgo <= 7; daysAgo++) {
+    const day = new Date(now);
+    day.setDate(day.getDate() - daysAgo);
+    const stats = statsByDate.get(getDateKey(day));
+    if (!stats) continue;
+    totals.pomodoros += stats.pomodorosCompleted;
+    totals.tasks += stats.tasksCompleted;
+    totals.focusMinutes += stats.focusTime / 60;
+  }
+
+  return {
+    now,
+    focusMinutes: Math.round(pomodoroSettings.focusDuration / 60),
+    shortBreakMinutes: Math.round(pomodoroSettings.shortBreakDuration / 60),
+    openTasks,
+    recent: { pomodoros: totals.pomodoros / 7, tasks: totals.tasks / 7, focusMinutes: totals.focusMinutes / 7 },
+    random: Math.random,
+  };
+}
+
+function syncQuest(quest: DailyQuest): void {
+  useSyncStore.getState().enqueue('daily_quests', 'update', {
+    id: quest.id,
+    current_value: quest.currentValue,
+    is_completed: quest.isCompleted,
+  });
 }
 
 export const useDailyQuestsStore = create<DailyQuestsStore>()(
   persist(
-    (set, get) => ({
-      quests: [],
-      lastGeneratedDate: null,
+    (set, get) => {
+      /**
+       * Applies per-quest progress to the quests of one day, then awards XP for the quests
+       * it completed (and the bonus when that finishes the day's set).
+       */
+      const advance = (
+        dateKey: string,
+        at: Date,
+        progressOf: (quest: DailyQuest) => number | 'reset'
+      ) => {
+        const changed: DailyQuest[] = [];
+        const completed: DailyQuest[] = [];
 
-      ensureTodayQuests: () => {
-        const today = getDateKey();
-        if (get().lastGeneratedDate === today) return;
-
-        // Generate new quests for today
-        // Get recent averages from gamification daily stats for difficulty scaling
-        const dailyStats = useGamificationStore.getState().dailyStats;
-        const last7 = dailyStats.slice(-7);
-        const recentAvgs = new Map<string, number>();
-        if (last7.length > 0) {
-          recentAvgs.set('complete_pomodoros', last7.reduce((s, d) => s + d.pomodorosCompleted, 0) / last7.length);
-          recentAvgs.set('complete_tasks', last7.reduce((s, d) => s + d.tasksCompleted, 0) / last7.length);
-          recentAvgs.set('focus_time', last7.reduce((s, d) => s + d.focusTime, 0) / last7.length / 60); // minutes
-        }
-
-        const newQuests = pickRandomQuests(DAILY_QUEST_COUNT, recentAvgs);
-
-        // Keep old quests for history, add new ones
-        set((state) => ({
-          quests: [...state.quests.filter((q) => q.date !== today), ...newQuests].slice(-90), // 30 days * 3 quests
-          lastGeneratedDate: today,
-        }));
-
-        // Sync new quests
-        for (const quest of newQuests) {
-          useSyncStore.getState().enqueue('daily_quests', 'insert', {
-            id: quest.id,
-            date: quest.date,
-            quest_type: quest.questType,
-            quest_params: quest.questParams,
-            target_value: quest.targetValue,
-            current_value: quest.currentValue,
-            is_completed: quest.isCompleted,
-            xp_reward: quest.xpReward,
-          });
-        }
-      },
-
-      updateQuestProgress: (questType, delta) => {
-        const today = getDateKey();
-        const { quests } = get();
-        let justCompleted: DailyQuest | null = null;
-        let allCompleted = false;
-
-        const updated = quests.map((quest) => {
-          if (quest.date !== today || quest.questType !== questType || quest.isCompleted) return quest;
-
-          const newValue = Math.min(quest.currentValue + delta, quest.targetValue);
-          const nowCompleted = newValue >= quest.targetValue;
-
-          const updatedQuest = {
-            ...quest,
-            currentValue: newValue,
-            isCompleted: nowCompleted,
-          };
-
-          if (nowCompleted && !quest.isCompleted) {
-            justCompleted = updatedQuest;
+        const quests = get().quests.map((quest) => {
+          if (quest.date !== dateKey || quest.isCompleted) return quest;
+          const delta = progressOf(quest);
+          let next: DailyQuest;
+          if (delta === 'reset') {
+            if (quest.currentValue === 0) return quest;
+            next = { ...quest, currentValue: 0 };
+          } else {
+            if (!(delta > 0)) return quest;
+            const currentValue = Math.min(quest.currentValue + delta, quest.targetValue);
+            next = { ...quest, currentValue, isCompleted: currentValue >= quest.targetValue };
+            if (next.isCompleted) completed.push(next);
           }
-
-          return updatedQuest;
+          changed.push(next);
+          return next;
         });
 
-        set({ quests: updated });
+        if (changed.length === 0) return;
+        set({ quests });
+        changed.forEach(syncQuest);
 
-        // Award XP for completion
-        const completed = justCompleted as DailyQuest | null;
-        if (completed) {
-          useGamificationStore.getState().addXp(XP_VALUES.DAILY_QUEST_COMPLETE);
+        if (completed.length === 0) return;
+        const dayQuests = quests.filter((quest) => quest.date === dateKey);
+        const finishedTheDay = dayQuests.length > 0 && dayQuests.every((quest) => quest.isCompleted);
+        const gamification = useGamificationStore.getState();
+        completed.forEach((quest, index) => {
+          gamification.addXp(quest.xpReward, at);
+          gamification.recordQuestCompleted(at, finishedTheDay && index === completed.length - 1);
+        });
+      };
 
-          // Sync quest update
-          useSyncStore.getState().enqueue('daily_quests', 'update', {
-            id: completed.id,
-            current_value: completed.currentValue,
-            is_completed: true,
-          });
+      return {
+        quests: [],
+        lastGeneratedDate: null,
 
-          // Check if all 3 quests are now complete
-          const todayQuests = updated.filter((q) => q.date === today);
-          allCompleted = todayQuests.length >= DAILY_QUEST_COUNT &&
-            todayQuests.every((q) => q.isCompleted);
-
-          if (allCompleted) {
-            useGamificationStore.getState().addXp(DAILY_QUEST_ALL_COMPLETE_BONUS);
-            useGamificationStore.getState().updateDailyStats({ dailyQuestsCompleted: 1 });
+        ensureTodayQuests: (overrides) => {
+          const context = { ...buildQuestContext(overrides?.now), ...overrides };
+          const today = getDateKey(context.now);
+          if (get().lastGeneratedDate === today) return;
+          // Quests for today may already exist (e.g. restored from a backup).
+          if (get().quests.some((quest) => quest.date === today)) {
+            set({ lastGeneratedDate: today });
+            return;
           }
-        } else {
-          // Sync progress update for non-completed quest
-          const questToSync = updated.find((q) => q.date === today && q.questType === questType);
-          if (questToSync) {
-            useSyncStore.getState().enqueue('daily_quests', 'update', {
-              id: questToSync.id,
-              current_value: questToSync.currentValue,
+
+          const newQuests: DailyQuest[] = pickQuests(context, DAILY_QUEST_COUNT).map(({ template, plan }) => ({
+            id: generateId(),
+            date: today,
+            questType: template.type,
+            questParams: plan.params ?? {},
+            targetValue: plan.targetValue,
+            currentValue: 0,
+            isCompleted: false,
+            xpReward: template.baseXp,
+          }));
+
+          // Keep old quests for history, add new ones
+          set((state) => ({
+            quests: [...state.quests.filter((q) => q.date !== today), ...newQuests].slice(-QUEST_HISTORY_LIMIT),
+            lastGeneratedDate: today,
+          }));
+
+          // Sync new quests
+          for (const quest of newQuests) {
+            useSyncStore.getState().enqueue('daily_quests', 'insert', {
+              id: quest.id,
+              date: quest.date,
+              quest_type: quest.questType,
+              quest_params: quest.questParams,
+              target_value: quest.targetValue,
+              current_value: quest.currentValue,
+              is_completed: quest.isCompleted,
+              xp_reward: quest.xpReward,
             });
           }
-        }
-      },
+        },
 
-      getTodayQuests: () => {
-        const today = getDateKey();
-        return get().quests.filter((q) => q.date === today);
-      },
+        recordQuestEvent: (event) => {
+          advance(getDateKey(event.at), event.at, (quest) => {
+            const template = getQuestTemplate(quest.questType);
+            return template ? template.progress(quest, event) : 0;
+          });
+        },
 
-      getCompletedCount: () => {
-        const today = getDateKey();
-        return get().quests.filter((q) => q.date === today && q.isCompleted).length;
-      },
-    }),
+        updateQuestProgress: (questType, delta, at = new Date()) => {
+          advance(getDateKey(at), at, (quest) => (quest.questType === questType ? delta : 0));
+        },
+
+        getTodayQuests: () => {
+          const today = getDateKey();
+          return get().quests.filter((q) => q.date === today);
+        },
+
+        getCompletedCount: () => {
+          const today = getDateKey();
+          return get().quests.filter((q) => q.date === today && q.isCompleted).length;
+        },
+      };
+    },
     createPersistOptions<DailyQuestsStore, Pick<DailyQuestsStore, 'quests' | 'lastGeneratedDate'>>({
       name: 'daily-quests-store',
-      version: 1,
+      // v2: start_early / long_focus keep their hour / minutes in questParams, and
+      // uninterrupted_focus counts sessions instead of minutes.
+      version: 2,
       partialize: (state) => ({
         quests: state.quests,
         lastGeneratedDate: state.lastGeneratedDate,
@@ -163,11 +211,35 @@ export const useDailyQuestsStore = create<DailyQuestsStore>()(
   )
 );
 
-/** v0 (unversioned) → v1: same shape, with malformed entries dropped. */
-export function migrateDailyQuestsState(persisted: unknown, _fromVersion: number) {
+/** v0 (unversioned) → v1: same shape, with malformed entries dropped. v1 → v2: see upgradeQuestV1. */
+export function migrateDailyQuestsState(persisted: unknown, fromVersion: number) {
   const state = asRecord(persisted);
+  const quests = asRecordArray(state.quests).filter((item) => typeof item.id === 'string');
   return {
-    quests: asRecordArray(state.quests).filter((item) => typeof item.id === 'string'),
+    quests: fromVersion < 2 ? quests.map(upgradeQuestV1) : quests,
     lastGeneratedDate: typeof state.lastGeneratedDate === 'string' ? state.lastGeneratedDate : null,
   };
+}
+
+/** Quests made by v1 stored an hour or a number of minutes as their target. */
+function upgradeQuestV1(quest: Record<string, unknown>): Record<string, unknown> {
+  const params = asRecord(quest.questParams);
+  const target = Number(quest.targetValue);
+  const done = quest.isCompleted === true;
+  const asSingleStep = (extra: Record<string, unknown>) => ({
+    ...quest,
+    questParams: { ...extra, ...params },
+    targetValue: 1,
+    currentValue: done ? 1 : 0,
+  });
+  switch (quest.questType) {
+    case 'start_early':
+      return asSingleStep({ beforeHour: Number.isFinite(target) ? target : 9 });
+    case 'long_focus':
+      return asSingleStep({ minutes: Number.isFinite(target) ? target : 45 });
+    case 'uninterrupted_focus':
+      return asSingleStep({});
+    default:
+      return quest;
+  }
 }

@@ -84,8 +84,14 @@ export interface DailyStats {
   focusTime: number;
   tasksCompleted: number;
   xpEarned: number;
+  /** Daily quests completed that day (a perfect day completes all of them). */
   dailyQuestsCompleted: number;
   summaryShownAt: string | null;
+  subtasksCompleted?: number;
+  tasksCreated?: number;
+  breaksCompleted?: number;
+  breaksSkipped?: number;
+  weeklyGoalsCompleted?: number;
 }
 
 // --- Combo ---

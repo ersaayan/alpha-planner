@@ -26,6 +26,7 @@ jest.mock('@/stores/daily-quests-store', () => ({
   useDailyQuestsStore: {
     getState: () => ({
       updateQuestProgress: jest.fn(),
+      recordQuestEvent: jest.fn(),
     }),
   },
 }));

@@ -321,4 +321,27 @@ describe('store migrate functions', () => {
       lastGeneratedWeek: '2026-10-12',
     });
   });
+
+  it('daily quests v1 → v2: hours and minutes move into the quest params', () => {
+    const quest = (questType: string, targetValue: number, extra: Record<string, unknown> = {}) => ({
+      id: questType, date: TODAY, questType, questParams: {}, targetValue, currentValue: 0, isCompleted: false, xpReward: 20, ...extra,
+    });
+    const { quests } = migrateDailyQuestsState(
+      {
+        quests: [
+          quest('start_early', 8),
+          quest('long_focus', 45, { currentValue: 1 }),
+          quest('uninterrupted_focus', 30, { isCompleted: true, currentValue: 30 }),
+          quest('complete_tasks', 3, { currentValue: 2 }),
+        ],
+      },
+      1
+    );
+    expect(quests[0]).toMatchObject({ questParams: { beforeHour: 8 }, targetValue: 1, currentValue: 0 });
+    expect(quests[1]).toMatchObject({ questParams: { minutes: 45 }, targetValue: 1, currentValue: 0 });
+    expect(quests[2]).toMatchObject({ targetValue: 1, currentValue: 1, isCompleted: true });
+    expect(quests[3]).toMatchObject({ targetValue: 3, currentValue: 2 });
+    // Already-migrated data is left alone.
+    expect(migrateDailyQuestsState({ quests: [quests[0]] }, 2).quests[0]).toEqual(quests[0]);
+  });
 });

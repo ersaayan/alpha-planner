@@ -1,6 +1,7 @@
 import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpForNextLevel } from '@/constants/gamification';
 import { calculateComboXp } from '@/constants/combo';
-import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, UserAchievement, UserStats } from '@/types';
+import { DAILY_QUEST_ALL_COMPLETE_BONUS, type QuestEvent } from '@/constants/daily-quests';
+import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, TodoPriority, UserAchievement, UserStats } from '@/types';
 import { INITIAL_COMBO_STATE, INITIAL_PRESTIGE_STATE, INITIAL_USER_STATS } from '@/types';
 import { getDateKey } from '@/utils/date';
 import { create } from 'zustand';
@@ -17,11 +18,19 @@ interface GamificationState {
   prestige: PrestigeState;
 
   // XP & Level actions
-  addXp: (amount: number) => void;
+  /** Adds XP, booked on the day of `at` (default: now). */
+  addXp: (amount: number, at?: Date) => void;
 
   // Stat tracking
-  incrementPomodoro: (focusTime: number, completedAt?: Date) => void;
-  incrementTaskCompleted: () => void;
+  /** A completed focus session: its length in seconds, its end and how it went. */
+  incrementPomodoro: (focusTime: number, completedAt?: Date, details?: FocusDetails) => void;
+  incrementTaskCompleted: (details?: TaskCompletionDetails) => void;
+  /** A break that ran to its end, or one the user skipped. */
+  recordBreak: (at: Date, skipped: boolean) => void;
+  recordSubtaskCompleted: (at?: Date) => void;
+  recordTaskCreated: (at?: Date) => void;
+  /** A daily quest was completed; `perfectDay` when it was the last one of its day. */
+  recordQuestCompleted: (at: Date, perfectDay: boolean) => void;
   updateStreak: () => void;
 
   // Achievement actions
@@ -38,11 +47,53 @@ interface GamificationState {
   checkPrestigeReset: () => void;
 
   // Daily stats
-  updateDailyStats: (updates: Partial<Omit<DailyStats, 'date'>>) => void;
+  /** Adds the counters in `updates` to the stats of the day of `at` (default: today). */
+  updateDailyStats: (updates: Partial<Omit<DailyStats, 'date'>>, at?: Date) => void;
 
   // Utility
   getXpProgress: () => { current: number; required: number; percentage: number };
   isAchievementUnlocked: (achievementId: string) => boolean;
+}
+
+export interface FocusDetails {
+  /** When the session started (its end minus its length and pauses, if omitted). */
+  startedAt?: Date;
+  /** Total time spent paused, in milliseconds. */
+  pausedMs?: number;
+}
+
+export interface TaskCompletionDetails {
+  priority?: TodoPriority;
+  categoryId?: string | null;
+  /** The task's due date (or time) had passed when it was completed. */
+  wasOverdue?: boolean;
+  at?: Date;
+}
+
+/** Counters summed by updateDailyStats. */
+const DAILY_COUNTERS = [
+  'pomodorosCompleted',
+  'focusTime',
+  'tasksCompleted',
+  'xpEarned',
+  'dailyQuestsCompleted',
+  'subtasksCompleted',
+  'tasksCreated',
+  'breaksCompleted',
+  'breaksSkipped',
+  'weeklyGoalsCompleted',
+] as const;
+
+/** Days of daily stats kept. */
+const DAILY_STATS_LIMIT = 90;
+
+function emitQuestEvent(event: QuestEvent): void {
+  try {
+    const { useDailyQuestsStore } = require('./daily-quests-store') as typeof import('./daily-quests-store');
+    useDailyQuestsStore.getState().recordQuestEvent(event);
+  } catch (error) {
+    console.warn('[gamification] Quest progress failed', error);
+  }
 }
 
 export const useGamificationStore = create<GamificationState>()(
@@ -55,7 +106,7 @@ export const useGamificationStore = create<GamificationState>()(
       combo: INITIAL_COMBO_STATE,
       prestige: INITIAL_PRESTIGE_STATE,
 
-      addXp: (amount) => {
+      addXp: (amount, at) => {
         set((state) => {
           const newTotalXp = state.stats.totalXp + amount;
           const newLevel = calculateLevel(newTotalXp);
@@ -70,10 +121,10 @@ export const useGamificationStore = create<GamificationState>()(
           };
         });
         // Track XP in daily stats
-        get().updateDailyStats({ xpEarned: amount });
+        get().updateDailyStats({ xpEarned: amount }, at);
       },
 
-      incrementPomodoro: (focusTime, completedAt) => {
+      incrementPomodoro: (focusTime, completedAt, details) => {
         const completionDate = completedAt ?? new Date();
 
         set((state) => ({
@@ -100,21 +151,14 @@ export const useGamificationStore = create<GamificationState>()(
         if (hour >= 0 && hour < 5) get().unlockAchievement('night_shift');
         if (hour === 0) get().unlockAchievement('midnight_oil');
 
-        // Update daily quest progress
-        try {
-          const { useDailyQuestsStore } = require('./daily-quests-store');
-          useDailyQuestsStore.getState().updateQuestProgress('complete_pomodoros', 1);
-          useDailyQuestsStore.getState().updateQuestProgress('focus_time', Math.floor(focusTime / 60));
-          if (hour < 12) {
-            useDailyQuestsStore.getState().updateQuestProgress('complete_before_noon', 1);
-          }
-          if (hour >= 18) {
-            useDailyQuestsStore.getState().updateQuestProgress('evening_session', 1);
-          }
-          if (focusTime >= 2700) { // 45+ minutes
-            useDailyQuestsStore.getState().updateQuestProgress('long_focus', 1);
-          }
-        } catch { /* store not yet initialized */ }
+        const pausedMs = Math.max(0, details?.pausedMs ?? 0);
+        emitQuestEvent({
+          type: 'focus_completed',
+          at: completionDate,
+          startedAt: details?.startedAt ?? new Date(completionDate.getTime() - focusTime * 1000 - pausedMs),
+          seconds: focusTime,
+          pausedMs,
+        });
 
         // Update weekly goal progress
         try {
@@ -126,7 +170,8 @@ export const useGamificationStore = create<GamificationState>()(
         get().checkAchievements();
       },
 
-      incrementTaskCompleted: () => {
+      incrementTaskCompleted: (details = {}) => {
+        const at = details.at ?? new Date();
         set((state) => ({
           stats: {
             ...state.stats,
@@ -141,11 +186,13 @@ export const useGamificationStore = create<GamificationState>()(
         get().updateStreak();
         get().checkDailyCombo();
 
-        // Update daily quest progress
-        try {
-          const { useDailyQuestsStore } = require('./daily-quests-store');
-          useDailyQuestsStore.getState().updateQuestProgress('complete_tasks', 1);
-        } catch { /* store not yet initialized */ }
+        emitQuestEvent({
+          type: 'task_completed',
+          at,
+          priority: details.priority ?? 'medium',
+          categoryId: details.categoryId ?? null,
+          wasOverdue: details.wasOverdue ?? false,
+        });
 
         // Update weekly goal progress
         try {
@@ -153,6 +200,27 @@ export const useGamificationStore = create<GamificationState>()(
           useWeeklyGoalsStore.getState().updateGoalProgress('tasks', 1);
         } catch { /* store not yet initialized */ }
 
+        get().checkAchievements();
+      },
+
+      recordBreak: (at, skipped) => {
+        get().updateDailyStats(skipped ? { breaksSkipped: 1 } : { breaksCompleted: 1 }, at);
+        emitQuestEvent({ type: skipped ? 'break_skipped' : 'break_completed', at });
+      },
+
+      recordSubtaskCompleted: (at = new Date()) => {
+        get().updateDailyStats({ subtasksCompleted: 1 }, at);
+        emitQuestEvent({ type: 'subtask_completed', at });
+      },
+
+      recordTaskCreated: (at = new Date()) => {
+        get().updateDailyStats({ tasksCreated: 1 }, at);
+        emitQuestEvent({ type: 'task_created', at });
+      },
+
+      recordQuestCompleted: (at, perfectDay) => {
+        get().updateDailyStats({ dailyQuestsCompleted: 1 }, at);
+        if (perfectDay) get().addXp(DAILY_QUEST_ALL_COMPLETE_BONUS, at);
         get().checkAchievements();
       },
 
@@ -537,68 +605,41 @@ export const useGamificationStore = create<GamificationState>()(
         }));
       },
 
-      updateDailyStats: (updates) => {
-        const today = getDateKey();
+      updateDailyStats: (updates, at) => {
+        const date = getDateKey(at);
         const { dailyStats } = get();
-
-        const existingIndex = dailyStats.findIndex((ds) => ds.date === today);
-
-        if (existingIndex >= 0) {
-          const existing = dailyStats[existingIndex];
-          const updated: DailyStats = {
-            ...existing,
-            pomodorosCompleted: existing.pomodorosCompleted + (updates.pomodorosCompleted ?? 0),
-            focusTime: existing.focusTime + (updates.focusTime ?? 0),
-            tasksCompleted: existing.tasksCompleted + (updates.tasksCompleted ?? 0),
-            xpEarned: (existing.xpEarned ?? 0) + (updates.xpEarned ?? 0),
-            dailyQuestsCompleted: (existing.dailyQuestsCompleted ?? 0) + (updates.dailyQuestsCompleted ?? 0),
-            summaryShownAt: updates.summaryShownAt ?? existing.summaryShownAt ?? null,
-          };
-
-          set({
-            dailyStats: [
-              ...dailyStats.slice(0, existingIndex),
-              updated,
-              ...dailyStats.slice(existingIndex + 1),
-            ].slice(-90),
-          });
-
-          // Sync daily stats (upsert)
-          useSyncStore.getState().enqueue('daily_stats', 'insert', {
-            date: today,
-            pomodoros_completed: updated.pomodorosCompleted,
-            focus_time: updated.focusTime,
-            tasks_completed: updated.tasksCompleted,
-            xp_earned: updated.xpEarned,
-            daily_quests_completed: updated.dailyQuestsCompleted,
-            summary_shown_at: updated.summaryShownAt,
-          });
-        } else {
-          const newDailyStat: DailyStats = {
-            date: today,
-            pomodorosCompleted: updates.pomodorosCompleted ?? 0,
-            focusTime: updates.focusTime ?? 0,
-            tasksCompleted: updates.tasksCompleted ?? 0,
-            xpEarned: updates.xpEarned ?? 0,
-            dailyQuestsCompleted: updates.dailyQuestsCompleted ?? 0,
-            summaryShownAt: updates.summaryShownAt ?? null,
-          };
-
-          set({
-            dailyStats: [...dailyStats, newDailyStat].slice(-90),
-          });
-
-          // Sync new daily stats (insert)
-          useSyncStore.getState().enqueue('daily_stats', 'insert', {
-            date: today,
-            pomodoros_completed: newDailyStat.pomodorosCompleted,
-            focus_time: newDailyStat.focusTime,
-            tasks_completed: newDailyStat.tasksCompleted,
-            xp_earned: newDailyStat.xpEarned,
-            daily_quests_completed: newDailyStat.dailyQuestsCompleted,
-            summary_shown_at: newDailyStat.summaryShownAt,
-          });
+        const existing = dailyStats.find((ds) => ds.date === date);
+        const updated: DailyStats = {
+          date,
+          pomodorosCompleted: 0,
+          focusTime: 0,
+          tasksCompleted: 0,
+          xpEarned: 0,
+          dailyQuestsCompleted: 0,
+          ...existing,
+          summaryShownAt: updates.summaryShownAt ?? existing?.summaryShownAt ?? null,
+        };
+        for (const field of DAILY_COUNTERS) {
+          const delta = updates[field] ?? 0;
+          if (delta !== 0 || updated[field] !== undefined) updated[field] = (updated[field] ?? 0) + delta;
         }
+
+        // Kept in date order, so trimming drops the oldest days.
+        const next = [...dailyStats.filter((ds) => ds.date !== date), updated]
+          .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+          .slice(-DAILY_STATS_LIMIT);
+        set({ dailyStats: next });
+
+        // Sync daily stats (upsert)
+        useSyncStore.getState().enqueue('daily_stats', 'insert', {
+          date,
+          pomodoros_completed: updated.pomodorosCompleted,
+          focus_time: updated.focusTime,
+          tasks_completed: updated.tasksCompleted,
+          xp_earned: updated.xpEarned,
+          daily_quests_completed: updated.dailyQuestsCompleted,
+          summary_shown_at: updated.summaryShownAt,
+        });
       },
 
       getXpProgress: () => {

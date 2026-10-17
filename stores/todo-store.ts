@@ -1,5 +1,6 @@
 import type { Subtask, Todo, TodoFilter } from '@/types';
 import { generateId } from '@/utils/uuid';
+import { isPastDue } from '@/utils/todo-dates';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useGamificationStore } from './gamification-store';
@@ -35,6 +36,16 @@ interface TodoState {
   getFilteredTodos: () => Todo[];
 }
 
+/** What the gamification store needs to know about a completed task. */
+function completionDetails(todo: Todo, at: Date) {
+  return {
+    at,
+    priority: todo.priority,
+    categoryId: todo.categoryId,
+    wasOverdue: isPastDue(todo.dueDate, at, todo.dueTime),
+  };
+}
+
 export const useTodoStore = create<TodoState>()(
   persist(
     (set, get) => ({
@@ -56,6 +67,7 @@ export const useTodoStore = create<TodoState>()(
         set((state) => ({
           todos: [...state.todos, newTodo],
         }));
+        useGamificationStore.getState().recordTaskCreated(new Date(now));
 
         useSyncStore.getState().enqueue('todos', 'insert', {
           id: newTodo.id,
@@ -78,6 +90,7 @@ export const useTodoStore = create<TodoState>()(
       updateTodo: (id, updates) => {
         const hasStatusUpdate = typeof updates.status !== 'undefined';
         let didComplete = false;
+        const before = get().todos.find((todo) => todo.id === id);
 
         set((state) => {
           const existing = state.todos.find((todo) => todo.id === id);
@@ -105,11 +118,14 @@ export const useTodoStore = create<TodoState>()(
           };
         });
 
-        if (didComplete) {
-          useGamificationStore.getState().incrementTaskCompleted();
+        const updated = get().todos.find((t) => t.id === id);
+        if (didComplete && before && updated) {
+          // Overdue is judged on the task as it was before this edit.
+          useGamificationStore.getState().incrementTaskCompleted(
+            completionDetails({ ...updated, dueDate: before.dueDate, dueTime: before.dueTime }, new Date())
+          );
         }
 
-        const updated = get().todos.find((t) => t.id === id);
         if (updated) {
           useSyncStore.getState().enqueue('todos', 'update', {
             id: updated.id,
@@ -247,7 +263,9 @@ export const useTodoStore = create<TodoState>()(
 
         // Award XP when subtask is toggled to completed
         if (!wasCompleted) {
+          const now = new Date();
           useGamificationStore.getState().addXp(3); // SUBTASK_COMPLETE XP
+          useGamificationStore.getState().recordSubtaskCompleted(now);
 
           // Check if this completion triggered parent todo completion
           const updatedTodo = get().todos.find((t) => t.id === todoId);
@@ -255,7 +273,7 @@ export const useTodoStore = create<TodoState>()(
             updatedTodo?.status === 'completed' &&
             todo?.status !== 'completed'
           ) {
-            useGamificationStore.getState().incrementTaskCompleted();
+            useGamificationStore.getState().incrementTaskCompleted(completionDetails(updatedTodo, now));
           }
         }
       },
@@ -284,7 +302,7 @@ export const useTodoStore = create<TodoState>()(
         // Award gamification credit for auto-completion via subtask deletion
         const todoAfter = get().todos.find((t) => t.id === todoId);
         if (todoAfter?.status === 'completed' && todoBefore?.status !== 'completed') {
-          useGamificationStore.getState().incrementTaskCompleted();
+          useGamificationStore.getState().incrementTaskCompleted(completionDetails(todoAfter, new Date()));
         }
       },
 

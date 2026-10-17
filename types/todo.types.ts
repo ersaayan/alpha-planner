@@ -15,6 +15,8 @@ export interface Todo {
   title: string;
   description: string | null;
   dueDate: string | null;
+  /** Optional time of day (`HH:mm`) on the due date. */
+  dueTime?: string | null;
   status: TodoStatus;
   categoryId: string | null;
   priority: TodoPriority;
