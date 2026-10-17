@@ -7,7 +7,9 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DistributionChart, WeeklyChart } from '@/components/charts';
-import { ACHIEVEMENTS, getLevelTitle, getLevelTier } from '@/constants/gamification';
+import { useTranslation } from 'react-i18next';
+import { ACHIEVEMENTS, MAX_LEVEL } from '@/constants/gamification';
+import { levelTierName, levelTitle } from '@/services/gamification/display';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroStore, useTodoStore } from '@/stores';
@@ -20,6 +22,7 @@ import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 
 export default function StatsScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -170,17 +173,17 @@ export default function StatsScreen() {
           />
           <View style={styles.levelInfo}>
             <Text style={[styles.levelTitle, { color: colors.text }]}>
-              {getLevelTier(stats.level)} · {getLevelTitle(stats.level)}
+              {levelTierName(t, stats.level)} · {levelTitle(t, stats.level)}
             </Text>
             <Text style={[styles.levelSubtitle, { color: colors.textMuted }]}>
-              Level {stats.level} / 50
+              {t('stats.levelOf', { level: stats.level, max: MAX_LEVEL })}
             </Text>
           </View>
           <View style={styles.xpInfo}>
             <View style={[styles.xpBadge, { backgroundColor: GamificationColors.xp + '20' }]}>
               <Icon name="star" fill={GamificationColors.xp} style={styles.xpIcon} />
               <Text style={[styles.xpValue, { color: GamificationColors.xp }]}>
-                {stats.totalXp} XP
+                {t('stats.totalXpValue', { xp: stats.totalXp })}
               </Text>
             </View>
           </View>
@@ -189,10 +192,12 @@ export default function StatsScreen() {
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
             <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-              {stats.level >= 10 ? '✨ Max Level!' : `Progress to Level ${stats.level + 1}`}
+              {xpProgress.isMaxLevel ? `✨ ${t('stats.maxLevel')}` : t('stats.levelProgress', { level: stats.level + 1 })}
             </Text>
             <Text style={[styles.progressValue, { color: colors.text }]}>
-              {stats.level >= 10 ? `${stats.totalXp} XP` : `${xpProgress.current} / ${xpProgress.required} XP`}
+              {xpProgress.isMaxLevel
+                ? t('stats.totalXpValue', { xp: stats.totalXp })
+                : t('stats.xpOfLevel', { current: xpProgress.current, required: xpProgress.required })}
             </Text>
           </View>
           <AnimatedProgressBar

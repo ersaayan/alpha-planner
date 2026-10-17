@@ -1,4 +1,4 @@
-import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpForNextLevel } from '@/constants/gamification';
+import { ACHIEVEMENTS, XP_VALUES, calculateLevel, getCurrentLevelXp, getXpProgressFor, type XpProgress } from '@/constants/gamification';
 import { calculateComboXp } from '@/constants/combo';
 import { DAILY_QUEST_ALL_COMPLETE_BONUS, DAILY_QUEST_COUNT, type QuestEvent } from '@/constants/daily-quests';
 import type { Achievement, ComboState, DailyStats, PrestigeRecord, PrestigeState, TodoPriority, UserAchievement, UserStats } from '@/types';
@@ -56,7 +56,7 @@ interface GamificationState {
   updateDailyStats: (updates: Partial<Omit<DailyStats, 'date'>>, at?: Date) => void;
 
   // Utility
-  getXpProgress: () => { current: number; required: number; percentage: number };
+  getXpProgress: () => XpProgress;
   isAchievementUnlocked: (achievementId: string) => boolean;
 }
 
@@ -501,16 +501,7 @@ export const useGamificationStore = create<GamificationState>()(
 
         getXpProgress: () => {
           const { stats } = get();
-          const currentLevelXp = getCurrentLevelXp(stats.level);
-          const nextLevelXp = getXpForNextLevel(stats.level);
-          const xpInCurrentLevel = stats.totalXp - currentLevelXp;
-          const xpRequiredForNextLevel = nextLevelXp - currentLevelXp;
-
-          return {
-            current: xpInCurrentLevel,
-            required: xpRequiredForNextLevel,
-            percentage: xpRequiredForNextLevel > 0 ? (xpInCurrentLevel / xpRequiredForNextLevel) * 100 : 100,
-          };
+          return getXpProgressFor(stats.totalXp, stats.level);
         },
 
         isAchievementUnlocked: (achievementId) => {

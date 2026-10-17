@@ -2,6 +2,7 @@ import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -13,7 +14,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getLevelTitle, getLevelTier } from '@/constants/gamification';
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
@@ -26,10 +26,12 @@ import { AnimatedCard } from '@/components/animated/animated-card';
 import { AnimatedCounter } from '@/components/animated/animated-counter';
 import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar';
 import { DailySummaryModal } from '@/components/dashboard';
+import { levelTierName, levelTitle } from '@/services/gamification/display';
 import { shouldShowSummary, getDailySummaryData, getMotivationalMessage, markSummaryShown } from '@/services/gamification/daily-summary';
 import type { DailySummaryData } from '@/services/gamification/daily-summary';
 
 export default function HomeScreen() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -126,7 +128,7 @@ export default function HomeScreen() {
             {profile?.displayName ? `Hoşgeldin, ${profile.displayName}` : 'Alpha Planner'}
           </Text>
           <Text style={[styles.levelSubtitle, { color: colors.textSecondary }]}>
-            {getLevelTier(stats.level)} · {getLevelTitle(stats.level)}
+            {levelTierName(t, stats.level)} · {levelTitle(t, stats.level)}
           </Text>
         </View>
         <LevelBadge
@@ -150,7 +152,7 @@ export default function HomeScreen() {
               style={styles.xpIcon}
             />
             <Text style={[styles.xpTitle, { color: colors.text }]}>
-              Experience
+              {t('dashboard.experience')}
             </Text>
           </View>
           <View style={styles.xpValues}>
@@ -159,12 +161,16 @@ export default function HomeScreen() {
               category="body"
               color={colors.primary}
             />
-            <Text style={[styles.xpSeparator, { color: colors.textMuted }]}>
-              {' / '}
-            </Text>
-            <Text style={[styles.xpTotal, { color: colors.textMuted }]}>
-              {xpProgress.required} XP
-            </Text>
+            {!xpProgress.isMaxLevel && (
+              <>
+                <Text style={[styles.xpSeparator, { color: colors.textMuted }]}>
+                  {' / '}
+                </Text>
+                <Text style={[styles.xpTotal, { color: colors.textMuted }]}>
+                  {t('dashboard.xpOfLevel', { xp: xpProgress.required })}
+                </Text>
+              </>
+            )}
           </View>
         </View>
         <AnimatedProgressBar
@@ -175,9 +181,9 @@ export default function HomeScreen() {
           backgroundColor={colors.backgroundSecondary}
         />
         <Text style={[styles.nextLevelText, { color: colors.textMuted }]}>
-          {stats.level >= 10
-            ? '✨ Max Level Reached!'
-            : `${xpProgress.required - xpProgress.current} XP to Level ${stats.level + 1}`}
+          {xpProgress.isMaxLevel
+            ? `✨ ${t('dashboard.maxLevelReached')}`
+            : t('dashboard.xpToNextLevel', { xp: xpProgress.required - xpProgress.current, level: stats.level + 1 })}
         </Text>
       </AnimatedCard>
 

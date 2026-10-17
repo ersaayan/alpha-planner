@@ -47,14 +47,6 @@ jest.mock('@/stores', () => ({
   useTodoStore: (sel: any) => sel({ todos: [] }),
   useSettingsStore: (sel: any) => sel({ settings: { dateFormat: 'DD/MM/YYYY' } }),
 }));
-jest.mock('@/constants/gamification', () => ({
-  getLevelTitle: () => 'Young Leaf',
-  getLevelTier: () => 'Seedling',
-  ACHIEVEMENTS: [
-    { id: 'a1', name: 'First Focus', description: 'Complete your first pomodoro', icon: 'clock', xpReward: 50, category: 'pomodoro', isSecret: false, condition: () => true },
-  ],
-}));
-
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import StatsScreen from '@/app/(tabs)/stats';

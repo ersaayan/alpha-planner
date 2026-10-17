@@ -42,7 +42,6 @@ jest.mock('@/stores', () => ({
   useSettingsStore: (sel: any) => sel({ settings: { dateFormat: 'DD/MM/YYYY' } }),
   useCategoryStore: (sel: any) => sel({ categories: [], getCategoryColor: () => '#FF0000' }),
 }));
-jest.mock('@/constants/gamification', () => ({ getLevelTitle: () => 'Young Leaf', getLevelTier: () => 'Seedling', ACHIEVEMENTS: [] }));
 jest.mock('@/utils/date', () => ({ formatDate: () => '05/04/2026' }));
 
 import React from 'react';
@@ -52,6 +51,10 @@ import HomeScreen from '@/app/(tabs)/index';
 describe('Dashboard Screen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('renders personalized greeting with display name', async () => {
@@ -93,5 +96,27 @@ describe('Dashboard Screen', () => {
   it('renders timer status section', async () => {
     await render(<HomeScreen />);
     expect(screen.getByText('Quick Actions')).toBeTruthy();
+  });
+
+  it('shows max level only at level 50, never "Infinity XP"', async () => {
+    const stats = { level: 50, currentStreak: 0, totalPomodoros: 0, totalXp: 600000, currentXp: 0, totalFocusTime: 0, totalTasksCompleted: 0, longestStreak: 0 };
+    jest.spyOn(require('@/stores'), 'useGamificationStore').mockImplementation((sel: any) => sel({
+      stats,
+      getXpProgress: () => ({ current: 1000, required: 0, percentage: 100, isMaxLevel: true }),
+      combo: { sessionCombo: 0, dailyComboStreak: 0, lastDailyComboDate: null },
+      prestige: { count: 0, currentSeasonStart: '2026-04', history: [] },
+      unlockedAchievements: [],
+      isAchievementUnlocked: () => false,
+    }));
+    await render(<HomeScreen />);
+    expect(screen.getByText(/Max Level Reached!/)).toBeTruthy();
+    expect(screen.queryByText(/Infinity/)).toBeNull();
+    expect(screen.getByText(/Forest Master/)).toBeTruthy();
+  });
+
+  it('below level 50 shows the XP to the next level', async () => {
+    await render(<HomeScreen />);
+    expect(screen.queryByText(/Max Level/)).toBeNull();
+    expect(screen.getByText('300 XP to Level 6')).toBeTruthy();
   });
 });
