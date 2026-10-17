@@ -104,9 +104,18 @@ describe('Settings Screen', () => {
   it('renders Notifications section', async () => {
     await render(<SettingsScreen />);
     expect(screen.getByText('Notifications')).toBeTruthy();
-    expect(screen.getByText('Enable Notifications')).toBeTruthy();
-    expect(screen.getByText('Sound')).toBeTruthy();
-    expect(screen.getByText('Vibration')).toBeTruthy();
+    // The switches carry the row titles (the visible text is not read twice).
+    expect(screen.getByRole('switch', { name: 'Enable Notifications' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Sound' })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: 'Vibration' })).toBeTruthy();
+  });
+
+  it('gives every switch, slider and option an accessible name or checked state', async () => {
+    await render(<SettingsScreen />);
+    for (const toggle of screen.getAllByRole('switch')) {
+      expect(toggle.props.accessibilityLabel).toBeTruthy();
+    }
+    expect(screen.getByRole('radio', { name: 'Dark' }).props.accessibilityState).toEqual({ checked: false });
   });
 
   it('renders Appearance section', async () => {

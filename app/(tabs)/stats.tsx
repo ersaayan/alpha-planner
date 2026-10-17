@@ -1,6 +1,6 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -41,6 +41,8 @@ import { AnimatedProgressBar } from '@/components/animated/animated-progress-bar
 
 export default function StatsScreen() {
   const { t, i18n } = useTranslation();
+  // Decorative loops (glow, shimmer) stop while another tab is shown.
+  const isFocused = useIsFocused();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -162,7 +164,7 @@ export default function StatsScreen() {
           <LevelBadge
             level={stats.level}
             size="md"
-            showGlow={stats.level >= 5}
+            showGlow={isFocused && stats.level >= 5}
           />
           <View style={styles.levelInfo}>
             <Text style={[styles.levelTitle, { color: colors.text }]}>
@@ -196,7 +198,7 @@ export default function StatsScreen() {
           <AnimatedProgressBar
             progress={xpProgress.percentage / 100}
             height={12}
-            showShimmer={true}
+            showShimmer={isFocused}
             gradientColors={[GamificationColors.progressStart, GamificationColors.progressEnd]}
             backgroundColor={colors.backgroundSecondary}
           />
@@ -370,6 +372,18 @@ export default function StatsScreen() {
                       variant={unlocked ? 'default' : 'outlined'}
                       style={styles.achievementCard}
                       contentStyle={styles.achievementCardContent}
+                      // One element per achievement for screen readers, with its state.
+                      accessible
+                      accessibilityLabel={[
+                        hidden ? t('achievements.secret') : achievementName(t, achievement),
+                        t(unlocked ? 'stats.achievementUnlocked' : 'stats.achievementLocked'),
+                        hidden ? t('achievements.secretDesc') : achievementDescription(t, achievement),
+                        progress && progress.target > 1
+                          ? `${Math.min(progress.current, progress.target)} / ${progress.target}`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join('. ')}
                     >
                       <AchievementBadge
                         icon={hidden ? 'lock' : achievement.icon}

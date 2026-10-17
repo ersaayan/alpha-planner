@@ -133,7 +133,12 @@ export function DailySummaryModal({
       <View style={styles.container}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
         </Animated.View>
 
         {/* Modal content */}

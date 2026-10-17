@@ -1,4 +1,5 @@
 import { Text } from '@ui-kitten/components';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
@@ -20,10 +21,14 @@ interface ProgressRowProps {
 /** One quest or goal: check mark, text, a thin progress bar and its reward. */
 export function ProgressRow({ title, description, valueLabel, progress, done, rewardLabel, testID }: ProgressRowProps) {
   const colors = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
+  const spoken = [done ? t('common.completed') : null, title, description, valueLabel, rewardLabel]
+    .filter(Boolean)
+    .join('. ');
   const percent = `${Math.round(Math.min(1, Math.max(0, progress)) * 100)}%` as const;
 
   return (
-    <View style={styles.row} testID={testID} accessible accessibilityLabel={`${title}. ${description}. ${valueLabel}`}>
+    <View style={styles.row} testID={testID} accessible accessibilityLabel={spoken}>
       <Icon
         name={done ? 'checkmark-circle-2' : 'radio-button-off'}
         fill={done ? colors.success : colors.textMuted}

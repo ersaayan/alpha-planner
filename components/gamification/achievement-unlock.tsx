@@ -132,7 +132,13 @@ export function AchievementUnlock({
   if (!visible) return null;
 
   return (
-    <Pressable style={styles.overlay} onPress={onClose}>
+    <Pressable
+      style={styles.overlay}
+      onPress={onClose}
+      accessibilityRole="button"
+      accessibilityHint={t('common.tapToClose')}
+      accessibilityLiveRegion="polite"
+    >
       <Animated.View
         style={[
           styles.container,

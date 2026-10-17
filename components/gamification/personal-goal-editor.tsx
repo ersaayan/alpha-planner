@@ -71,7 +71,7 @@ export function PersonalGoalEditor({ visible, initialMetric = 'pomodoros', initi
       <Text style={[styles.hint, { color: colors.textMuted }]}>
         {t('goals.personalHint', { xp: PERSONAL_GOAL_XP })}
       </Text>
-      <View style={styles.metrics}>
+      <View style={styles.metrics} accessibilityRole="radiogroup">
         {METRICS.map((m) => {
           const selected = m === metric;
           const template = getWeeklyGoalTemplate(m);
@@ -83,8 +83,9 @@ export function PersonalGoalEditor({ visible, initialMetric = 'pomodoros', initi
                 styles.chip,
                 { borderColor: selected ? colors.primary : colors.border, backgroundColor: selected ? colors.primary + '20' : colors.card },
               ]}
+              hitSlop={4}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ checked: selected }}
             >
               <Text style={[styles.chipText, { color: selected ? colors.primary : colors.text }]}>
                 {template ? t(template.nameKey) : m}
@@ -103,6 +104,7 @@ export function PersonalGoalEditor({ visible, initialMetric = 'pomodoros', initi
           style={[styles.stepButton, { borderColor: colors.border }]}
           accessibilityRole="button"
           accessibilityLabel={t('goals.decrease')}
+          accessibilityState={{ disabled: clamped <= lowest }}
           disabled={clamped <= lowest}
         >
           <Icon name="minus" fill={colors.text} style={styles.stepIcon} />
@@ -115,6 +117,7 @@ export function PersonalGoalEditor({ visible, initialMetric = 'pomodoros', initi
           style={[styles.stepButton, { borderColor: colors.border }]}
           accessibilityRole="button"
           accessibilityLabel={t('goals.increase')}
+          accessibilityState={{ disabled: clamped >= limits.max }}
           disabled={clamped >= limits.max}
         >
           <Icon name="plus" fill={colors.text} style={styles.stepIcon} />
@@ -136,6 +139,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   chip: {
+    minHeight: 36,
+    justifyContent: 'center',
     borderWidth: 1,
     borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.md,

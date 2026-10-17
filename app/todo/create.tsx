@@ -118,7 +118,7 @@ export default function CreateTodoScreen() {
       <Text category="label" style={[styles.label, { color: colors.textMuted }]}>
         {t('todo.create.priority')}
       </Text>
-      <View style={styles.priorityContainer}>
+      <View style={styles.priorityContainer} accessibilityRole="radiogroup" accessibilityLabel={t('todo.create.priority')}>
         {PRIORITIES.map((option) => {
           const selected = option === priority;
           const color = priorityColor(option, colors);
@@ -134,7 +134,7 @@ export default function CreateTodoScreen() {
               ]}
               onPress={() => setPriority(option)}
               accessibilityRole="radio"
-              accessibilityState={{ selected }}
+              accessibilityState={{ checked: selected }}
             >
               <View style={[styles.priorityDot, { backgroundColor: color }]} />
               <Text category="c1" style={{ color: selected ? color : colors.text }}>
@@ -176,7 +176,7 @@ export default function CreateTodoScreen() {
           </Text>
           <Pressable
             onPress={() => setSubtasks((current) => current.filter((_, i) => i !== index))}
-            hitSlop={8}
+            hitSlop={13}
             accessibilityRole="button"
             accessibilityLabel={t('todo.form.removeSubtask', { title: subtaskTitle })}
           >
@@ -200,6 +200,7 @@ export default function CreateTodoScreen() {
           onPress={addDraftSubtask}
           disabled={!newSubtask.trim()}
           accessibilityLabel={t('todo.detail.addSubtask')}
+          style={styles.addSubtaskButton}
         />
       </View>
 
@@ -240,6 +241,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
+    minHeight: 44,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
@@ -264,6 +266,10 @@ const styles = StyleSheet.create({
   },
   subtaskInput: {
     flex: 1,
+  },
+  addSubtaskButton: {
+    minWidth: 44,
+    minHeight: 44,
   },
   createButton: {
     marginTop: Spacing.lg,

@@ -18,6 +18,7 @@ import { Text } from '@ui-kitten/components';
 import { Colors, GamificationColors, Shadows, InterFonts, FontSize, Palette } from '@/constants/theme';
 import { SpringConfig } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { Icon } from '@/components/icon';
 
 interface LevelBadgeProps {
@@ -44,6 +45,7 @@ export function LevelBadge({
   const ringScale = useSharedValue(1);
   const ringOpacity = useSharedValue(0);
   const glowOpacity = useSharedValue(showGlow ? 0.3 : 0);
+  const pulseGlow = useAmbientMotion(showGlow);
 
   // Size configurations
   const sizeConfig = {
@@ -83,7 +85,7 @@ export function LevelBadge({
   }, [isLevelingUp]);
 
   useEffect(() => {
-    if (showGlow) {
+    if (pulseGlow) {
       glowOpacity.set(withRepeat(
         withSequence(
           withTiming(0.4, { duration: 1500 }),
@@ -97,7 +99,7 @@ export function LevelBadge({
       cancelAnimation(glowOpacity);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [showGlow]);
+  }, [pulseGlow]);
 
   const badgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

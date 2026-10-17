@@ -109,7 +109,7 @@ function TabItem({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={styles.tabItem}
-      accessibilityRole="button"
+      accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}
     >
@@ -185,7 +185,7 @@ export function CustomTabBar({ state, descriptors, emitter, navigateToTab }: Bot
         )}
 
         {/* Tab items */}
-        <View style={styles.tabItems}>
+        <View style={styles.tabItems} accessibilityRole="tablist">
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const isFocused = state.index === index;

@@ -1,5 +1,6 @@
 import { Icon } from '@/components/icon';
-import { Button, Card, Text } from '@ui-kitten/components';
+import { ScreenHeader } from '@/components/common/screen-header';
+import { Card, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -133,7 +134,7 @@ export default function KanbanScreen() {
             <Icon
               name="arrow-back-outline"
               fill={canMoveLeft ? colors.primary : colors.border}
-              size={16}
+              size={20}
             />
           </Pressable>
           <Pressable
@@ -151,7 +152,7 @@ export default function KanbanScreen() {
             <Icon
               name="arrow-forward-outline"
               fill={canMoveRight ? colors.primary : colors.border}
-              size={16}
+              size={20}
             />
           </Pressable>
         </View>
@@ -166,17 +167,7 @@ export default function KanbanScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Button
-          appearance="ghost"
-          size="small"
-          accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
-          onPress={() => router.back()}
-        />
-        <Text category="h5">{t('views.kanbanBoard')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title={t('views.kanbanBoard')} />
 
       {/* Kanban Columns */}
       <ScrollView
@@ -233,13 +224,6 @@ export default function KanbanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
   },
   columnsContainer: {
     paddingHorizontal: Spacing.md,
@@ -311,12 +295,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
+    marginTop: Spacing.xs,
     borderTopWidth: 1,
   },
   moveButton: {
-    padding: Spacing.xs,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: BorderRadius.sm,
   },
   moveButtonDisabled: {

@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Card, Button } from '@ui-kitten/components';
+import { Text, Card } from '@ui-kitten/components';
 import { Icon } from '@/components/icon';
+import { ScreenHeader } from '@/components/common/screen-header';
 import { EmptyState } from '@/components/common';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -217,17 +218,7 @@ export default function TimelineScreen() {
         { backgroundColor: colors.background, paddingTop: insets.top },
       ]}
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Button
-          appearance="ghost"
-          size="small"
-          accessoryLeft={(props) => <Icon {...props} name="arrow-back-outline" />}
-          onPress={() => router.back()}
-        />
-        <Text category="h5">{t('views.timeline')}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title={t('views.timeline')} />
 
       <ScrollView
         style={styles.scrollView}
@@ -315,13 +306,6 @@ export default function TimelineScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
   },
   scrollView: {
     flex: 1,

@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={styles.subtitle}>
             {i18n.t('errors.unexpectedError')}
           </Text>
-          <Pressable style={styles.button} onPress={this.handleReload}>
+          <Pressable style={styles.button} onPress={this.handleReload} accessibilityRole="button">
             <Text style={styles.buttonText}>{i18n.t('common.retry')}</Text>
           </Pressable>
         </View>

@@ -1,10 +1,10 @@
 import { Text } from '@ui-kitten/components';
-import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/icon';
+import { ScreenHeader } from '@/components/common/screen-header';
 import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
 import { useAlertPermissions } from '@/hooks/use-alert-permissions';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -58,7 +58,6 @@ function CheckRow({ title, status, tone, actionLabel, onAction }: CheckRowProps)
 
 export default function NotificationReliabilityScreen() {
   const { t } = useTranslation();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -113,20 +112,7 @@ export default function NotificationReliabilityScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => router.back()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.back')}
-          hitSlop={8}
-        >
-          <Icon name="arrow-back-outline" fill={colors.text} style={styles.backIcon} />
-        </Pressable>
-        <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
-          {t('reliability.title')}
-        </Text>
-      </View>
+      <ScreenHeader title={t('reliability.title')} />
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + Spacing.xl }]}>
         <Text style={[styles.intro, { color: colors.textSecondary }]}>{t('reliability.intro')}</Text>
@@ -220,25 +206,6 @@ export default function NotificationReliabilityScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
-  },
-  backButton: {
-    padding: Spacing.xs,
-  },
-  backIcon: {
-    width: 24,
-    height: 24,
-  },
-  title: {
-    flex: 1,
-    fontFamily: InterFonts.bold,
-    fontSize: FontSize.xl,
   },
   content: {
     paddingHorizontal: Spacing.lg,

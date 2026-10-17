@@ -11,7 +11,9 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, action, style }: SectionHeaderProps) {
   return (
     <View style={[styles.container, style]}>
-      <Text category="h6">{title}</Text>
+      <Text category="h6" accessibilityRole="header" style={styles.title}>
+        {title}
+      </Text>
       {action}
     </View>
   );
@@ -24,5 +26,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
     marginTop: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  title: {
+    flexShrink: 1,
   },
 });

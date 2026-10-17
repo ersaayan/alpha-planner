@@ -10,8 +10,8 @@ import { useCategoryStore, useSettingsStore } from '@/stores';
 import { Colors, Spacing, BorderRadius } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { categoryName } from '@/services/gamification/display';
+import { CATEGORY_COLORS, ColorSwatches } from '@/components/common/color-swatches';
 
-const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
 
 export default function CategorySelectionScreen() {
   const { t } = useTranslation();
@@ -30,7 +30,7 @@ export default function CategorySelectionScreen() {
   );
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
-  const [customColor, setCustomColor] = useState(EXTRA_COLORS[0]);
+  const [customColor, setCustomColor] = useState<string>(CATEGORY_COLORS[0].value);
 
   const toggleCategory = (id: string) => {
     setSelectedCategories((prev) =>
@@ -77,7 +77,7 @@ export default function CategorySelectionScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <Text category="h4">{t('onboarding.categorySelection.title')}</Text>
+          <Text category="h4" accessibilityRole="header">{t('onboarding.categorySelection.title')}</Text>
           <Text category="s1" style={{ color: colors.textSecondary }}>
             {t('onboarding.categorySelection.subtitle')}
           </Text>
@@ -99,6 +99,9 @@ export default function CategorySelectionScreen() {
                   },
                 ]}
                 onPress={() => toggleCategory(category.id)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                accessibilityLabel={categoryName(t, category)}
               >
                 <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
                   <Icon
@@ -125,6 +128,7 @@ export default function CategorySelectionScreen() {
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}
             onPress={() => setShowCustomForm(true)}
+            accessibilityRole="button"
           >
             <Icon name="plus-outline" fill={colors.primary} style={styles.addIcon} />
             <Text category="s2" style={{ color: colors.primary }}>
@@ -151,23 +155,11 @@ export default function CategorySelectionScreen() {
             <Text category="c1" style={{ marginBottom: Spacing.sm }}>
               {t('onboarding.categorySelection.chooseColor')}
             </Text>
-            <View style={styles.colorPicker}>
-              {EXTRA_COLORS.map((color) => (
-                <Pressable
-                  key={color}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color },
-                    customColor === color && styles.colorSelected,
-                  ]}
-                  onPress={() => setCustomColor(color)}
-                >
-                  {customColor === color && (
-                    <Icon name="checkmark-outline" fill="#fff" style={styles.colorCheck} />
-                  )}
-                </Pressable>
-              ))}
-            </View>
+            <ColorSwatches
+              value={customColor}
+              onChange={setCustomColor}
+              label={t('onboarding.categorySelection.chooseColor')}
+            />
 
             <View style={styles.formButtons}>
               <Button appearance="ghost" size="small" onPress={() => setShowCustomForm(false)}>
@@ -272,31 +264,6 @@ const styles = StyleSheet.create({
   customForm: {
     borderRadius: BorderRadius.lg,
     marginBottom: Spacing.lg,
-  },
-  colorPicker: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  colorOption: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorSelected: {
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  colorCheck: {
-    width: 18,
-    height: 18,
   },
   formButtons: {
     flexDirection: 'row',

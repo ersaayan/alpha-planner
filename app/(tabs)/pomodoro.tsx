@@ -281,7 +281,9 @@ export default function PomodoroScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t("pomodoro.title")}</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]} accessibilityRole="header">
+          {t("pomodoro.title")}
+        </Text>
         <View style={[styles.sessionBadge, { backgroundColor: colors.primary + "20" }]}>
           <Icon name="flag" fill={colors.primary} style={styles.sessionIcon} />
           <Text style={[styles.sessionText, { color: colors.primary }]}>
@@ -300,6 +302,7 @@ export default function PomodoroScreen() {
           <Pressable
             onPress={banner.onPress}
             style={[styles.bannerButton, { borderColor: colors.warning }]}
+            hitSlop={4}
             accessibilityRole="button"
           >
             <Text style={[styles.bannerButtonText, { color: colors.text }]}>{banner.action}</Text>
@@ -317,18 +320,21 @@ export default function PomodoroScreen() {
           secondaryColor={phaseSecondaryColor}
           backgroundColor={colors.border}
           showGlow={isRunning}
-          isRunning={isRunning}
+          // The pulse is decorative: pause it while another tab is shown.
+          isRunning={isRunning && isFocused}
         >
           <View style={styles.timerContent}>
             <View style={[styles.phaseBadge, { backgroundColor: phaseColor + "20" }]}>
               <Icon name={phaseIcon} fill={phaseColor} style={styles.phaseIcon} />
-              <Text style={[styles.phaseLabel, { color: phaseColor }]}>
+              <Text style={[styles.phaseLabel, { color: phaseColor }]} maxFontSizeMultiplier={1.3}>
                 {phaseLabel(timerPhase)}
               </Text>
             </View>
 
             <Text
               style={[styles.timeText, { color: colors.text, fontSize: timeFontSize }]}
+              // Already sized from the circle; larger text would overflow it.
+              maxFontSizeMultiplier={1}
               accessibilityLabel={t("pomodoro.timeRemaining", { time: timeText })}
             >
               {timeText}
@@ -338,7 +344,14 @@ export default function PomodoroScreen() {
       </View>
 
       {/* Session dots */}
-      <View style={styles.sessionDots}>
+      <View
+        style={styles.sessionDots}
+        accessible
+        accessibilityLabel={t("pomodoro.sessionProgress", {
+          current: cycleSessionIndex + 1,
+          total: sessionsUntilLongBreak,
+        })}
+      >
         {Array.from({ length: sessionsUntilLongBreak }).map((_, i) => (
           <Animated.View
             key={i}
@@ -425,6 +438,7 @@ export default function PomodoroScreen() {
           <Pressable
             style={[styles.unlinkButton, { backgroundColor: colors.backgroundSecondary }]}
             onPress={() => linkTodo(null)}
+            hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel={t("pomodoro.unlinkTask")}
           >
@@ -487,6 +501,8 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
   bannerButton: {
+    minHeight: 36,
+    justifyContent: "center",
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,
@@ -561,6 +577,7 @@ const styles = StyleSheet.create({
   skipButton: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 44,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.lg,
   },
@@ -611,6 +628,7 @@ const styles = StyleSheet.create({
   unlinkButton: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 36,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.full,

@@ -2,8 +2,9 @@ import { Icon } from '@/components/icon';
 import { AccountSection } from '@/components/settings/account-section';
 import { DataSection } from '@/components/settings/data-section';
 import { categoryName as displayCategoryName } from '@/services/gamification/display';
-import Slider from '@react-native-community/slider';
-import { Button, Card, Divider, Input, Text, Toggle } from '@ui-kitten/components';
+import { ColorSwatches, CATEGORY_COLORS } from '@/components/common/color-swatches';
+import { OptionPills, SettingSlider, SettingToggle } from '@/components/settings/setting-controls';
+import { Button, Card, Divider, Input, Text } from '@ui-kitten/components';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -18,7 +19,7 @@ import { isSyncConfigured } from '@/services/supabase/client';
 import { useRouter } from 'expo-router';
 import { getAppVersion } from '@/utils/app-version';
 
-const EXTRA_COLORS = ['#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8', '#4DB6AC'];
+const DATE_FORMATS = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] as const;
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -39,7 +40,7 @@ export default function SettingsScreen() {
 
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [categoryName, setCategoryName] = useState('');
-  const [categoryColor, setCategoryColor] = useState(EXTRA_COLORS[0]);
+  const [categoryColor, setCategoryColor] = useState<string>(CATEGORY_COLORS[0].value);
 
   const appVersion = getAppVersion();
 
@@ -125,238 +126,128 @@ export default function SettingsScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text category="h5">{t('settings.title')}</Text>
+        <Text category="h5" accessibilityRole="header">{t('settings.title')}</Text>
       </View>
 
       {/* Pomodoro Settings */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.pomodoroTimer')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.focusDuration')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.focusDurationDesc')}
-            </Text>
-          </View>
-          <Text category="s1" style={{ color: colors.primary }}>
-            {formatDuration(pomodoroSettings.focusDuration)}
-          </Text>
-        </View>
-        <Slider
-          style={styles.slider}
-          minimumValue={15}
-          maximumValue={60}
-          step={5}
+        <SettingSlider
+          title={t('settings.focusDuration')}
+          description={t('settings.focusDurationDesc')}
+          valueText={formatDuration(pomodoroSettings.focusDuration)}
           value={focusMinutes}
-          onSlidingComplete={(value) => updatePomodoroSettings({ focusDuration: Math.round(value) * 60 })}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
-        />
-        <View style={styles.sliderRange}>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {t('settings.minutes', { value: 15 })}
-          </Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {t('settings.minutes', { value: 60 })}
-          </Text>
-        </View>
-
-        <Divider style={styles.divider} />
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.shortBreak')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.shortBreakDesc')}
-            </Text>
-          </View>
-          <Text category="s1" style={{ color: colors.primary }}>
-            {formatDuration(pomodoroSettings.shortBreakDuration)}
-          </Text>
-        </View>
-        <Slider
-          style={styles.slider}
-          minimumValue={3}
-          maximumValue={15}
-          step={1}
-          value={shortBreakMinutes}
-          onSlidingComplete={(value) => updatePomodoroSettings({ shortBreakDuration: Math.round(value) * 60 })}
-          minimumTrackTintColor={colors.secondary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.secondary}
-        />
-        <View style={styles.sliderRange}>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {t('settings.minutes', { value: 3 })}
-          </Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {t('settings.minutes', { value: 15 })}
-          </Text>
-        </View>
-
-        <Divider style={styles.divider} />
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.longBreak')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.longBreakDesc', { count: pomodoroSettings.sessionsUntilLongBreak })}
-            </Text>
-          </View>
-          <Text category="s1" style={{ color: colors.primary }}>
-            {formatDuration(pomodoroSettings.longBreakDuration)}
-          </Text>
-        </View>
-        <Slider
-          style={styles.slider}
-          minimumValue={10}
-          maximumValue={30}
+          min={15}
+          max={60}
           step={5}
-          value={longBreakMinutes}
-          onSlidingComplete={(value) => updatePomodoroSettings({ longBreakDuration: Math.round(value) * 60 })}
-          minimumTrackTintColor={colors.accent}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.accent}
+          minLabel={t('settings.minutes', { value: 15 })}
+          maxLabel={t('settings.minutes', { value: 60 })}
+          color={colors.primary}
+          onComplete={(value) => updatePomodoroSettings({ focusDuration: Math.round(value) * 60 })}
         />
-        <View style={styles.sliderRange}>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {t('settings.minutes', { value: 10 })}
-          </Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            {t('settings.minutes', { value: 30 })}
-          </Text>
-        </View>
 
         <Divider style={styles.divider} />
 
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.sessionsUntilLongBreak')}</Text>
-          </View>
-          <Text category="s1" style={{ color: colors.primary }}>
-            {pomodoroSettings.sessionsUntilLongBreak}
-          </Text>
-        </View>
-        <Slider
-          style={styles.slider}
-          minimumValue={2}
-          maximumValue={6}
+        <SettingSlider
+          title={t('settings.shortBreak')}
+          description={t('settings.shortBreakDesc')}
+          valueText={formatDuration(pomodoroSettings.shortBreakDuration)}
+          value={shortBreakMinutes}
+          min={3}
+          max={15}
           step={1}
-          value={pomodoroSettings.sessionsUntilLongBreak}
-          onSlidingComplete={(value) => updatePomodoroSettings({ sessionsUntilLongBreak: Math.round(value) })}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.border}
-          thumbTintColor={colors.primary}
+          minLabel={t('settings.minutes', { value: 3 })}
+          maxLabel={t('settings.minutes', { value: 15 })}
+          color={colors.secondary}
+          onComplete={(value) => updatePomodoroSettings({ shortBreakDuration: Math.round(value) * 60 })}
         />
-        <View style={styles.sliderRange}>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            2
-          </Text>
-          <Text category="c1" style={{ color: colors.textMuted }}>
-            6
-          </Text>
-        </View>
+
+        <Divider style={styles.divider} />
+
+        <SettingSlider
+          title={t('settings.longBreak')}
+          description={t('settings.longBreakDesc', { count: pomodoroSettings.sessionsUntilLongBreak })}
+          valueText={formatDuration(pomodoroSettings.longBreakDuration)}
+          value={longBreakMinutes}
+          min={10}
+          max={30}
+          step={5}
+          minLabel={t('settings.minutes', { value: 10 })}
+          maxLabel={t('settings.minutes', { value: 30 })}
+          color={colors.accent}
+          onComplete={(value) => updatePomodoroSettings({ longBreakDuration: Math.round(value) * 60 })}
+        />
+
+        <Divider style={styles.divider} />
+
+        <SettingSlider
+          title={t('settings.sessionsUntilLongBreak')}
+          valueText={String(pomodoroSettings.sessionsUntilLongBreak)}
+          value={pomodoroSettings.sessionsUntilLongBreak}
+          min={2}
+          max={6}
+          step={1}
+          minLabel="2"
+          maxLabel="6"
+          color={colors.primary}
+          onComplete={(value) => updatePomodoroSettings({ sessionsUntilLongBreak: Math.round(value) })}
+        />
       </Card>
 
       {/* Timer Behavior */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.timerBehavior')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.autoStartBreaks')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.autoStartBreaksDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={pomodoroSettings.autoStartBreaks}
-            onChange={(checked) => updatePomodoroSettings({ autoStartBreaks: checked })}
-          />
-        </View>
-
+        <SettingToggle
+          title={t('settings.autoStartBreaks')}
+          description={t('settings.autoStartBreaksDesc')}
+          checked={pomodoroSettings.autoStartBreaks}
+          onChange={(checked) => updatePomodoroSettings({ autoStartBreaks: checked })}
+        />
         <Divider style={styles.divider} />
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.autoStartFocus')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.autoStartFocusDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={pomodoroSettings.autoStartFocus}
-            onChange={(checked) => updatePomodoroSettings({ autoStartFocus: checked })}
-          />
-        </View>
-
+        <SettingToggle
+          title={t('settings.autoStartFocus')}
+          description={t('settings.autoStartFocusDesc')}
+          checked={pomodoroSettings.autoStartFocus}
+          onChange={(checked) => updatePomodoroSettings({ autoStartFocus: checked })}
+        />
         <Divider style={styles.divider} />
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.keepScreenAwake')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.keepScreenAwakeDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={pomodoroSettings.keepScreenAwake}
-            onChange={(checked) => updatePomodoroSettings({ keepScreenAwake: checked })}
-          />
-        </View>
+        <SettingToggle
+          title={t('settings.keepScreenAwake')}
+          description={t('settings.keepScreenAwakeDesc')}
+          checked={pomodoroSettings.keepScreenAwake}
+          onChange={(checked) => updatePomodoroSettings({ keepScreenAwake: checked })}
+        />
       </Card>
 
       {/* Notifications */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.notifications')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.enableNotifications')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.enableNotificationsDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={settings.notificationsEnabled}
-            onChange={(checked) => updateSettings({ notificationsEnabled: checked })}
-          />
-        </View>
-
+        <SettingToggle
+          title={t('settings.enableNotifications')}
+          description={t('settings.enableNotificationsDesc')}
+          checked={settings.notificationsEnabled}
+          onChange={(checked) => updateSettings({ notificationsEnabled: checked })}
+        />
         <Divider style={styles.divider} />
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.sound')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.soundDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={settings.soundEnabled}
-            onChange={(checked) => updateSettings({ soundEnabled: checked })}
-          />
-        </View>
-
+        <SettingToggle
+          title={t('settings.sound')}
+          description={t('settings.soundDesc')}
+          checked={settings.soundEnabled}
+          onChange={(checked) => updateSettings({ soundEnabled: checked })}
+        />
         <Divider style={styles.divider} />
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.vibration')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.vibrationDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={pomodoroSettings.vibrationEnabled}
-            onChange={(checked) => updatePomodoroSettings({ vibrationEnabled: checked })}
-          />
-        </View>
+        <SettingToggle
+          title={t('settings.vibration')}
+          description={t('settings.vibrationDesc')}
+          checked={pomodoroSettings.vibrationEnabled}
+          onChange={(checked) => updatePomodoroSettings({ vibrationEnabled: checked })}
+        />
 
         <Divider style={styles.divider} />
 
@@ -371,178 +262,94 @@ export default function SettingsScreen() {
               {t('settings.notificationReliabilityDesc')}
             </Text>
           </View>
-          <Icon name="chevron-right" fill={colors.textMuted} style={{ width: 20, height: 20 }} />
+          <Icon name="chevron-right" fill={colors.textMuted} style={styles.chevron} />
         </Pressable>
       </Card>
 
       {/* App Settings */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.app')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.hapticFeedback')}</Text>
-            <Text category="c1" style={{ color: colors.textMuted }}>
-              {t('settings.hapticFeedbackDesc')}
-            </Text>
-          </View>
-          <Toggle
-            checked={settings.hapticFeedbackEnabled}
-            onChange={(checked) => updateSettings({ hapticFeedbackEnabled: checked })}
-          />
-        </View>
+        <SettingToggle
+          title={t('settings.hapticFeedback')}
+          description={t('settings.hapticFeedbackDesc')}
+          checked={settings.hapticFeedbackEnabled}
+          onChange={(checked) => updateSettings({ hapticFeedbackEnabled: checked })}
+        />
       </Card>
 
       {/* Appearance */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.appearance')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.theme')}</Text>
-          </View>
-        </View>
-        <View style={styles.pillGroup}>
-          {(['system', 'light', 'dark'] as const).map((option) => (
-            <Pressable
-              key={option}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: settings.theme === option ? colors.primary + '20' : colors.backgroundSecondary,
-                  borderColor: settings.theme === option ? colors.primary : 'transparent'
-                },
-              ]}
-              onPress={() => updateSettings({ theme: option })}
-            >
-              <Text category="c1" style={{ color: settings.theme === option ? colors.primary : colors.text }}>
-                {option === 'system' ? t('settings.system') : option === 'light' ? t('settings.light') : t('settings.dark')}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <OptionPills
+          label={t('settings.theme')}
+          options={[
+            { value: 'system', label: t('settings.system') },
+            { value: 'light', label: t('settings.light') },
+            { value: 'dark', label: t('settings.dark') },
+          ]}
+          selected={settings.theme}
+          onSelect={(theme) => updateSettings({ theme })}
+        />
       </Card>
 
       {/* Preferences */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.preferences')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        {/* Date Format */}
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.dateFormat')}</Text>
-          </View>
-        </View>
-        <View style={styles.pillGroup}>
-          {(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'] as const).map((fmt) => (
-            <Pressable
-              key={fmt}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: settings.dateFormat === fmt ? colors.primary + '20' : colors.backgroundSecondary,
-                  borderColor: settings.dateFormat === fmt ? colors.primary : 'transparent'
-                },
-              ]}
-              onPress={() => updateSettings({ dateFormat: fmt })}
-            >
-              <Text category="c1" style={{ color: settings.dateFormat === fmt ? colors.primary : colors.text }}>
-                {fmt}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <OptionPills
+          label={t('settings.dateFormat')}
+          options={DATE_FORMATS.map((format) => ({ value: format, label: format }))}
+          selected={settings.dateFormat}
+          onSelect={(dateFormat) => updateSettings({ dateFormat })}
+        />
 
         <Divider style={styles.divider} />
 
-        {/* Time Format */}
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.timeFormat')}</Text>
-          </View>
-        </View>
-        <View style={styles.pillGroup}>
-          {(['12h', '24h'] as const).map((fmt) => (
-            <Pressable
-              key={fmt}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: settings.timeFormat === fmt ? colors.primary + '20' : colors.backgroundSecondary,
-                  borderColor: settings.timeFormat === fmt ? colors.primary : 'transparent'
-                },
-              ]}
-              onPress={() => updateSettings({ timeFormat: fmt })}
-            >
-              <Text category="c1" style={{ color: settings.timeFormat === fmt ? colors.primary : colors.text }}>
-                {fmt === '12h' ? t('settings.timeFormat12') : t('settings.timeFormat24')}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <OptionPills
+          label={t('settings.timeFormat')}
+          options={[
+            { value: '12h', label: t('settings.timeFormat12') },
+            { value: '24h', label: t('settings.timeFormat24') },
+          ]}
+          selected={settings.timeFormat}
+          onSelect={(timeFormat) => updateSettings({ timeFormat })}
+        />
 
         <Divider style={styles.divider} />
 
-        {/* Week Starts On */}
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.weekStartsOn')}</Text>
-          </View>
-        </View>
-        <View style={styles.pillGroup}>
-          {(['auto', 1, 0] as const).map((day) => (
-            <Pressable
-              key={day}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: settings.weekStartsOn === day ? colors.primary + '20' : colors.backgroundSecondary,
-                  borderColor: settings.weekStartsOn === day ? colors.primary : 'transparent'
-                },
-              ]}
-              onPress={() => updateSettings({ weekStartsOn: day })}
-            >
-              <Text category="c1" style={{ color: settings.weekStartsOn === day ? colors.primary : colors.text }}>
-                {day === 'auto' ? t('settings.weekStartsAuto') : day === 0 ? t('settings.sunday') : t('settings.monday')}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <OptionPills<'auto' | 0 | 1>
+          label={t('settings.weekStartsOn')}
+          options={[
+            { value: 'auto', label: t('settings.weekStartsAuto') },
+            { value: 1, label: t('settings.monday') },
+            { value: 0, label: t('settings.sunday') },
+          ]}
+          selected={settings.weekStartsOn}
+          onSelect={(weekStartsOn) => updateSettings({ weekStartsOn })}
+        />
 
         <Divider style={styles.divider} />
 
-        {/* Default View */}
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <Text category="s1">{t('settings.defaultTaskView')}</Text>
-          </View>
-        </View>
-        <View style={styles.pillGroup}>
-          {(['list', 'kanban', 'calendar', 'timeline'] as const).map((view) => (
-            <Pressable
-              key={view}
-              style={[
-                styles.pill,
-                {
-                  backgroundColor: settings.defaultView === view ? colors.primary + '20' : colors.backgroundSecondary,
-                  borderColor: settings.defaultView === view ? colors.primary : 'transparent'
-                },
-              ]}
-              onPress={() => updateSettings({ defaultView: view })}
-            >
-              <Text category="c1" style={{ color: settings.defaultView === view ? colors.primary : colors.text }}>
-                {t(`settings.view${view.charAt(0).toUpperCase() + view.slice(1)}` as any)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <OptionPills
+          label={t('settings.defaultTaskView')}
+          options={[
+            { value: 'list', label: t('settings.viewList') },
+            { value: 'kanban', label: t('settings.viewKanban') },
+            { value: 'calendar', label: t('settings.viewCalendar') },
+            { value: 'timeline', label: t('settings.viewTimeline') },
+          ]}
+          selected={settings.defaultView}
+          onSelect={(defaultView) => updateSettings({ defaultView })}
+        />
       </Card>
 
       {/* Categories */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.categories')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
@@ -553,7 +360,12 @@ export default function SettingsScreen() {
               {displayCategoryName(t, category)}
             </Text>
             {!category.isDefault && (
-              <Pressable onPress={() => handleDeleteCategory(category.id)}>
+              <Pressable
+                onPress={() => handleDeleteCategory(category.id)}
+                style={styles.iconButton}
+                accessibilityRole="button"
+                accessibilityLabel={t('settings.deleteCategoryNamed', { name: displayCategoryName(t, category) })}
+              >
                 <Icon name="trash-2-outline" fill={colors.textMuted} style={styles.categoryDelete} />
               </Pressable>
             )}
@@ -583,19 +395,7 @@ export default function SettingsScreen() {
             <Text category="c1" style={{ marginBottom: Spacing.sm }}>
               {t('settings.chooseColor')}
             </Text>
-            <View style={styles.colorPicker}>
-              {EXTRA_COLORS.map((color) => (
-                <Pressable
-                  key={color}
-                  style={[
-                    styles.colorOption,
-                    { backgroundColor: color },
-                    categoryColor === color && styles.colorSelected,
-                  ]}
-                  onPress={() => setCategoryColor(color)}
-                />
-              ))}
-            </View>
+            <ColorSwatches value={categoryColor} onChange={setCategoryColor} label={t('settings.chooseColor')} />
             <View style={styles.formButtons}>
               <Button appearance="ghost" size="small" onPress={() => setShowCategoryForm(false)}>
                 {t('common.cancel')}
@@ -609,35 +409,39 @@ export default function SettingsScreen() {
       </Card>
 
       {/* Language */}
-      <Text category="s1" style={styles.sectionTitle}>
+      <Text category="s1" style={styles.sectionTitle} accessibilityRole="header">
         {t('settings.language')}
       </Text>
       <Card style={[styles.card, { backgroundColor: colors.card }]}>
-        {(['system', 'tr', 'en'] as const).map((lang) => {
-          const labels = { system: t('settings.system'), tr: t('settings.languageTr'), en: t('settings.languageEn') };
-          const isSelected = settings.language === lang;
-          return (
-            <Pressable
-              key={lang}
-              style={[styles.settingItem, { opacity: isSelected ? 1 : 0.6 }]}
-              onPress={() => {
-                updateSettings({ language: lang });
-                changeLanguage(lang);
-                // Sync language preference to the profile (builds with sync, signed in)
-                if (isSyncConfigured && isSignedIn) {
-                  updateProfile({ locale: lang }).catch(() => {});
-                }
-              }}
-            >
-              <Text category="s2" style={{ color: colors.text, flex: 1 }}>
-                {labels[lang]}
-              </Text>
-              {isSelected && (
-                <Icon name="checkmark-outline" fill={colors.primary} size={20} />
-              )}
-            </Pressable>
-          );
-        })}
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('settings.language')}>
+          {(['system', 'tr', 'en'] as const).map((lang) => {
+            const labels = { system: t('settings.system'), tr: t('settings.languageTr'), en: t('settings.languageEn') };
+            const isSelected = settings.language === lang;
+            return (
+              <Pressable
+                key={lang}
+                style={styles.settingItem}
+                onPress={() => {
+                  updateSettings({ language: lang });
+                  changeLanguage(lang);
+                  // Sync language preference to the profile (builds with sync, signed in)
+                  if (isSyncConfigured && isSignedIn) {
+                    updateProfile({ locale: lang }).catch(() => {});
+                  }
+                }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: isSelected }}
+              >
+                <Text category="s2" style={{ color: isSelected ? colors.text : colors.textSecondary, flex: 1 }}>
+                  {labels[lang]}
+                </Text>
+                {isSelected && (
+                  <Icon name="checkmark-outline" fill={colors.primary} size={20} />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
       </Card>
 
       {/* Account (only in builds with sync configured) */}
@@ -705,6 +509,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 44,
     paddingVertical: Spacing.xs,
   },
   settingInfo: {
@@ -714,20 +519,10 @@ const styles = StyleSheet.create({
   divider: {
     marginVertical: Spacing.sm,
   },
-  slider: {
-    width: '100%',
-    height: 36,
-    marginTop: Spacing.xs,
-  },
-  sliderRange: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.xs,
+    minHeight: 44,
   },
   categoryDot: {
     width: 12,
@@ -739,25 +534,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryDelete: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
+  },
+  iconButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: {
+    width: 20,
+    height: 20,
   },
   categoryForm: {
     marginTop: Spacing.sm,
-  },
-  colorPicker: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  colorOption: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-  },
-  colorSelected: {
-    borderWidth: 3,
-    borderColor: '#fff',
   },
   formButtons: {
     flexDirection: 'row',
@@ -771,17 +562,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.xl,
     marginBottom: Spacing.lg,
-  },
-  pillGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
-  pill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
   },
 });

@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { Colors, GamificationColors, BorderRadius, Shadows, Spacing, InterFonts, FontSize } from '@/constants/theme';
 import { SpringConfig, AnimationDuration } from '@/constants/animations';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { Icon } from '@/components/icon';
 import { LevelBadge } from '@/components/animated/animated-badge';
 import { AnimatedButton } from '@/components/animated/animated-button';
@@ -48,6 +49,7 @@ export function LevelUpModal({
   const modalOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(30);
   const confettiRotation = useSharedValue(0);
+  const ambient = useAmbientMotion();
 
   useEffect(() => {
     if (visible) {
@@ -67,12 +69,14 @@ export function LevelUpModal({
         withSpring(0, SpringConfig.bouncy)
       );
 
-      // Confetti rotation
-      confettiRotation.value = withRepeat(
-        withTiming(360, { duration: 3000, easing: Easing.linear }),
-        -1,
-        false
-      );
+      // Confetti rotation (decorative: not with Reduce Motion)
+      if (ambient) {
+        confettiRotation.value = withRepeat(
+          withTiming(360, { duration: 3000, easing: Easing.linear }),
+          -1,
+          false
+        );
+      }
     } else {
       // Reset animations
       backdropOpacity.value = 0;
@@ -122,7 +126,12 @@ export function LevelUpModal({
       <View style={styles.container}>
         {/* Backdrop */}
         <Animated.View style={[styles.backdrop, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleClose}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          />
         </Animated.View>
 
         {/* Confetti particles */}

@@ -29,7 +29,13 @@ interface AnimatedCheckboxProps {
   color?: string;
   disabled?: boolean;
   style?: ViewStyle;
+  /** What is being checked, e.g. the task title (read by screen readers). */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
+
+/** Minimum touch target (Apple HIG / Material: 44pt / 48dp). */
+const MIN_TOUCH_TARGET = 44;
 
 export function AnimatedCheckbox({
   checked,
@@ -38,6 +44,8 @@ export function AnimatedCheckbox({
   color,
   disabled = false,
   style,
+  accessibilityLabel,
+  accessibilityHint,
 }: AnimatedCheckboxProps) {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
@@ -126,8 +134,11 @@ export function AnimatedCheckbox({
       onPress={handlePress}
       disabled={disabled}
       style={style}
+      hitSlop={Math.max(0, (MIN_TOUCH_TARGET - size) / 2)}
       accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
+      accessibilityState={{ checked, disabled }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
     >
       <Animated.View style={[styles.container, { width: size, height: size }, containerStyle]}>
         {/* Ripple effect */}

@@ -1,5 +1,6 @@
 import { Text } from '@ui-kitten/components';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { BorderRadius, Colors, FontSize, InterFonts, Spacing } from '@/constants/theme';
@@ -18,12 +19,23 @@ interface SheetModalProps {
 /** A centered card over a dimmed backdrop: used for explanations and small editors. */
 export function SheetModal({ visible, title, onClose, children, footer, testID }: SheetModalProps) {
   const colors = Colors[useColorScheme() ?? 'light'];
+  const { t } = useTranslation();
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} testID={testID}>
       <View style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel={title} />
-        <View style={[styles.card, { backgroundColor: colors.card }]} accessibilityViewIsModal>
+        {/* Tapping outside closes; VoiceOver users close with the escape gesture (Z), TalkBack users with Back. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
+        />
+        <View
+          style={[styles.card, { backgroundColor: colors.card }]}
+          accessibilityViewIsModal
+          onAccessibilityEscape={onClose}
+        >
           <Text style={[styles.title, { color: colors.text }]} accessibilityRole="header">
             {title}
           </Text>

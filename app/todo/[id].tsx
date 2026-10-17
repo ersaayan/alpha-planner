@@ -332,6 +332,7 @@ export default function TodoDetailScreen() {
                   },
                 ]}
                 onPress={() => toggleSubtask(id, subtask.id)}
+                hitSlop={11}
                 accessibilityRole="checkbox"
                 accessibilityLabel={subtask.title}
                 accessibilityState={{ checked: subtask.isCompleted }}
@@ -369,6 +370,7 @@ export default function TodoDetailScreen() {
               )}
               <Pressable
                 onPress={() => deleteSubtask(id, subtask.id)}
+                style={styles.subtaskDeleteButton}
                 accessibilityRole="button"
                 accessibilityLabel={t('todo.form.deleteSubtask', { title: subtask.title })}
               >
@@ -384,6 +386,7 @@ export default function TodoDetailScreen() {
               onChangeText={setNewSubtask}
               style={styles.subtaskInput}
               onSubmitEditing={handleAddSubtask}
+              accessibilityLabel={t('todo.detail.addSubtask')}
             />
             <Button
               size="small"
@@ -391,6 +394,8 @@ export default function TodoDetailScreen() {
               accessoryLeft={(props) => <Icon {...props} name="plus-outline" />}
               onPress={handleAddSubtask}
               disabled={!newSubtask.trim()}
+              accessibilityLabel={t('todo.detail.addSubtask')}
+              style={styles.addSubtaskButton}
             />
           </View>
         </View>
@@ -521,7 +526,7 @@ const styles = StyleSheet.create({
   subtaskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xxs,
     gap: Spacing.sm,
   },
   checkbox: {
@@ -539,9 +544,19 @@ const styles = StyleSheet.create({
   subtaskText: {
     flex: 1,
   },
+  subtaskDeleteButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   deleteIcon: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
+  },
+  addSubtaskButton: {
+    minWidth: 44,
+    minHeight: 44,
   },
   addSubtaskRow: {
     flexDirection: 'row',

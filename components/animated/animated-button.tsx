@@ -165,10 +165,15 @@ export function AnimatedButton({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={pressableProps.accessibilityLabel ?? title}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      // Small buttons draw 36pt but still get a 44pt touch target.
+      hitSlop={Math.max(0, (44 - config.height) / 2)}
       style={[
         styles.button,
         {
-          height: config.height,
+          // minHeight, not height: large accessibility text grows the button instead of clipping.
+          minHeight: config.height,
+          paddingVertical: Spacing.xs,
           paddingHorizontal: config.paddingH,
           borderRadius: config.height / 2, // Pill shape
         },
@@ -195,6 +200,8 @@ export function AnimatedButton({
                 variantStyles.text,
                 { fontSize: config.fontSize },
               ]}
+              maxFontSizeMultiplier={1.6}
+              numberOfLines={2}
             >
               {title}
             </Text>
@@ -263,12 +270,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 1,
   },
   contentReverse: {
     flexDirection: 'row-reverse',
   },
   text: {
     fontFamily: InterFonts.semibold,
+    textAlign: 'center',
+    flexShrink: 1,
   },
   loadingContainer: {
     alignItems: 'center',

@@ -107,6 +107,8 @@ export default function LoginScreen() {
           <Pressable
             onPress={handleSignIn}
             disabled={isLoading}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isLoading, busy: isLoading }}
             style={[
               styles.button,
               { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 },
@@ -121,6 +123,7 @@ export default function LoginScreen() {
 
           <Pressable
             onPress={() => router.replace('/(auth)/register' as any)}
+            accessibilityRole="button"
             style={styles.linkButton}
           >
             <Text category="c1" style={{ color: colors.primary }}>

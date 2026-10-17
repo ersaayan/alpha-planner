@@ -20,9 +20,11 @@ interface ChipProps {
   selected: boolean;
   onPress: () => void;
   color?: string;
+  /** 'radio' for single-choice groups (sort, category), 'checkbox' for multi-choice (priority). */
+  role?: 'radio' | 'checkbox';
 }
 
-function Chip({ label, selected, onPress, color }: ChipProps) {
+function Chip({ label, selected, onPress, color, role = 'radio' }: ChipProps) {
   const colors = Colors[useColorScheme() ?? 'light'];
   const accent = color ?? colors.primary;
   return (
@@ -32,7 +34,8 @@ function Chip({ label, selected, onPress, color }: ChipProps) {
         styles.chip,
         { borderColor: selected ? accent : colors.border, backgroundColor: selected ? accent + '20' : colors.card },
       ]}
-      accessibilityRole="checkbox"
+      hitSlop={4}
+      accessibilityRole={role}
       accessibilityState={{ checked: selected }}
     >
       {color ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
@@ -78,15 +81,19 @@ export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClos
         </>
       }
     >
-      <Text style={[styles.section, { color: colors.textSecondary }]}>{t('todos.sortBy')}</Text>
-      <View style={styles.chips}>
+      <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
+        {t('todos.sortBy')}
+      </Text>
+      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('todos.sortBy')}>
         {TODO_SORTS.map((sort) => (
           <Chip key={sort} label={t(`todos.sort.${sort}`)} selected={sortBy === sort} onPress={() => setSortBy(sort)} />
         ))}
       </View>
 
-      <Text style={[styles.section, { color: colors.textSecondary }]}>{t('todo.create.category')}</Text>
-      <View style={styles.chips}>
+      <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
+        {t('todo.create.category')}
+      </Text>
+      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={t('todo.create.category')}>
         <Chip label={t('todos.allCategories')} selected={!filter.categoryId} onPress={() => setFilter({ categoryId: undefined })} />
         {categories.map((category) => (
           <Chip
@@ -99,7 +106,9 @@ export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClos
         ))}
       </View>
 
-      <Text style={[styles.section, { color: colors.textSecondary }]}>{t('todo.create.priority')}</Text>
+      <Text style={[styles.section, { color: colors.textSecondary }]} accessibilityRole="header">
+        {t('todo.create.priority')}
+      </Text>
       <View style={styles.chips}>
         {PRIORITY_CHIPS.map((priority) => (
           <Chip
@@ -107,6 +116,7 @@ export function TodoFilterSheet({ visible, onClose }: { visible: boolean; onClos
             label={t(PRIORITY_LABEL_KEYS[priority])}
             selected={priorities.includes(priority)}
             onPress={() => togglePriority(priority)}
+            role="checkbox"
           />
         ))}
       </View>
@@ -132,7 +142,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: BorderRadius.full,
     paddingHorizontal: Spacing.md,
-    minHeight: 36,
+    minHeight: 40,
   },
   chipText: {
     fontFamily: InterFonts.medium,

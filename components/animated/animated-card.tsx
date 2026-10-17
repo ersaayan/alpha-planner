@@ -102,7 +102,11 @@ export function AnimatedCard({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled || !onPress}
+      // Without onPress the card is only a surface: let screen readers reach its
+      // controls (e.g. a checkbox) one by one instead of grouping them.
+      accessible={Boolean(onPress)}
       accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityState={onPress ? { disabled } : undefined}
       style={[
         styles.card,
         getVariantStyle(),

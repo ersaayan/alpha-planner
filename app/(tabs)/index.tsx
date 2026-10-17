@@ -1,6 +1,6 @@
 import { Icon } from '@/components/icon';
 import { Text } from '@ui-kitten/components';
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontSize, GamificationColors, InterFonts, Shadows, Spacing } from '@/constants/theme';
 import { priorityColor } from '@/constants/todo-options';
+import { useAmbientMotion } from '@/hooks/use-ambient-motion';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore, useGamificationStore, usePomodoroClock, usePomodoroStore, useSettingsStore, useTodoStore } from '@/stores';
 import { formatDue } from '@/utils/todo-dates';
@@ -50,12 +51,16 @@ export default function HomeScreen() {
   const timeFormat = useSettingsStore((state) => state.settings.timeFormat);
   const profile = useAuthStore((state) => state.profile);
 
+  // Decorative loops run only while this tab is visible and Reduce Motion is off.
+  const isFocused = useIsFocused();
+  const ambient = useAmbientMotion(isFocused);
+
   // Timer pulse animation
   const timerPulse = useSharedValue(1);
 
   // Animate timer pulse when running
   useEffect(() => {
-    if (timerState === 'running') {
+    if (timerState === 'running' && ambient) {
       timerPulse.value = withRepeat(
         withSequence(
           withTiming(1.02, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
@@ -68,7 +73,7 @@ export default function HomeScreen() {
       timerPulse.value = withTiming(1, { duration: 200 });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Reanimated shared values are stable refs
-  }, [timerState]);
+  }, [timerState, ambient]);
 
   const timerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: timerPulse.value }],
@@ -117,7 +122,7 @@ export default function HomeScreen() {
         <LevelBadge
           level={stats.level}
           size="sm"
-          showGlow={stats.level >= 5}
+          showGlow={isFocused && stats.level >= 5}
         />
       </View>
 
@@ -159,7 +164,7 @@ export default function HomeScreen() {
         <AnimatedProgressBar
           progress={xpProgress.percentage / 100}
           height={14}
-          showShimmer={true}
+          showShimmer={isFocused}
           gradientColors={[GamificationColors.progressStart, GamificationColors.progressEnd]}
           backgroundColor={colors.backgroundSecondary}
         />
@@ -257,6 +262,8 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => router.push('/(tabs)/todos')}
               style={styles.seeAllButton}
+              hitSlop={12}
+              accessibilityRole="button"
             >
               <Text style={[styles.seeAllText, { color: colors.primary }]}>
                 {t('dashboard.seeAll')}

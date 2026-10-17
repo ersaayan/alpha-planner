@@ -2,7 +2,7 @@ import { Icon } from '@/components/icon';
 import { Button, Text } from '@ui-kitten/components';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,11 +17,12 @@ export default function WelcomeScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   return (
-    <View
-      style={[
+    // Scrolls when the content does not fit (small phones, large accessibility text).
+    <ScrollView
+      style={{ backgroundColor: colors.background }}
+      contentContainerStyle={[
         styles.container,
         {
-          backgroundColor: colors.background,
           paddingTop: insets.top + Spacing.xl,
           paddingBottom: insets.bottom + Spacing.xl,
         },
@@ -89,19 +90,20 @@ export default function WelcomeScreen() {
           {t('onboarding.welcome.getStarted')}
         </Button>
       </Animated.View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: Spacing.xl,
   },
   logoArea: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: Spacing.lg,
   },
   logoCircle: {
     width: 100,
@@ -122,9 +124,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   featuresArea: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     gap: Spacing.lg,
+    paddingVertical: Spacing.lg,
   },
   feature: {
     flexDirection: 'row',
